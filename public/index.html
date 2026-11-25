@@ -764,12 +764,14 @@
 
     <section class="card">
       <h3>איך לייצא מיילים מ-Outlook (ייבוא יומי)</h3>
-      <p class="muted sm">כל בוקר אפשר לגרור לצ׳אט את כל המיילים של אתמול, גם שהתקבלו וגם שנשלחו. אלכס מסנן כפילויות ורעש, מקבץ לשרשורים, פותח ומסגר משימות, ושולח סיכום אחד כשהוא מסיים.</p>
-      <p><b>Outlook קלאסי:</b></p>
-      <ol class="how"><li>סמנו את המיילים של אתמול (מתיקיית הדואר הנכנס וגם מהפריטים שנשלחו)</li><li>גררו אותם לתיקייה בשולחן העבודה: הם הופכים לקבצי msg</li><li>סמנו את כל הקבצים בתיקייה וגררו אותם לחלון הצ׳אט (אפשר גם קובץ zip שלהם)</li></ol>
-      <p><b>Outlook החדש:</b></p>
-      <ol class="how"><li>ייצאו את המיילים כקבצי eml וגררו לצ׳אט, או</li><li>העבירו את כל המיילים כקבצים מצורפים לכתובת התיבה של העוזר: הם יעברו בדרך הרגילה</li></ol>
-      <p class="muted sm">מעל שלושה קבצי מייל, או הודעה שכוללת "ייבוא יומי", נחשבים לייבוא יומי: מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
+      <p class="muted sm">כל בוקר אפשר להעביר לאלכס את כל המיילים של אתמול, גם שהתקבלו וגם שנשלחו. אלכס מסנן כפילויות ורעש, מקבץ לשרשורים, פותח וסוגר משימות, ושולח סיכום אחד כשהוא מסיים.</p>
+      <p><b>הדרך המומלצת: העברה כקובץ מצורף (Outlook קלאסי)</b></p>
+      <ol class="how"><li>בתיקיית הדואר הנכנס סמנו את המיילים של אתמול (Ctrl+A בתצוגה של אתמול, או חיפוש <span dir="ltr">received:yesterday</span>)</li><li>לחצו <span dir="ltr">Ctrl+Alt+F</span> (העבר כקובץ מצורף)</li><li>בשדה "אל" כתבו את כתובת התיבה של העוזר ושלחו</li><li>אם Outlook אומר שההודעה גדולה מדי, שלחו בשניים או שלושה חלקים; אלכס מאחד אותם לייבוא אחד</li><li>חזרו על זה בתיקייה "פריטים שנשלחו" כדי שגם המיילים שכתבתם ייכנסו (חשוב: כך אלכס יודע מה כבר ענית והבטחת)</li></ol>
+      <p class="muted sm">מייל עם יותר משלושה מיילים מצורפים נחשב לייבוא יומי. כשלא מגיעים חלקים חדשים כ-10 דקות, אלכס מתחיל לעבד, ובסוף שולח סיכום אחד.</p>
+      <p><b>דרך חלופית: גרירה לצ׳אט</b></p>
+      <ol class="how"><li>גררו את המיילים לתיקייה בשולחן העבודה (הם הופכים לקבצי msg; בקבוצות גדולות Outlook לא תמיד שומר את כולם)</li><li>סמנו את כל הקבצים וגררו אותם לחלון הצ׳אט (אפשר גם קובץ zip שלהם)</li></ol>
+      <p><b>Outlook החדש:</b> ייצאו כקבצי eml וגררו לצ׳אט, או העבירו את המיילים כקבצים מצורפים לכתובת התיבה של העוזר.</p>
+      <p class="muted sm">מעל שלושה קבצי מייל בצ׳אט, או הודעה שכוללת "ייבוא יומי", מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
     </section>
 
     <section class="card" x-show="st && st.urls">
@@ -988,6 +990,7 @@
             <div>
               <div class="imp-t"><b x-text="'ייבוא יומי: '+m.import.processed+'/'+m.import.total+' עובדו'"></b><span class="imp-st muted" x-text="importStage(m.import)"></span></div>
               <div class="imp-bar" role="progressbar" :aria-valuenow="m.import.processed" aria-valuemin="0" :aria-valuemax="m.import.total"><i :style="'width:'+(m.import.total ? Math.round(100*m.import.processed/m.import.total) : 0)+'%'"></i></div>
+              <div class="imp-n muted" x-show="m.import.outer" x-text="'התקבלו '+m.import.outer+' מיילים עם '+m.import.parts+' הודעות מצורפות'"></div>
               <div class="imp-n muted" x-text="[m.import.dup ? m.import.dup+' כפולים' : '', m.import.noise ? m.import.noise+' רעש' : '', m.import.relevant ? m.import.relevant+' רלוונטיים' : '', m.import.fyi ? m.import.fyi+' לידיעה' : '', m.import.failed ? m.import.failed+' נכשלו' : ''].filter(Boolean).join(' · ')"></div>
             </div>
           </template>

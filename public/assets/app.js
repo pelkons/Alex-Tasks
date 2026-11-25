@@ -618,7 +618,7 @@ function app() {
       };
       tick();
     },
-    importStage(i) { return { staging: 'קורא את הקבצים…', parsed: 'מסנן כפילויות…', triage: 'ממיין שרשורים…', processing: 'מעבד שרשורים…', digest: 'מכין סיכום…', done: 'הושלם' }[i.status] || ''; },
+    importStage(i) { return { collecting: 'ממתין להודעות נוספות…', staging: 'קורא את הקבצים…', parsed: 'מסנן כפילויות…', triage: 'ממיין שרשורים…', processing: 'מעבד שרשורים…', digest: 'מכין סיכום…', done: 'הושלם' }[i.status] || ''; },
     async pollImports() {
       for (const m of this.chatMsgs) {
         if (m.import_id && (!m.import || m.import.status !== 'done')) { try { const p = await this.api('GET', '/api/imports/' + m.import_id); m.import = p; } catch (e) { /* later */ } }

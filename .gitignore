@@ -22,6 +22,8 @@ cert.pem
 # this installation's own configuration and memory (templates: config/*.example.json, agent/memory.example/)
 config/*.json
 !config/*.example.json
+# your own list of private values for scripts/release-check.sh (never committed)
+config/release-patterns.txt
 config/cloudflared.yml
 agent/memory/*.md
 !agent/memory.example/*.md
