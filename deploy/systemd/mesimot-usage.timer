@@ -1,0 +1,9 @@
+[Unit]
+Description=Mesimot: weekly usage summary, Sunday morning Jerusalem time
+
+[Timer]
+OnCalendar=Sun *-*-* 08:40:00 @TZ@
+Persistent=false
+
+[Install]
+WantedBy=timers.target

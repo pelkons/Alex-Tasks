@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="משימות">
+<title>משימות</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="stylesheet" href="/assets/app.css">
+<script>try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script src="/assets/sha256.js"></script>
+<script src="/assets/layout.js"></script>
+<script src="/assets/app.js"></script>
+<script defer src="/assets/vendor/alpine.min.js"></script>
+</head>
+<body x-data="app()" x-init="init()" x-cloak>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand"><span class="logo" aria-hidden="true">✓</span><span>משימות</span></div>
+    <nav class="tabs" aria-label="ניווט ראשי">
+      <button class="tab" :class="{on: route.name==='home'||route.name==='task'}" @click="go('/')">ראשי</button>
+      <button class="tab" :class="{on: route.name==='search'}" @click="go('/search')">חיפוש</button>
+      <button class="tab" :class="{on: route.name==='projects'}" @click="go('/projects')">פרויקטים</button>
+      <button class="tab" :class="{on: route.name==='protocols'}" @click="go('/protocols')">פרוטוקולים</button>
+      <button class="tab" :class="{on: route.name==='calendar'}" @click="go('/calendar')">יומן</button>
+      <button class="tab" :class="{on: route.name==='activity'}" @click="go('/activity')">פעילות</button>
+      <button class="tab" :class="{on: route.name==='people'}" @click="go('/people')">אנשים</button>
+    </nav>
+    <span class="spacer"></span>
+    <span class="agent-status" :class="{busy: busy()}" x-text="statusText()" aria-live="polite"></span>
+    <button class="icon-btn" :class="{on: route.name==='settings'}" @click="go('/settings')" aria-label="הגדרות" title="הגדרות">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+    <button class="icon-btn" @click="toggleTheme()" aria-label="החלפת מצב תצוגה" title="החלפת מצב תצוגה">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+    <button class="icon-btn" @click="logout()" aria-label="יציאה" title="יציאה">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="page" :class="{pinpad: route.name==='home'}" x-show="ready">
+
+<!-- ===== HOME ===== -->
+<template x-if="route.name==='home' || route.name==='task'">
+<div class="split home-split" :class="{'has-task': route.name==='task'}">
+
+  <section class="pane-list" aria-label="רשימת משימות">
+
+    <div class="attn">
+      <button class="attn-line" type="button" @click="showAttn=!showAttn" :aria-expanded="showAttn">
+        <span class="attn-t">תשומת לב</span><span class="badge" :class="{zero: attnCount()===0}" x-text="attnCount()"></span>
+        <span class="plus-btn" role="button" tabindex="0" @click.stop="showManual=!showManual" @keydown.enter.stop="showManual=!showManual" aria-label="הוספת משימה ידנית" title="הוספת משימה ידנית">+</span>
+        <svg class="chev" :class="{up: showAttn}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="attn-body" x-show="showAttn" x-transition.opacity>
+        <p class="muted" style="margin:6px 0" x-show="attnCount()===0">אין כרגע דבר שדורש תשומת לב</p>
+        <template x-for="t in overdue" :key="'o'+t.id">
+          <div class="attn-item">
+            <button class="grow" @click="openTask(t.id)">
+              <span class="t" x-text="t.title"></span>
+              <span class="s"><span class="late">באיחור: <span x-text="fmtDate(t.due_date)"></span></span><span x-text="t.project"></span></span>
+            </button>
+          </div>
+        </template>
+        <template x-for="a in attention" :key="'a'+a.id">
+          <div class="attn-item">
+            <div class="grow">
+              <span class="t" x-text="a.text"></span>
+              <span class="s" x-text="kindLabel(a.kind)"></span>
+            </div>
+            <button class="btn small primary" @click="setAttention(a,'accepted')">אישור</button>
+            <button class="btn small" @click="setAttention(a,'dismissed')">דחייה</button>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="manual" x-show="showManual">
+      <form class="add-row" @submit.prevent="quickAdd()" style="margin:0 0 10px">
+        <input type="text" x-model="quickTitle" placeholder="כותרת המשימה" aria-label="כותרת המשימה" autocomplete="off">
+        <button class="btn primary" type="submit" :disabled="!quickTitle.trim()">הוספת משימה</button>
+      </form>
+    </div>
+
+    <div class="searchbar">
+      <input type="search" x-model="filters.q" @input.debounce.300ms="loadTasks()" placeholder="חיפוש משימות" aria-label="חיפוש משימות">
+      <button class="btn filter-btn" :class="{on: showFilters || activeChips().length}" @click="showFilters=!showFilters" :aria-expanded="showFilters">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+        סינון<span class="badge sm" x-show="activeChips().length" x-text="activeChips().length"></span>
+      </button>
+      <div class="density" role="group" aria-label="גודל השורות">
+        <button type="button" :class="{on: density==='compact'}" @click="setDensity('compact')" aria-label="קטן" title="שורות קטנות" :aria-pressed="density==='compact'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <button type="button" :class="{on: density==='regular'}" @click="setDensity('regular')" aria-label="רגיל" title="שורות רגילות" :aria-pressed="density==='regular'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button type="button" :class="{on: density==='large'}" @click="setDensity('large')" aria-label="גדול" title="שורות גדולות" :aria-pressed="density==='large'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 5h16M4 12h16M4 19h16"/></svg></button>
+      </div>
+    </div>
+
+    <div class="filter-panel card" x-show="showFilters" x-transition.opacity>
+      <label class="field"><span>פרויקט</span>
+        <select @change="setFilter('project', $event.target.value ? +$event.target.value : null)">
+          <option value="">הכל</option>
+          <template x-for="p in boot.projects" :key="p.id"><option :value="p.id" :selected="filters.project===p.id" x-text="p.name_he"></option></template>
+        </select></label>
+      <label class="field"><span>אחראי</span>
+        <select @change="setFilter('assignee', $event.target.value==='none' ? 'none' : ($event.target.value ? +$event.target.value : null))">
+          <option value="">הכל</option>
+          <template x-for="p in assignees()" :key="p.id"><option :value="p.id" :selected="filters.assignee===p.id" x-text="personLabel(p)"></option></template>
+          <option value="none" :selected="filters.assignee==='none'">ללא אחראי</option>
+        </select></label>
+      <label class="field"><span>סטטוס</span>
+        <select @change="setFilter('status', $event.target.value ? +$event.target.value : null)">
+          <option value="">הכל</option>
+          <template x-for="s in boot.statuses" :key="s.id"><option :value="s.id" :selected="filters.status===s.id" x-text="s.name_he"></option></template>
+        </select></label>
+      <label class="field"><span>מאת</span>
+        <select @change="setFilter('requester', $event.target.value==='none' ? 'none' : ($event.target.value ? +$event.target.value : null))">
+          <option value="">הכל</option>
+          <template x-for="p in boot.people" :key="p.id"><option :value="p.id" :selected="filters.requester===p.id" x-text="personLabel(p)"></option></template>
+          <option value="none" :selected="filters.requester==='none'">ללא שולח</option>
+        </select></label>
+      <label class="switch-row"><input type="checkbox" :checked="filters.group" @change="toggleGroup($event.target.checked)"><span>קבץ לפי פרויקט</span></label>
+      <div class="btnrow fp-actions"><button class="btn small" @click="clearFilters()" :disabled="!activeChips().length">ניקוי הכל</button><button class="btn small ghost" @click="showFilters=false">סגירה</button></div>
+    </div>
+
+    <div class="active-chips" x-show="activeChips().length">
+      <template x-for="c in activeChips()" :key="c.key">
+        <button class="achip" @click="setFilter(c.key, null)"><span x-text="c.label"></span><span aria-hidden="true">×</span><span class="sr">הסרת סינון</span></button>
+      </template>
+    </div>
+
+    <template x-if="tasks.length===0">
+      <div class="empty"><b>אין משימות להצגה</b><span x-text="hasFilters() ? 'נסו לשנות או לנקות את הסינון' : 'הוסיפו את המשימה הראשונה בשורה שלמעלה'"></span></div>
+    </template>
+
+    <template x-for="sec in sections()" :key="sec.key">
+    <div>
+    <template x-if="sec.title"><div class="grp-h" :class="{unassigned: sec.def}" :style="'--pcol:'+sec.color"><i></i><span x-text="sec.title"></span><span class="n" x-text="sec.items.length"></span></div></template>
+    <div class="rows" :class="{grouped: filters.group}">
+      <template x-for="t in sec.items" :key="t.id">
+        <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, unassigned: t.project_default}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
+          <button class="check" @click="toggleDone(t)" aria-label="סימון כהושלמה"><i>✓</i></button>
+          <button class="body" @click="openTask(t.id)">
+            <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
+            <span class="title" x-text="t.title"></span>
+            <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
+            <span class="dates">
+              <span class="dt"><span class="k">התקבל</span> <b x-text="fmtReceived(t)"></b></span>
+              <span class="dt" :class="{late: isLate(t), none: !t.due_date}">
+                <template x-if="t.due_date"><span><span class="k">עד</span> <b x-text="fmtDate(t.due_date)"></b><em class="est" x-show="t.due_source==='estimated'">משוער</em></span></template>
+                <template x-if="!t.due_date"><span class="nodue">ללא יעד — אלכס יקבע</span></template>
+              </span>
+            </span>
+            <span class="meta">
+              <span x-show="t.assignee" x-text="t.assignee"></span>
+              <span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span>
+            </span>
+          </button>
+        </div>
+      </template>
+    </div>
+    </div>
+    </template>
+    <template x-if="closedList().length">
+      <div>
+        <div class="closed-h">סגורות (<span x-text="closedList().length"></span>)</div>
+        <div class="rows">
+          <template x-for="t in closedList()" :key="t.id">
+            <div class="row closed" :class="{sel: route.id===t.id, unassigned: t.project_default}" :style="'--pcol:'+pc(t)">
+              <button class="check" :class="{done: t.status_done}" @click="toggleDone(t)" :aria-label="t.status_done ? 'סימון כלא הושלמה' : 'פתיחה מחדש'"><i>✓</i></button>
+              <button class="body" @click="openTask(t.id)">
+                <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
+                <span class="title" x-text="t.title"></span>
+                <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
+                <span class="meta"><span x-show="t.assignee" x-text="t.assignee"></span><span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span></span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </section>
+
+  <!-- task card -->
+  <div class="divider divider-card" data-pane="card" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב כרטיס המשימה" tabindex="0" title="גרירה לשינוי הרוחב, לחיצה כפולה לאיפוס"><span class="grip"><i></i><i></i><i></i></span></div>
+  <section class="pane-card card" @dragenter="route.name==='task' && dragOver('card', $event)" @dragover="route.name==='task' && dragOver('card', $event)" @dragleave="dragLeave('card', $event)" @drop="route.name==='task' && dropOn('card', $event)" :class="{unassigned: detail && detail.project_default, hasproj: route.name==='task' && detail, 'drop-active': dropping==='card'}" :style="detail ? '--pcol:'+pc(detail) : ''" aria-label="כרטיס משימה">
+    <div class="drop-overlay" x-show="dropping==='card'" x-cloak><span>שחרר כאן כדי לשלוח לאלכס עבור המשימה</span></div>
+    <template x-if="route.name!=='task'">
+      <div class="empty"><b>לא נבחרה משימה</b>בחרו משימה מהרשימה כדי לראות ולערוך אותה</div>
+    </template>
+    <template x-if="route.name==='task' && !detail">
+      <div class="empty" x-text="detailError || 'טוען…'"></div>
+    </template>
+    <template x-if="route.name==='task' && detail">
+      <div class="tcard">
+        <div class="tc-top">
+          <button type="button" class="plabel big pbtn" :class="{unassigned: detail.project_default}" :style="'--pcol:'+pc(detail)" @click="openPicker('project', $event)" title="פרויקט"><i></i><span x-text="detail.project"></span></button>
+          <span class="spacer"></span>
+          <button class="icon-btn drawer-close" @click="closeTask()" aria-label="סגירת הכרטיס" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+
+        <div class="tc-titlerow">
+          <template x-if="ed!=='title'"><h2 class="tc-title" x-text="detail.title"></h2></template>
+          <template x-if="ed==='title'"><textarea class="tc-title-edit" rows="2" :value="detail.title" x-init="$nextTick(()=>{$el.focus(); $el.style.height='auto'; $el.style.height=$el.scrollHeight+'px'})" @input="$el.style.height='auto';$el.style.height=$el.scrollHeight+'px'" @keydown.enter.prevent="$el.blur()" @keydown.escape.stop="ed=null" @blur="saveField('title', $event.target.value)"></textarea></template>
+          <button class="ed-btn" x-show="ed!=='title'" @click="ed='title'" aria-label="עריכת כותרת" title="עריכת כותרת">✎</button>
+        </div>
+
+        <div class="review-bar" x-show="detail.needs_review"><span class="review-badge">דורש בדיקה</span> <span class="muted">יש פרט שהבקרה האוטומטית לא הצליחה להשלים (ראו תשומת לב).</span> <button class="btn small" @click="markReviewed(detail.id)">בדקתי</button></div>
+        <div class="metaline">
+          <button class="mi" @click="openPicker('requester', $event)" title="מאת"><span x-text="detail.requester ? 'מאת '+detail.requester : 'ללא שולח'" :class="{dim: !detail.requester}"></span></button>
+          <span class="who-info" x-show="detail.requester_company || detail.requester_role || detail.requester_status==='partial'" :title="[detail.requester_role, detail.requester_company].filter(Boolean).join(' · ')" tabindex="0">
+            <span x-text="'('+([detail.requester_role, detail.requester_company].filter(Boolean).join(' · ') || 'פרטים חלקיים')+')'"></span></span>
+          <span class="sep">·</span>
+          <button class="mi" @click="openPicker('received', $event)" title="תאריך קבלה"><span x-text="'התקבל '+shortStamp(detail.source_date || detail.created_at)"></span></button>
+          <span class="sep">·</span>
+          <button class="mi due" :class="{late: isLate(detail), dim: !detail.due_date}" @click="openPicker('due', $event)" title="תאריך יעד"><span x-text="detail.due_date ? 'עד '+shortDate(detail.due_date) : 'ללא יעד'"></span><em class="est" x-show="detail.due_source==='estimated'">משוער</em></button>
+          <span class="sep">·</span>
+          <button class="mi" @click="openPicker('assignee', $event)" title="אחראי"><span x-text="detail.assignee || 'ללא אחראי'" :class="{dim: !detail.assignee}"></span></button>
+          <span class="sep">·</span>
+          <button class="mi" @click="openPicker('status', $event)" title="סטטוס"><span class="sdot" :style="'--c:'+detail.status_color"><i></i><span x-text="detail.status"></span></span></button>
+          <span class="sep">·</span>
+          <button class="mi" @click="openPicker('priority', $event)" title="דחיפות"><span :class="{late: detail.priority_sort===1}" x-text="detail.priority"></span></button>
+        </div>
+
+        <div class="tc-desc">
+          <template x-if="ed!=='desc'">
+            <div class="desc-view"><p class="desc-text" x-show="detail.description" x-text="detail.description"></p><p class="desc-empty" x-show="!detail.description">אין תיאור</p>
+              <button class="ed-btn" @click="ed='desc'" aria-label="עריכת תיאור" title="עריכת תיאור">✎</button></div>
+          </template>
+          <template x-if="ed==='desc'">
+            <div><textarea class="desc-edit" :value="detail.description" x-init="$nextTick(()=>{$el.focus(); $el.style.height='auto'; $el.style.height=($el.scrollHeight+4)+'px'})" @input="$el.style.height='auto';$el.style.height=($el.scrollHeight+4)+'px'" @keydown.escape.stop="ed=null" placeholder="תיאור המשימה…" x-ref="descEdit"></textarea>
+              <div class="btnrow" style="margin-top:6px"><button class="btn small primary" @click="saveField('description', $refs.descEdit.value)">שמירה</button><button class="btn small" @click="ed=null">ביטול</button></div></div>
+          </template>
+        </div>
+
+        <button class="btn small ghost" x-show="detail.protocol" @click="openProtocol(detail.protocol.protocol_id)" x-text="'מתוך פרוטוקול: '+(detail.protocol ? clipText(detail.protocol.title, 50) : '')"></button>
+        <div class="sect corr" x-show="detail.email || (detail.correspondence && detail.correspondence.length)">
+          <h3>התכתבות</h3>
+          <div x-show="detail.email" x-html="mailHeadHtml(detail.email)"></div>
+          <template x-for="c in (detail.correspondence || [])" :key="c.email_id">
+            <div class="corr-item">
+            <button class="corr-row" @click="go('/email/'+c.email_id)">
+              <span class="rel" :class="c.relation" x-text="relHe(c.relation)"></span>
+              <span class="c-main"><b x-text="c.from_name || nameOf(c.from)"></b> <span class="muted" x-text="'· '+fmtDateTime(c.date)"></span>
+                <span class="c-sum" x-text="c.summary || c.subject"></span></span>
+            </button>
+            <template x-for="f in (c.files || [])" :key="f.id">
+              <div class="att-row"><span class="att-ic" x-text="fileIcon(f)"></span>
+                <span class="att-main"><b x-text="f.name"></b>
+                  <span class="att-sum" x-show="f.summary" x-text="f.summary"></span>
+                  <span class="att-sum muted" x-show="!f.summary" x-text="f.chunks ? 'אלכס עדיין לא סיכם את הקובץ' : 'אין טקסט לקריאה בקובץ'"></span></span>
+                <a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a></div>
+            </template>
+            </div>
+          </template>
+          <details class="email-src" x-show="detail.email">
+            <summary>המייל המקורי</summary>
+            <template x-if="detail.email">
+              <div class="es-body">
+                <div class="muted" x-show="detail.email.original_subject" x-text="'נושא: '+detail.email.original_subject"></div>
+                <div class="muted" x-show="detail.email.attachments.length" x-text="'קבצים מצורפים: '+detail.email.attachments.map(a=>a.filename).join(', ')"></div>
+                <pre class="mailtext" dir="auto" x-text="detail.email.body"></pre>
+                <button class="btn small ghost" @click="go('/email/'+detail.email.id)">פתיחה בדף מלא</button>
+              </div>
+            </template>
+          </details>
+        </div>
+
+        <div class="sect drafts" x-show="detail.drafts && detail.drafts.filter(d=>d.status!=='בוטל').length">
+          <h3>טיוטת תשובה</h3>
+          <template x-for="d in detail.drafts.filter(x=>x.status!=='בוטל')" :key="d.id">
+            <div class="draft">
+              <pre class="draft-text" dir="auto" x-text="d.text"></pre>
+              <div class="btnrow"><button class="btn small primary" @click="copyDraft(d)">העתק</button><button class="btn small" @click="draftStatus(d,'בוטל')">ביטול</button>
+                <span class="muted sm" x-show="d.status==='הועתק'">הועתק</span></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>הערות</h3>
+          <form @submit.prevent="addNote()" class="note-form">
+            <textarea x-model="noteText" :rows="noteFocus ? 3 : 1" class="note-in" :class="{open: noteFocus}" placeholder="הוספת הערה…" aria-label="הערה חדשה" @focus="noteFocus=true" @blur="if(!noteText.trim()) noteFocus=false" @keydown.enter="if(!$event.shiftKey){$event.preventDefault(); addNote()}"></textarea>
+            <button class="btn small primary" type="submit" x-show="noteText.trim()">הוספה</button>
+          </form>
+          <template x-for="n in detail.notes" :key="n.id">
+            <div class="note"><div class="h"><span class="actor" :class="{claude: n.author==='אלכס'}" x-text="n.author"></span> · <span x-text="fmtDateTime(n.created_at)"></span></div><p x-text="n.text"></p></div>
+          </template>
+        </div>
+
+        <details class="sect hist-d">
+          <summary>היסטוריית שינויים</summary>
+          <ul class="hist">
+            <template x-for="e in detail.history" :key="e.id">
+              <li><div class="h" x-text="fmtDateTime(e.created_at)"></div>
+                <span class="actor" :class="{claude: e.actor==='אלכס'}" x-text="e.actor"></span> <span x-text="describe(e)"></span></li>
+            </template>
+          </ul>
+        </details>
+      </div>
+    </template>
+  </section>
+</div>
+</template>
+
+<!-- ===== ACTIVITY ===== -->
+<template x-if="route.name==='activity'">
+<div class="activity-page">
+  <div class="page-h"><h1>פעילות</h1></div>
+  <template x-if="act">
+  <div>
+    <div class="card counter">
+      <div><b x-text="act.today_runs"></b> הרצות של אלכס היום</div>
+      <div class="days"><template x-for="d in act.days" :key="d.date"><span class="day" :title="dayOf(d.date)"><b x-text="d.count"></b><i x-text="dayShort(d.date)"></i></span></template></div>
+    </div>
+    <div class="card usage-panel" x-show="usage">
+      <h3>שימוש <span class="muted sm">· העלות היא שווה ערך API (הערכה בלבד): המנוי עצמו הוא תשלום קבוע עם מגבלות שימוש</span></h3>
+      <template x-if="usage">
+      <div>
+        <div class="u-tot">
+          <template x-for="t in [['היום', usage.today], ['7 ימים', usage.week], ['30 ימים', usage.month]]" :key="t[0]">
+            <div class="u-box"><span class="muted" x-text="t[0]"></span><b x-text="usd(t[1].cost)"></b>
+              <i class="muted" x-text="t[1].runs+' הרצות · '+tok(t[1].input+t[1].output+t[1].cache_read+t[1].cache_write)+' טוקנים'"></i></div>
+          </template>
+        </div>
+        <div class="u-chart" role="img" aria-label="עלות יומית שווה ערך API ב-30 הימים האחרונים">
+          <template x-for="d in usage.daily" :key="d.day"><span class="u-bar" :title="dayOf(d.day)+': '+usd(d.cost)+' · '+d.runs+' הרצות'"><i :style="'height:'+usageBar(d)+'px'"></i></span></template>
+        </div>
+        <div class="u-range"><span class="muted sm">פירוט לפי:</span>
+          <div class="seg2"><button :class="{on: usageDays===7}" @click="usageDays=7; loadUsage()">7 ימים</button><button :class="{on: usageDays===30}" @click="usageDays=30; loadUsage()">30 ימים</button></div></div>
+        <div class="u-tbl">
+          <div class="u-h"><span>סוג עבודה</span><span>הרצות</span><span>טוקנים</span><span>שווה ערך API</span><span>זמן ממוצע</span></div>
+          <template x-for="r in usage.by_kind" :key="r.key"><div class="u-r"><span x-text="r.label"></span><span x-text="r.runs"></span><span x-text="tok(r.input+r.output+r.cache_read+r.cache_write)"></span><span x-text="usd(r.cost)"></span><span x-text="Math.round(r.avg_ms/1000)+' שנ׳'"></span></div></template>
+        </div>
+        <div class="u-tbl">
+          <div class="u-h"><span>מודל</span><span>הרצות</span><span>טוקנים</span><span>שווה ערך API</span><span>זמן ממוצע</span></div>
+          <template x-for="r in usage.by_model" :key="r.key"><div class="u-r"><span x-text="r.label"></span><span x-text="r.runs"></span><span x-text="tok(r.input+r.output+r.cache_read+r.cache_write)"></span><span x-text="usd(r.cost)"></span><span x-text="Math.round(r.avg_ms/1000)+' שנ׳'"></span></div></template>
+        </div>
+        <div x-show="usage.imports.length"><b class="sm">ייבוא יומי: עלות למייל</b>
+          <template x-for="i in usage.imports" :key="i.id"><div class="u-r u-imp"><span x-text="dayOf(i.at)"></span><span x-text="i.emails+' מיילים'"></span><span x-text="i.runs+' הרצות'"></span><span x-text="usd(i.cost)"></span><span x-text="i.per_email===null ? '-' : usd(i.per_email)+' למייל'"></span></div></template></div>
+        <p class="sm" :class="{warn: usage.rate_limit_events.month>0}">פגיעות במגבלת המנוי: <b x-text="usage.rate_limit_events.week"></b> ב-7 ימים, <b x-text="usage.rate_limit_events.month"></b> ב-30 ימים<span x-show="usage.rate_limit_events.backoff_until"> · עבודות הרקע מושהות עד <span x-text="fmtDateTime(usage.rate_limit_events.backoff_until)"></span></span>. <span class="muted">אם זה קורה לעיתים קרובות, כדאי לשקול מנוי גדול יותר.</span></p>
+      </div>
+      </template>
+    </div>
+    <template x-if="act.gate_stats && act.gate_stats.length">
+      <div class="card gate-stats"><b>בקרת איכות (30 ימים)</b>
+        <div class="muted sm">כל פעולה של אלכס נבדקת בקוד. כאן רואים באילו נושאים הוא מחליק, וכמה תוקנו אחרי שאלה.</div>
+        <template x-for="g in act.gate_stats" :key="g.code"><div class="grow-row"><span x-text="g.label"></span><i class="muted" x-text="g.raised+' התגלו · '+g.resolved+' תוקנו · '+g.accepted+' נשארו לבדיקה'+(g.autofixed ? ' · '+g.autofixed+' הושלמו בקוד' : '')"></i></div></template>
+      </div></template>
+    <template x-if="act.runs.length===0 && act.loose.length===0"><div class="empty"><b>עדיין אין פעילות</b>כאן יוצגו הפעולות שאלכס ביצע, ואפשר לבטל כל אחת מהן</div></template>
+    <template x-for="r in act.runs" :key="r.id">
+      <div class="card run">
+        <div class="run-h">
+          <div class="run-t"><b x-text="fmtDateTime(r.started_at)"></b> <span class="muted" x-text="triggerHe(r.trigger)"></span> <span class="muted" x-show="r.duration_ms" x-text="'· '+Math.max(1,Math.round(r.duration_ms/1000))+' שניות'"></span> <span class="muted" x-show="r.model" dir="ltr" x-text="'· '+r.model+(r.effort ? ' / '+r.effort : '')"></span></div>
+          <button class="btn small danger" x-show="runUndoable(r)" @click="undoRun(r)">בטל את כל ההרצה</button>
+        </div>
+        <div class="run-s" x-show="r.summary_he" x-text="r.summary_he"></div>
+        <div class="run-e error" x-show="r.error" x-text="'שגיאה: '+(r.error==='interrupted' ? 'ההרצה נקטעה' : 'ההרצה נכשלה')"></div>
+        <p class="muted" x-show="r.actions.length===0 && !r.error" style="margin:6px 0 0">לא בוצעו שינויים בנתונים</p>
+        <div class="gate-run" x-show="r.gate && r.gate.length">
+          <b>בקרת איכות</b>
+          <template x-for="g in r.gate" :key="g.id"><div class="gate-row" :class="g.outcome"><span class="gdot"></span><span x-text="gateHe(g)"></span> <i class="muted" x-text="clipText(g.detail, 150)"></i></div></template>
+        </div>
+        <ul class="acts">
+          <template x-for="a in r.actions" :key="a.id">
+            <li :class="{undone: a.undone_at}">
+              <div class="a-main"><span x-text="describeAction(a)"></span> <a href="#" class="a-label" x-show="a.label" @click.prevent="openAction(a)" x-text="clipText(a.label, 70)"></a></div>
+              <button class="btn small" x-show="!a.undone_at && a.undoable" @click="undoAction(a)">בטל</button>
+              <span class="muted a-state" x-show="a.undone_at">בוטל</span>
+              <span class="muted a-state" x-show="!a.undone_at && !a.undoable" x-text="a.reason"></span>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+    <template x-if="act.loose.length">
+      <div class="card run"><div class="run-h"><b>פעולות ללא הרצה</b></div>
+        <ul class="acts"><template x-for="a in act.loose" :key="a.id"><li :class="{undone: a.undone_at}"><div class="a-main"><span x-text="describeAction(a)"></span> <a href="#" class="a-label" x-show="a.label" @click.prevent="openAction(a)" x-text="clipText(a.label, 70)"></a></div>
+          <button class="btn small" x-show="!a.undone_at && a.undoable" @click="undoAction(a)">בטל</button><span class="muted a-state" x-show="a.undone_at">בוטל</span></li></template></ul></div>
+    </template>
+  </div>
+  </template>
+</div>
+</template>
+
+<!-- ===== SEARCH ===== -->
+<template x-if="route.name==='search'">
+<div>
+  <div class="page-h"><h1>חיפוש</h1></div>
+  <form class="searchbox" @submit.prevent="runSearch()">
+    <input type="search" x-model="sq.q" placeholder="חיפוש בכל המידע (לפחות שלוש אותיות)" aria-label="חיפוש" @input.debounce.400ms="runSearch()">
+    <button class="btn primary" type="submit">חיפוש</button>
+  </form>
+  <div class="sfilters">
+    <label class="field"><span>סוג</span><select x-model="sq.kind" @change="runSearch()">
+      <option value="">הכל</option><option value="task">משימות</option><option value="email">מיילים</option><option value="chat">צ׳אט</option><option value="knowledge">מידע</option><option value="chunk,file">מסמכים</option><option value="note">הערות</option></select></label>
+    <label class="field"><span>פרויקט</span><select x-model="sq.project" @change="runSearch()">
+      <option value="">הכל</option><template x-for="p in boot.projects" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select></label>
+    <label class="field"><span>אדם</span><input type="text" x-model="sq.person" @input.debounce.400ms="runSearch()" placeholder="שם"></label>
+    <label class="field"><span>מתאריך</span><input type="text" inputmode="numeric" x-model="sq.from" @change="runSearch()" placeholder="יום/חודש/שנה"></label>
+    <label class="field"><span>עד תאריך</span><input type="text" inputmode="numeric" x-model="sq.to" @change="runSearch()" placeholder="יום/חודש/שנה"></label>
+  </div>
+  <p class="error" x-show="sErr" x-text="sErr"></p>
+  <p class="muted" style="font-size:.82rem;margin:0 0 8px" x-show="sem && sem.pending>0" x-text="'האינדקס החכם מתעדכן ברקע: '+(sem ? sem.pending : 0)+' פריטים ממתינים'"></p>
+  <template x-if="sres && sres.results.length===0 && !sErr"><div class="empty"><b>לא נמצאו תוצאות</b>נסו מילים אחרות או חלק מהמילה</div></template>
+  <template x-for="g in searchGroups()" :key="g.key">
+    <div class="sgroup">
+      <h2 class="sec-h" x-text="g.label+' ('+g.items.length+')'"></h2>
+      <div class="sres-list">
+        <template x-for="r in g.items" :key="r.key">
+          <button class="sres" @click="openResult(r)">
+            <span class="plabel" :class="{unassigned: r.project_default}" x-show="r.project" :style="'--pcol:'+(r.project_default||!r.project_color ? '#6b7280' : r.project_color)"><i></i><span x-text="r.project"></span></span>
+            <span class="s-title" x-show="r.title" x-text="r.title"></span>
+            <span class="s-snip" x-html="r.html"></span>
+            <span class="s-meta muted" x-text="[r.person, dayOf(r.date), r.via==='semantic' ? 'נמצא לפי משמעות' : ''].filter(Boolean).join(' · ')"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+  </template>
+</div>
+</template>
+
+<!-- ===== EMAIL ===== -->
+<template x-if="route.name==='email'">
+<div class="email-page card">
+  <template x-if="!emailView"><div class="empty" x-text="emailErr || 'טוען…'"></div></template>
+  <template x-if="emailView">
+    <div>
+      <button class="btn ghost" @click="history.length>1 ? history.back() : go('/')">‹ חזרה</button>
+      <h1 style="font-size:1.3rem;margin:8px 0" x-text="emailView.original_subject || emailView.subject"></h1>
+      <div x-html="mailHeadHtml(emailView)"></div>
+      <div class="muted" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
+      <div class="muted" x-show="emailView.attachments.length" x-text="'קבצים מצורפים: '+emailView.attachments.map(a=>a.filename).join(', ')"></div>
+      <div class="b-tasks" style="margin:10px 0" x-show="emailView.tasks.length"><template x-for="t in emailView.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="'משימה '+t.id+': '+t.title"></button></template></div>
+      <pre class="mailtext" dir="auto" x-text="emailView.body_text"></pre>
+      <h3 x-show="emailView.files.length" style="margin:12px 0 4px">קבצים מצורפים</h3>
+      <template x-for="f in emailView.files" :key="f.id">
+        <div class="kitem"><a :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.original_name"></a>
+          <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
+          <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status)].filter(Boolean).join(' · ')"></div></div>
+      </template>
+    </div>
+  </template>
+</div>
+</template>
+
+<!-- ===== PROJECTS (list + page side by side) ===== -->
+<template x-if="route.name==='projects'">
+<div class="split" :class="{'has-task': route.id}">
+
+  <section class="pane-list proj-list" aria-label="רשימת פרויקטים">
+    <div class="searchbar"><input type="search" x-model="projQ" placeholder="חיפוש פרויקט" aria-label="חיפוש פרויקט">
+      <button class="btn newproj" @click="showNewProj=!showNewProj" title="פרויקט חדש" aria-label="פרויקט חדש"><span class="plus" aria-hidden="true">+</span><span class="lbl">פרויקט חדש</span></button></div>
+    <form class="add-row" x-show="showNewProj" @submit.prevent="addProject()">
+      <input type="text" x-model="newProject" placeholder="שם פרויקט חדש" aria-label="שם פרויקט חדש">
+      <button class="btn primary" type="submit" :disabled="!newProject.trim()">הוספה</button>
+    </form>
+    <div class="rows">
+      <template x-for="p in filteredProjects()" :key="p.id">
+        <button class="prow" :class="{sel: route.id===p.id}" @click="openProject(p.id)">
+          <span class="plabel" :class="{unassigned: p.is_default}" :style="'--pcol:'+pc({project_color:p.color, project_default:p.is_default})"><i></i><span x-text="p.name_he"></span></span>
+          <span class="count" x-text="p.open_count" :title="'משימות פתוחות'"></span>
+        </button>
+      </template>
+    </div>
+  </section>
+
+  <div class="divider divider-card" data-pane="plist" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב רשימת הפרויקטים" tabindex="0" title="גרירה לשינוי הרוחב, לחיצה כפולה לאיפוס"><span class="grip"><i></i><i></i><i></i></span></div>
+  <section class="pane-card card proj-page" aria-label="דף פרויקט">
+    <template x-if="!route.id"><div class="empty"><b>לא נבחר פרויקט</b>בחרו פרויקט מהרשימה</div></template>
+    <template x-if="route.id && !pp"><div class="empty" x-text="ppErr || 'טוען…'"></div></template>
+    <template x-if="route.id && pp">
+      <div>
+        <div class="tc-top">
+          <button class="btn ghost back-btn" @click="go('/projects')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            חזרה לרשימה
+          </button>
+        </div>
+        <div class="ph">
+          <span class="plabel big" :class="{unassigned: pp.project.is_default}" :style="'--pcol:'+pc({project_color:pp.project.color, project_default:pp.project.is_default})" style="margin:0"><i></i><span x-text="pp.project.name_he"></span></span>
+          <span class="muted" x-text="pp.project.open_count+' משימות פתוחות'"></span>
+          <span class="spacer"></span>
+          <button class="btn small" @click="filterByProject(pp.project.id)">למשימות</button>
+          <div class="menu-wrap">
+            <button class="icon-btn" @click="toggleMenu($event)" aria-haspopup="dialog" :aria-expanded="menuOpen" aria-label="תפריט פרויקט" title="תפריט פרויקט"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <div class="pc-h"><h3>כרטיס פרויקט</h3><button class="btn small ghost" @click="openFactAdd()">+ נתון</button></div>
+          <div class="pc-grid" x-show="pp.facts && pp.facts.length">
+            <template x-for="f in sortedFacts()" :key="f.id">
+              <button class="fact" :class="{status: isStatusKey(f.key)}" @click="openFact(f)">
+                <span class="fk" x-text="f.key"></span>
+                <span class="fv" x-text="f.value + (f.unit ? ' ' + f.unit : '')"></span>
+                <span class="fd" x-text="'נכון ל־' + dayOf(f.as_of_date)"></span>
+              </button>
+            </template>
+          </div>
+          <p class="muted" style="margin:6px 0 0;font-size:.88rem" x-show="!pp.facts || !pp.facts.length">הכרטיס מתמלא מהמיילים וההודעות שמתקבלים, ואפשר להוסיף נתון גם ידנית.</p>
+        </div>
+
+        <div class="tc-desc" style="margin-top:12px">
+          <template x-if="ed!=='summary'">
+            <div class="desc-view"><p class="desc-text" x-show="pp.project.summary_he" x-text="pp.project.summary_he"></p><p class="desc-empty" x-show="!pp.project.summary_he">אין תקציר עדיין. אלכס ימלא אותו מהמיילים והמסמכים, או לחצו על העיפרון.</p>
+              <button class="ed-btn" @click="ed='summary'" aria-label="עריכת תקציר" title="עריכת תקציר">✎</button></div>
+          </template>
+          <template x-if="ed==='summary'">
+            <div><textarea class="desc-edit" :value="pp.project.summary_he" x-init="$nextTick(()=>{$el.focus(); $el.style.height='auto'; $el.style.height=($el.scrollHeight+4)+'px'})" @input="$el.style.height='auto';$el.style.height=($el.scrollHeight+4)+'px'" @keydown.escape.stop="ed=null" x-ref="sumEdit" placeholder="מהות הפרויקט, מזמין, שלב, אנשי מפתח, תאריכים וסיכונים"></textarea>
+              <div class="btnrow" style="margin-top:6px"><button class="btn small primary" @click="saveSummary($refs.sumEdit.value); ed=null">שמירה</button><button class="btn small" @click="ed=null">ביטול</button></div></div>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>חיפוש בפרויקט</h3>
+          <input type="search" x-model="ppSearch.q" @input.debounce.400ms="searchInProject()" placeholder="חיפוש בתוך הפרויקט">
+          <div class="sres-list" style="margin-top:8px">
+            <template x-for="r in ppSearch.results" :key="r.key"><button class="sres" @click="openResult(r)"><span class="s-title" x-show="r.title" x-text="r.title"></span><span class="s-snip" x-html="r.html"></span><span class="s-meta muted" x-text="kindLabel2(r.kind)+' · '+dayOf(r.date)"></span></button></template>
+          </div>
+        </div>
+
+        <div class="sect" x-show="pp.protocols && pp.protocols.length">
+          <h3>פרוטוקולים</h3>
+          <template x-for="p in (pp.protocols || [])" :key="p.id">
+            <button class="mini-row" @click="openProtocol(p.id)"><b x-text="p.title"></b><span class="muted" x-text="[fmtDateTime(p.meeting_at), p.open_actions+' משימות פתוחות'].join(' · ')"></span></button>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>מידע</h3>
+          <form @submit.prevent="addKnowledge()">
+            <textarea x-model="kNote" placeholder="הוספת הערה או עובדה על הפרויקט…" style="min-height:72px" aria-label="הערה חדשה"></textarea>
+            <div class="btnrow" style="margin-top:8px"><button class="btn primary" type="submit" :disabled="!kNote.trim()">הוספת הערה</button></div>
+          </form>
+          <template x-if="pp.knowledge.length===0"><p class="muted">עדיין אין מידע בפרויקט</p></template>
+          <template x-for="k in pp.knowledge" :key="k.id">
+            <div class="kitem"><div class="k-h"><span class="kind" x-text="kindHe(k.kind)"></span><b x-text="k.title"></b></div>
+              <div class="k-b" x-show="k.body && k.body!==k.title" x-text="k.body"></div>
+              <div class="muted k-m" x-text="[k.author, dayOf(k.updated_at)].filter(Boolean).join(' · ')"></div></div>
+          </template>
+        </div>
+
+        <div class="sect" @dragover.prevent @drop.prevent="uploadToProject($event.dataTransfer.files)">
+          <h3>מסמכים</h3>
+          <div class="dropzone"><button class="btn" @click="$refs.pfile.click()">📎 העלאת מסמך</button><span class="muted">או גררו קובץ לכאן</span>
+            <input type="file" multiple class="sr" x-ref="pfile" @change="uploadToProject($event.target.files); $event.target.value=''" tabindex="-1"></div>
+          <template x-if="pp.files.length===0"><p class="muted">אין מסמכים</p></template>
+          <template x-for="f in pp.files" :key="f.id">
+            <div class="kitem filecard">
+              <a class="thumb" x-show="isImage(f)" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank"><img :src="'/api/files/'+f.id+'/download?inline=1'" alt="" loading="lazy"></a>
+              <div class="fc-main">
+                <div class="k-h"><a :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.original_name"></a></div>
+                <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
+                <div class="k-b muted" x-show="!f.summary">אלכס עדיין לא סיכם את המסמך</div>
+                <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status), f.index_note, f.chunk_count ? f.chunk_count+' קטעים' : '', dayOf(f.created_at)].filter(Boolean).join(' · ')"></div>
+                <a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a>
+                <button class="btn small ghost" x-show="f.email_id" @click="go('/email/'+f.email_id)">פתיחת המייל</button>
+              </div></div>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>משימות פתוחות</h3>
+          <template x-if="pp.tasks.length===0"><p class="muted">אין משימות פתוחות</p></template>
+          <template x-for="t in pp.tasks" :key="t.id">
+            <button class="mini-row" @click="openTask(t.id)"><b x-text="t.title"></b><span class="muted" x-text="[t.requester ? 'מאת '+t.requester : '', t.due_date ? 'עד '+fmtDate(t.due_date)+(t.due_source==='estimated' ? ' (משוער)' : '') : 'ללא יעד'].filter(Boolean).join(' · ')"></span></button>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>מיילים אחרונים</h3>
+          <template x-if="pp.emails.length===0"><p class="muted">אין מיילים</p></template>
+          <template x-for="e in pp.emails" :key="e.id">
+            <button class="mini-row" @click="go('/email/'+e.id)"><b x-text="e.subject"></b><span class="muted" x-text="[e.from_sender, dayOf(e.date)].filter(Boolean).join(' · ')"></span></button>
+          </template>
+        </div>
+
+        <div class="sect">
+          <h3>ציר זמן</h3>
+          <ul class="hist">
+            <template x-for="t in pp.timeline" :key="t.kind+t.id">
+              <li><div class="h" x-text="dayOf(t.date)+' · '+kindLabel2(t.kind)"></div><a href="#" @click.prevent="go(t.link)" x-text="clipText(t.text, 140)"></a></li>
+            </template>
+          </ul>
+        </div>
+      </div>
+    </template>
+  </section>
+</div>
+</template>
+
+<!-- ===== PROTOCOLS (list + page side by side) ===== -->
+<template x-if="route.name==='protocols'">
+<div class="split" :class="{'has-task': route.id}">
+  <section class="pane-list proto-list" aria-label="רשימת פרוטוקולים">
+    <div class="page-h" style="margin-bottom:8px"><h1>פרוטוקולים</h1></div>
+    <select class="proto-filter" x-model="protoProject" @change="loadProtocols()" aria-label="סינון לפי פרויקט">
+      <option value="">כל הפרויקטים</option>
+      <template x-for="p in boot.projects" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template>
+    </select>
+    <template x-if="protos.length===0"><div class="empty"><b>אין עדיין פרוטוקולים</b>כשיועבר סיכום פגישה, אלכס יפרק אותו לסעיפים כאן</div></template>
+    <template x-for="g in protoGroups()" :key="g.key">
+      <div class="pgroup">
+        <div class="pg-h"><span class="plabel" :class="{unassigned: g.def}" :style="'--pcol:'+g.color"><i></i><span x-text="g.name"></span></span></div>
+        <template x-for="p in g.items" :key="p.id">
+          <button class="prot-row" :class="{sel: route.id===p.id}" @click="openProtocol(p.id)">
+            <b class="pr-title" x-text="p.title"></b>
+            <span class="pr-meta" x-text="fmtDateTime(p.meeting_at)"></span>
+            <span class="pr-meta" x-text="[p.participant_count+' משתתפים', p.open_actions+' משימות פתוחות', p.recommended ? '★ '+p.recommended+' מומלצות' : ''].filter(Boolean).join(' · ')"></span>
+          </button>
+        </template>
+      </div>
+    </template>
+  </section>
+
+  <div class="divider divider-card" data-pane="tlist" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב רשימת הפרוטוקולים" tabindex="0" title="גרירה לשינוי הרוחב, לחיצה כפולה לאיפוס"><span class="grip"><i></i><i></i><i></i></span></div>
+  <section class="pane-card card proto-page" aria-label="פרוטוקול">
+    <template x-if="!route.id"><div class="empty"><b>לא נבחר פרוטוקול</b>בחרו פרוטוקול מהרשימה</div></template>
+    <template x-if="route.id && !proto"><div class="empty" x-text="protoErr || 'טוען…'"></div></template>
+    <template x-if="route.id && proto">
+      <div>
+        <div class="tc-top">
+          <button class="plabel big pbtn" :class="{unassigned: proto.project_default}" :style="'--pcol:'+pc({project_color: proto.project_color, project_default: proto.project_default})" @click="proto.project_id && go('/projects/'+proto.project_id)"><i></i><span x-text="proto.project || 'ללא פרויקט'"></span></button>
+          <span class="spacer"></span>
+          <button class="icon-btn drawer-close" @click="go('/protocols')" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <h2 class="tc-title" x-text="proto.title"></h2>
+        <div class="metaline"><span class="mi static" x-text="fmtDateTime(proto.meeting_at)"></span><span class="sep" x-show="proto.location">·</span><span class="mi static" x-show="proto.location" x-text="proto.location"></span>
+          <span class="sep" x-show="proto.next_meeting_at">·</span><span class="mi static" x-show="proto.next_meeting_at" x-text="'הפגישה הבאה '+fmtDateTime(proto.next_meeting_at)"></span></div>
+        <div class="p-chips"><template x-for="x in proto.participants" :key="x.name+x.email"><span class="p-chip" :title="[x.company, x.role, x.email].filter(Boolean).join(' · ')"><b x-text="partName(x)"></b><i x-show="x.company || x.role" x-text="[x.company, x.role].filter(Boolean).join(', ')"></i></span></template></div>
+        <p class="desc-text" x-show="proto.summary_he" x-text="proto.summary_he" style="margin:10px 0"></p>
+
+        <div class="sect">
+          <div class="pc-h"><h3>משימות מהפרוטוקול</h3>
+            <button class="btn small primary" x-show="selItems.length" @click="promoteSelected()" x-text="'העבר '+selItems.length+' נבחרים למשימות'"></button></div>
+          <template x-if="actionItems().length===0"><p class="muted">אין סעיפי משימה</p></template>
+          <template x-for="i in actionItems()" :key="i.id">
+            <div class="pitem" :class="{done: i.status==='done' || i.status==='dismissed', promoted: i.status==='promoted'}">
+              <input type="checkbox" class="pi-check" x-show="i.status==='open'" :checked="selItems.includes(i.id)" @change="toggleSel(i.id)" aria-label="בחירת סעיף">
+              <div class="pi-main">
+                <div class="pi-text"><span class="star" x-show="i.recommended" title="מומלץ להעביר">★</span> <span x-text="i.text"></span></div>
+                <div class="pi-meta muted"><span x-text="i.owner_name || 'ללא אחראי'"></span><em class="ext" x-show="i.party==='external'">גורם חיצוני</em><span x-show="i.due_date" x-text="'· עד '+fmtDate(i.due_date)"></span>
+                  <span x-show="i.status!=='open'" x-text="'· '+({done:'בוצע', dismissed:'לא רלוונטי', promoted:'הועבר למשימות'}[i.status])"></span></div>
+                <div class="pi-btns" x-show="i.status==='open'">
+                  <button class="btn small" @click="promoteItem(i)">↗ העבר למשימות</button>
+                  <button class="btn small" @click="itemAction(i,'done')">✓ בוצע</button>
+                  <button class="btn small" @click="itemAction(i,'dismiss')">✕ לא רלוונטי</button>
+                </div>
+                <button class="btn small ghost" x-show="i.status==='promoted' && i.task_id" @click="openTask(i.task_id)" x-text="'פתיחת המשימה: '+clipText(i.task_title, 50)"></button>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="sect" x-show="itemsOf('decision').length"><h3>החלטות</h3>
+          <template x-for="i in itemsOf('decision')" :key="i.id"><div class="pitem plain"><span x-text="'• '+i.text"></span></div></template></div>
+        <div class="sect" x-show="itemsOf('info').length"><h3>מידע</h3>
+          <template x-for="i in itemsOf('info')" :key="i.id"><div class="pitem plain"><span x-text="'• '+i.text"></span></div></template></div>
+        <details class="email-src" x-show="proto.source">
+          <summary>המסמך המקורי</summary>
+          <template x-if="proto.source"><div class="es-body"><div class="muted" x-text="proto.source.subject"></div>
+            <pre class="mailtext" dir="auto" x-show="proto.source.body" x-text="proto.source.body"></pre>
+            <button class="btn small ghost" x-show="proto.source_type==='email'" @click="go('/email/'+proto.source.id)">פתיחת המייל</button>
+            <a class="btn small ghost" x-show="proto.source_type==='file'" :href="'/api/files/'+proto.source.id+'/download'">הורדת הקובץ</a></div></template>
+        </details>
+      </div>
+    </template>
+  </section>
+</div>
+</template>
+
+<!-- ===== CALENDAR ===== -->
+<template x-if="route.name==='calendar'">
+<div class="cal-page">
+  <div class="cal-bar" role="toolbar" aria-label="כלי יומן">
+    <b class="cal-label" x-text="calLabel()"></b>
+    <div class="cal-navb">
+      <button class="icon-btn" @click="calMove(-1)" aria-label="הקודם" title="הקודם"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="btn small" @click="calToday()">היום</button>
+      <button class="icon-btn" @click="calMove(1)" aria-label="הבא" title="הבא"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    </div>
+    <div class="seg2"><button :class="{on: calView==='week'}" @click="setCalView('week')">שבוע</button><button :class="{on: calView==='month'}" @click="setCalView('month')">חודש</button></div>
+    <div class="cal-filter">
+      <button class="btn small cal-fbtn" :class="{on: calProject!=='all'}" @click="toggleCalFilter($event)" :aria-expanded="calFilterOpen" aria-haspopup="dialog">
+        <i class="pdot" :style="'--pcol:'+calFilterColor()"></i><span class="cf-t" x-text="calFilterLabel()"></span>
+        <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="cal-pop" x-show="calFilterOpen" x-cloak @click.outside="calFilterOpen=false" @keydown.escape.window="calFilterOpen=false" :style="calPopStyle" role="dialog" aria-label="סינון לפי פרויקט">
+        <button class="cal-lg" :class="{sel: calProject==='all'}" @click="setCalProject('all')"><i class="pdot all"></i><span class="grow">כל הפרויקטים</span><span class="muted" x-text="calItems.length"></span></button>
+        <template x-for="g in calLegend()" :key="g.key">
+          <button class="cal-lg" :class="{sel: calProject===g.key, none: g.key==='none'}" @click="setCalProject(g.key)"><i class="pdot" :class="{none: g.key==='none'}" :style="'--pcol:'+g.color"></i><span class="grow" x-text="g.name"></span><span class="muted" x-text="g.count"></span></button>
+        </template>
+        <p class="muted sm" x-show="calLegend().length===0" style="margin:6px 8px">אין פריטים בטווח הזה</p>
+      </div>
+    </div>
+    <button class="btn small primary cal-add" @click="openEventAdd()" aria-label="הוספת אירוע">+ אירוע</button>
+  </div>
+  <div class="cal-scroll">
+    <div class="cal-dow" :class="calView"><template x-for="d in (calView==='week' ? calDays() : calDowMonth())" :key="d.date || d"><span x-text="d.date ? dowLabel(d.date) : d"></span></template></div>
+    <div class="cal-grid" :class="calView">
+      <template x-for="d in calDays()" :key="d.date">
+        <button class="cal-cell" :class="{today: d.date===today(), other: d.other, sel: d.date===calSel}" @click="calPick(d.date)">
+          <span class="cd-n"><span x-text="d.day"></span><span class="cd-w" x-text="calView==='week' ? ' · '+dowLabel(d.date) : ''"></span></span>
+          <template x-for="it in calItemsOn(d.date).slice(0, calCap())" :key="it.kind+it.id">
+            <span class="cal-chip" :class="[it.kind, {late: it.late, unassigned: it.project_default, noproj: !it.project_id}]" :style="'--pcol:'+pcol(it)" :title="calTip(it)">
+              <span class="cc-t" x-text="(it.time ? it.time+' ' : '')+it.title+(it.estimated ? ' (משוער)' : '')"></span>
+              <span class="ptag" x-show="calView==='week'" x-text="pname(it)"></span>
+            </span>
+          </template>
+          <span class="cal-more" x-show="calItemsOn(d.date).length > calCap()" x-text="'+'+(calItemsOn(d.date).length-calCap())+' עוד'"></span>
+          <span class="cal-dots" x-show="calItemsOn(d.date).length"><template x-for="g in calDayDots(d.date)" :key="g"><b :style="'--pcol:'+g"></b></template></span>
+        </button>
+      </template>
+    </div>
+    <div class="card cal-day" x-show="calSel">
+      <h3 x-text="dayTitle(calSel)"></h3>
+      <p class="muted" x-show="calItemsOn(calSel).length===0">אין אירועים או משימות ביום הזה</p>
+      <template x-for="it in calItemsOn(calSel)" :key="it.kind+it.id">
+        <button class="cal-item" :class="[it.kind, {unassigned: it.project_default, noproj: !it.project_id}]" :style="'--pcol:'+pcol(it)" @click="openCalItem(it)">
+          <span class="ci-t" x-text="it.time ? it.time + (it.end_time ? '–'+it.end_time : '') : (it.kind==='task' ? 'יעד' : 'כל היום')"></span>
+          <span class="ci-main"><b x-text="it.title"></b>
+            <span class="muted" x-text="[it.kind==='task' ? (it.requester ? 'מאת '+it.requester : '') : it.location, it.estimated ? 'משוער' : ''].filter(Boolean).join(' · ')"></span></span>
+          <span class="ptag" x-text="pname(it)"></span>
+          <span class="ci-k" x-text="it.kind==='task' ? 'משימה' : 'פגישה'"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+</div>
+</template>
+
+<!-- ===== SETTINGS ===== -->
+<template x-if="route.name==='settings'">
+<div class="settings-page">
+  <div class="page-h"><h1>הגדרות</h1></div>
+  <template x-if="st">
+  <div class="set-grid">
+    <section class="card">
+      <h3>התראות</h3>
+      <label class="switch-row"><input type="checkbox" :checked="st.notify_email" @change="saveSet({notify_email: $event.target.checked})"><span>דוא״ל (סיכום בוקר ופריטים דחופים)</span></label>
+      <label class="switch-row"><input type="checkbox" :checked="st.notify_telegram" @change="saveSet({notify_telegram: $event.target.checked})"><span>טלגרם</span></label>
+      <label class="switch-row"><input type="checkbox" :checked="st.shabbat" @change="saveSet({shabbat: $event.target.checked})"><span>שקט בשבת (שישי 16:00 עד מוצאי שבת 20:00)</span></label>
+      <div class="two"><label class="field"><span>תחילת שעות שקט</span><input type="time" :value="st.quiet_start" @change="saveSet({quiet_start: $event.target.value})"></label>
+        <label class="field"><span>סיום שעות שקט</span><input type="time" :value="st.quiet_end" @change="saveSet({quiet_end: $event.target.value})"></label></div>
+      <p class="muted sm">בשעות שקט ובשבת לא נשלחים דוא״ל והודעות יזומות בטלגרם. הדוא״ל נשלח רק אליכם.</p>
+    </section>
+
+    <section class="card">
+      <h3>יומן באאוטלוק</h3>
+      <div class="copy-row"><input type="text" readonly :value="here(st.calendar_url)" dir="ltr" @focus="$event.target.select()" aria-label="קישור ליומן"><button class="btn" @click="copyText(here(st.calendar_url))">העתקה</button></div>
+      <ol class="how"><li>באאוטלוק בחרו: הוספת לוח שנה</li><li>בחרו: מהאינטרנט</li><li>הדביקו את הקישור ואשרו</li></ol>
+      <div class="btnrow"><button class="btn small" @click="copyText(st.calendar_url + '?only=tasks')">העתקת קישור למשימות בלבד</button><button class="btn small" @click="copyText(st.calendar_url + '?only=meetings')">העתקת קישור לפגישות בלבד</button></div>
+      <p class="muted sm">אאוטלוק מעדכן יומנים מנויים לבד כל כמה שעות. הקישור סודי: מי שמחזיק בו יכול לראות את המשימות והפגישות.</p>
+      <button class="btn small danger" @click="rotateCal()">יצירת קישור חדש (הקישור הישן יפסיק לעבוד)</button>
+    </section>
+
+    <section class="card">
+      <h3>איך לייצא מיילים מ-Outlook (ייבוא יומי)</h3>
+      <p class="muted sm">כל בוקר אפשר לגרור לצ׳אט את כל המיילים של אתמול, גם שהתקבלו וגם שנשלחו. אלכס מסנן כפילויות ורעש, מקבץ לשרשורים, פותח ומסגר משימות, ושולח סיכום אחד כשהוא מסיים.</p>
+      <p><b>Outlook קלאסי:</b></p>
+      <ol class="how"><li>סמנו את המיילים של אתמול (מתיקיית הדואר הנכנס וגם מהפריטים שנשלחו)</li><li>גררו אותם לתיקייה בשולחן העבודה: הם הופכים לקבצי msg</li><li>סמנו את כל הקבצים בתיקייה וגררו אותם לחלון הצ׳אט (אפשר גם קובץ zip שלהם)</li></ol>
+      <p><b>Outlook החדש:</b></p>
+      <ol class="how"><li>ייצאו את המיילים כקבצי eml וגררו לצ׳אט, או</li><li>העבירו את כל המיילים כקבצים מצורפים לכתובת התיבה של העוזר: הם יעברו בדרך הרגילה</li></ol>
+      <p class="muted sm">מעל שלושה קבצי מייל, או הודעה שכוללת "ייבוא יומי", נחשבים לייבוא יומי: מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
+    </section>
+
+    <section class="card" x-show="st && st.urls">
+      <h3>כתובות האתר</h3>
+      <div class="copy-row"><span class="muted" style="min-width:5.5em">ראשית</span><input type="text" readonly :value="st.urls.main" dir="ltr" @focus="$event.target.select()" aria-label="כתובת ראשית"><button class="btn" @click="copyText(st.urls.main)">העתקה</button></div>
+      <div class="copy-row" x-show="st.urls.mirror"><span class="muted" style="min-width:5.5em">מהעבודה</span><input type="text" readonly :value="st.urls.mirror" dir="ltr" @focus="$event.target.select()" aria-label="כתובת מהעבודה"><button class="btn" @click="copyText(st.urls.mirror)">העתקה</button></div>
+      <p class="muted sm">הכתובת "מהעבודה" היא מראה של האתר לרשתות שחוסמות את הכתובת הראשית. הקישורים באתר נשארים על הכתובת שבה אתם משתמשים כרגע.</p>
+      <label class="linkcheck" x-show="st.urls.mirror"><input type="checkbox" :checked="st.links_use_mirror" @change="saveSet({links_use_mirror: $event.target.checked})"> קישורים בטלגרם, במייל וביומן דרך כתובת "מהעבודה" (ברירת מחדל: הראשית)</label>
+    </section>
+
+    <section class="card" x-show="st && st.agent">
+      <h3>המוח של אלכס</h3>
+      <p class="muted sm">אלכס עובד דרך תוכנת סוכן שכבר מותקנת אצלך ומחוברת לחשבון שלך (Claude Code, Codex או Gemini CLI). המערכת רק מפעילה את התוכנה הרשמית, בלי לגעת בפרטי ההתחברות.</p>
+      <label class="field"><span>סוכן</span>
+        <select :value="st.agent.name" @change="saveSet({agent_provider: $event.target.value})">
+          <template x-for="o in st.agent.options" :key="o.name"><option :value="o.name" :selected="o.name===st.agent.name" x-text="o.label+(o.ready ? '' : ' (לא מותקן)')"></option></template>
+        </select></label>
+      <label class="field"><span>מודל (אופציונלי, ריק = ברירת המחדל של הסוכן)</span><input type="text" dir="ltr" :value="st.agent.model" @change="saveSet({agent_model: $event.target.value})"></label>
+      <h4 style="margin:10px 0 4px">מודל ורמת מאמץ לכל סוג עבודה</h4>
+      <p class="muted sm">ברירת המחדל sonnet/medium. עבודות קצרות (למשל הודעת דופק) אפשר להריץ על מודל קטן וזול יותר. ריק = ברירת המחדל של הסוכן. הערכים מועברים לסוכן כמו שהם.</p>
+      <template x-for="m in st.agent.models" :key="m.job">
+        <div class="model-row"><span x-text="m.label"></span>
+          <input type="text" dir="ltr" placeholder="מודל" :value="m.model" @change="saveModel(m.job, 'model', $event.target.value)">
+          <input type="text" dir="ltr" placeholder="מאמץ" :value="m.effort" @change="saveModel(m.job, 'effort', $event.target.value)"></div>
+      </template>
+      <template x-for="o in st.agent.options.filter(x => x.name===st.agent.name)" :key="o.name"><p class="muted sm" x-text="(o.ready ? '✔ ' : '✖ ')+o.setup"></p></template>
+    </section>
+
+    <section class="card">
+      <h3>מצב המערכת</h3>
+      <template x-if="health">
+        <div class="health">
+          <template x-for="c in health.components" :key="c.id">
+            <div class="hrow"><span class="dot" :class="c.ok ? 'ok' : 'bad'"></span><span x-text="c.label"></span><i class="muted" x-text="c.detail"></i></div>
+          </template>
+        </div>
+      </template>
+      <p class="muted sm">נבדק אוטומטית כל 5 דקות. שירות שנופל מופעל מחדש פעם אחת, ואם הבעיה נמשכת תגיע אליך הודעה.</p>
+    </section>
+
+    <section class="card">
+      <h3>אחסון</h3>
+      <template x-if="storage">
+        <div class="stor">
+          <div><span>דיסק השרת</span><b x-text="fmtGB(storage.disk_free)+' פנויים מתוך '+fmtGB(storage.disk_total)+' ('+storage.disk_free_pct+'%)'"></b></div>
+          <div><span>קבצים (ארכיון)</span><b x-text="fmtGB(storage.files)"></b></div>
+          <div><span>מסד נתונים ויומני הרצה</span><b x-text="fmtGB(storage.data)"></b></div>
+          <div><span>גיבויים</span><b x-text="fmtGB(storage.backups)"></b></div>
+          <div><span>מודלים</span><b x-text="fmtGB(storage.models)"></b></div>
+        </div>
+      </template>
+      <label class="field"><span>גודל קובץ מרבי להעלאה (מ״ב)</span><input type="number" min="1" max="4096" :value="st.max_file_mb" @change="saveSet({max_file_mb: $event.target.value})"></label>
+      <p class="muted sm">קבצים גדולים עולים באתר בחלקים ואפשר להמשיך אחרי ניתוק. את הטקסט של קבצים ענקיים קוראים ברקע ובמגבלה (למשל 300 העמודים הראשונים של PDF), ווידאו ואודיו נשמרים בלי אינדקס. בטלגרם המגבלה היא <span x-text="st.telegram_max_mb >= 1000 ? '2 ג״ב' : '20 מ״ב'"></span>.</p>
+      <label class="field"><span>השמר בתיבה (ימים)</span><input type="number" min="1" max="3650" :value="st.mailbox_keep_days" @change="saveSet({mailbox_keep_days: $event.target.value})"></label>
+      <p class="muted sm">מיילים שטופלו ונשמרו אצלנו במלואם (כולל הקבצים המצורפים) נמחקים מתיבת הדוא״ל של המערכת אחרי מספר הימים הזה. קבצים בארכיון לא נמחקים אוטומטית. הניקוי רץ בכל לילה.</p>
+    </section>
+
+    <section class="card">
+      <h3>כתובות דוא״ל מורשות</h3>
+      <textarea x-model="allowText" rows="3" dir="ltr" style="min-height:84px" aria-label="כתובות מורשות"></textarea>
+      <p class="muted sm">מיילים מהכתובות האלה (או מועברים ממנה) נקלטים. כתובת בכל שורה או מופרדות בפסיק.</p>
+      <button class="btn primary" @click="saveSet({email_allowlist: allowText})">שמירה</button>
+    </section>
+
+    <section class="card">
+      <h3>סטטוסים ודחיפויות</h3>
+      <div class="ren-list">
+        <template x-for="s in st.statuses" :key="'s'+s.id"><div class="ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('statuses', s, $event.target.value)" aria-label="שם סטטוס"></div></template>
+      </div>
+      <div class="ren-list" style="margin-top:10px">
+        <template x-for="s in st.priorities" :key="'p'+s.id"><div class="ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('priorities', s, $event.target.value)" aria-label="שם דחיפות"></div></template>
+      </div>
+      <p class="muted sm">שינוי שם חל מיד על כל המשימות.</p>
+    </section>
+
+    <section class="card">
+      <h3>שינוי סיסמה</h3>
+      <form @submit.prevent="changePassword()" class="pw-form">
+        <input type="password" x-model="pw.old" autocomplete="current-password" placeholder="הסיסמה הנוכחית" aria-label="הסיסמה הנוכחית">
+        <input type="password" x-model="pw.new" autocomplete="new-password" placeholder="סיסמה חדשה (לפחות 12 תווים)" aria-label="סיסמה חדשה">
+        <button class="btn primary" type="submit" :disabled="!pw.old || pw.new.length < 12">שינוי סיסמה</button>
+      </form>
+      <p class="muted sm">לאחר שינוי הסיסמה יש להתחבר מחדש בשאר המכשירים.</p>
+    </section>
+
+    <section class="card">
+      <h3>טלגרם</h3>
+      <p x-text="st.telegram.bound ? 'הבוט מחובר ועונה רק לכם.' : (st.telegram.configured ? 'הבוט הוגדר וממתין לחיבור. החיבור נעשה פעם אחת בקישור חד־פעמי שמייצר מנהל המערכת.' : 'הבוט עדיין לא הוגדר. לאחר יצירת בוט וקבלת טוקן יש לפנות למנהל המערכת להפעלה.')"></p>
+      <button class="btn small danger" x-show="st.telegram.bound" @click="unbindTelegram()">ניתוק הבוט</button>
+    </section>
+  </div>
+  </template>
+</div>
+</template>
+
+<!-- ===== PEOPLE ===== -->
+<template x-if="route.name==='people'">
+<div>
+  <div class="page-h"><h1>אנשים</h1></div>
+  <form class="add-row" @submit.prevent="addPerson()">
+    <input type="text" x-model="newPerson.name" placeholder="שם" aria-label="שם">
+    <input type="email" x-model="newPerson.email" placeholder="כתובת דוא״ל (אופציונלי)" aria-label="כתובת דוא״ל" style="direction:ltr;text-align:right">
+    <select x-model="newPerson.role" aria-label="תפקיד"><option value="contact">איש קשר</option><option value="pm">מנהל פרויקט</option></select>
+    <button class="btn primary" type="submit" :disabled="!newPerson.name.trim()">הוספה</button>
+  </form>
+  <template x-for="grp in peopleGroups()" :key="grp.title">
+    <div>
+      <h2 class="sec-h" x-text="grp.title"></h2>
+      <div class="grid-list">
+        <template x-for="p in grp.items" :key="p.id">
+          <div class="card item">
+            <div class="item-h">
+              <div class="name"><span x-text="personLabel(p)"></span>
+                <span class="sub" x-text="roleLabel(p.role)+' · '+openCountFor(p)+' משימות פתוחות'"></span></div>
+              <button class="btn small" @click="filterByAssignee(p.id)" x-show="p.role!=='contact'">משימות</button>
+              <button class="btn small" @click="toggleEdit('u'+p.id, p)" x-text="editing==='u'+p.id ? 'סגירה' : 'עריכה'"></button>
+            </div>
+            <div class="partial-line" x-show="p.status==='partial'"><span class="pbadge">חלקי</span> <span class="muted" x-text="p.missing.length ? 'חסר: '+p.missing.join(', ') : 'פרטים חלקיים'"></span></div>
+            <div class="muted" style="font-size:.88rem;margin-top:2px" x-show="p.company || p.role_text" x-text="[p.role_text, p.company].filter(Boolean).join(' · ')"></div>
+            <div class="muted" style="font-size:.88rem;margin-top:4px" x-show="p.notes" x-text="p.notes"></div>
+            <button class="btn small" style="margin-top:6px" @click="togglePersonCard(p)" x-text="personCard && personCard.id===p.id ? 'הסתר פירוט' : 'אזכורים ומשימות'"></button>
+            <template x-if="personCard && personCard.id===p.id">
+              <div class="pcard">
+                <h4>משימות (<span x-text="personCard.tasks.length"></span>)</h4>
+                <template x-for="t in personCard.tasks" :key="'pt'+t.id"><button class="mini-row" @click="openTask(t.id)"><b x-text="t.title"></b><span class="muted" x-text="(t.role==='requester' ? 'מאת · ' : 'אחראי · ')+t.project+' · '+t.status"></span></button></template>
+                <p class="muted" x-show="!personCard.tasks.length">אין משימות מקושרות</p>
+                <h4>אזכורים (<span x-text="personCard.mentions.length"></span>)</h4>
+                <template x-for="m in personCard.mentions" :key="'pm'+m.id"><div class="mention"><span class="muted" x-text="({task:'משימה',chat:'צ׳אט',note:'הערה',knowledge:'ידע',email:'מייל',protocol_item:'פרוטוקול'})[m.source_type]+' · '"></span><a href="#" x-show="m.task_id" @click.prevent="openTask(m.task_id)" x-text="m.text"></a><span x-show="!m.task_id" x-text="m.text"></span></div></template>
+                <p class="muted" x-show="!personCard.mentions.length">אין אזכורים</p>
+              </div>
+            </template>
+            <div class="muted" style="direction:ltr;text-align:right;font-size:.85rem;margin-top:2px;overflow-wrap:anywhere" x-show="p.emails.length" x-text="p.emails.join(', ')"></div>
+            <div class="item-edit" x-show="editing==='u'+p.id">
+              <label class="field"><span>שם בעברית</span><input type="text" x-model="form.name"></label>
+              <label class="field"><span>שם לועזי (לזיהוי במיילים)</span><input type="text" x-model="form.name_en" style="direction:ltr;text-align:right"></label>
+              <label class="field" x-show="p.role==='pm'||p.role==='contact'"><span>תפקיד</span>
+                <select x-model="form.role"><option value="pm">מנהל פרויקט</option><option value="contact">איש קשר</option></select></label>
+              <label class="field"><span>כתובות דוא״ל (מופרדות בפסיק)</span><input type="text" x-model="form.emails" style="direction:ltr;text-align:right"></label>
+              <label class="field"><span>הערות</span><textarea x-model="form.notes" style="min-height:72px"></textarea></label>
+              <div class="btnrow"><button class="btn primary" @click="savePerson(p)">שמירה</button></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
+</div>
+</template>
+
+</main>
+
+<div class="upload-panel" x-show="uploads.length" x-cloak aria-live="polite">
+  <template x-for="u in uploads" :key="u.id">
+    <div class="up-item" :class="{err: u.error}">
+      <div class="up-top"><b x-text="u.name"></b><button class="up-x" x-show="u.done" @click="uploads = uploads.filter(x => x.id !== u.id)" aria-label="סגירה">✕</button></div>
+      <div class="up-bar"><div class="up-fill" :style="'width:'+u.pct+'%'"></div></div>
+      <div class="muted sm" x-text="u.text"></div>
+    </div>
+  </template>
+</div>
+
+<nav class="bottomnav" aria-label="ניווט ראשי">
+  <button :class="{on: route.name==='home'||route.name==='task'}" @click="go('/')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg>ראשי</button>
+  <button :class="{on: route.name==='search'}" @click="go('/search')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>חיפוש</button>
+  <button :class="{on: route.name==='projects'}" @click="go('/projects')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>פרויקטים</button>
+  <button :class="{on: route.name==='protocols'}" @click="go('/protocols')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l4 4v14H8z"/><path d="M8 8H4v13h4M12 12h4M12 16h4"/></svg>פרוטוקולים</button>
+  <button :class="{on: route.name==='calendar'}" @click="go('/calendar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>יומן</button>
+  <button :class="{on: ['activity','people','settings'].includes(route.name) || moreOpen}" @click="moreOpen=!moreOpen">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>עוד</button>
+</nav>
+<div class="more-bg" x-show="moreOpen" @click="moreOpen=false">
+  <div class="more-sheet" @click.stop>
+    <button @click="moreOpen=false; go('/activity')">פעילות</button>
+    <button @click="moreOpen=false; go('/people')">אנשים</button>
+    <button @click="moreOpen=false; go('/settings')">הגדרות</button>
+  </div>
+</div>
+
+
+<!-- ===== CHAT PANEL (permanent on wide screens, sheet on phones) ===== -->
+<div class="chat-backdrop" x-show="chatOpen" x-transition.opacity @click="closeChat()"></div>
+<button class="chat-bar" @click="chatBarClick()" aria-label="פתיחת הצ׳אט" title="פתיחת הצ׳אט">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+  <svg class="bar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+  <span class="bar-label">פתיחת הצ׳אט</span>
+  <span class="badge" x-show="unread()>0" x-text="unread()"></span>
+</button>
+<button class="chat-pin" x-show="route.name==='home' && !chatOpen" @click="openChat(true)" aria-label="כתוב לי">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+  <span class="pin-text" x-text="searching() ? 'אלכס מחפש באינטרנט…' : busy() ? 'אלכס חושב…' : 'כתוב לי…'"></span>
+  <span class="badge" x-show="unread()>0" x-text="unread()"></span>
+</button>
+<div class="divider divider-chat" data-pane="chat" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב הצ׳אט" tabindex="0" title="גרירה לשינוי הרוחב, לחיצה כפולה לאיפוס"><span class="grip"><i></i><i></i><i></i></span></div>
+<aside class="chat-panel" :class="{open: chatOpen, 'drop-active': dropping==='chat'}" aria-label="צ׳אט עם אלכס" @dragenter="dragOver('chat', $event)" @dragover="dragOver('chat', $event)" @dragleave="dragLeave('chat', $event)" @drop="dropOn('chat', $event)">
+  <div class="drop-overlay" x-show="dropping==='chat'" x-cloak><span>שחרר כאן כדי לשלוח לאלכס</span></div>
+  <div class="cp-head">
+    <span class="grab" aria-hidden="true"></span>
+    <b>צ׳אט עם אלכס</b>
+    <span class="muted cp-status" x-text="searching() ? 'מחפש באינטרנט…' : busy() ? 'חושב…' : ''"></span>
+    <span class="spacer"></span>
+    <button class="icon-btn cp-collapse" @click="MesimotLayout.setCollapsed(true)" aria-label="כיווץ הצ׳אט" title="כיווץ הצ׳אט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="icon-btn cp-close" @click="closeChat()" aria-label="סגירת הצ׳אט" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="feed" x-ref="feed" @click="chatClick($event)">
+    <template x-if="chatMsgs.length===0"><div class="empty"><b>עדיין אין הודעות</b>כתבו לאלכס מה צריך לעשות, והוא ידאג למשימות</div></template>
+    <template x-for="m in chatMsgs" :key="m.id">
+      <div class="bubble" :class="m.author">
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="web-mark" x-show="m.web" title="תשובה מחיפוש באינטרנט" aria-label="תשובה מחיפוש באינטרנט">🌐</span> <span x-text="fmtDateTime(m.created_at)"></span><span class="tg-tag" x-show="m.channel==='telegram'">טלגרם</span></div>
+        <div class="imp-card" x-show="m.import" x-cloak>
+          <template x-if="m.import">
+            <div>
+              <div class="imp-t"><b x-text="'ייבוא יומי: '+m.import.processed+'/'+m.import.total+' עובדו'"></b><span class="imp-st muted" x-text="importStage(m.import)"></span></div>
+              <div class="imp-bar" role="progressbar" :aria-valuenow="m.import.processed" aria-valuemin="0" :aria-valuemax="m.import.total"><i :style="'width:'+(m.import.total ? Math.round(100*m.import.processed/m.import.total) : 0)+'%'"></i></div>
+              <div class="imp-n muted" x-text="[m.import.dup ? m.import.dup+' כפולים' : '', m.import.noise ? m.import.noise+' רעש' : '', m.import.relevant ? m.import.relevant+' רלוונטיים' : '', m.import.fyi ? m.import.fyi+' לידיעה' : '', m.import.failed ? m.import.failed+' נכשלו' : ''].filter(Boolean).join(' · ')"></div>
+            </div>
+          </template>
+        </div>
+        <div class="b-text" x-show="!m.import" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
+        <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button></template></div>
+      </div>
+    </template>
+    <div class="bubble claude thinking-b" x-show="busy()"><span class="dots"><i></i><i></i><i></i></span> <span x-text="searching() ? 'אלכס מחפש באינטרנט…' : 'אלכס חושב…'"></span></div>
+    <button type="button" class="newmsg-btn" x-show="newBelow>0" x-cloak @click="scrollFeed()"><span>↓ הודעות חדשות</span> <b x-text="newBelow"></b></button>
+  </div>
+  <div class="cp-composer"><div class="composer">
+      <div class="chips-files" x-show="chatFiles.length">
+        <template x-for="f in chatFiles" :key="f.key"><span class="fchip up" :class="{err: f.error, done: f.done}" :style="'--p:'+f.pct+'%'" :title="f.text">
+          <span x-text="f.error ? '⚠️' : fileIcon(f)"></span><span class="fn" x-text="f.name"></span><span class="fs" x-show="!f.done" x-text="f.error ? f.text : (f.pct ? f.pct+'%' : '…')"></span>
+          <button type="button" @click="cancelChip(f)" :aria-label="f.done ? 'הסרת קובץ' : 'ביטול ההעלאה'" :title="f.done ? 'הסרה' : 'ביטול ההעלאה'">✕</button><i class="bar" x-show="!f.done && !f.error"></i></span></template>
+      </div>
+      <div class="comp-row">
+        <button type="button" class="icon-btn" @click="$refs.fileinput_chat.click()" aria-label="צירוף קובץ" title="צירוף קובץ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11l-9.2 9.2a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-9.2 9.2a2 2 0 0 1-3-3L15 7"/></svg></button>
+        <input type="file" multiple class="sr" x-ref="fileinput_chat" @change="attachFiles($event.target.files); $event.target.value=''" tabindex="-1">
+        <textarea rows="1" x-model="chatText" class="comp-input" placeholder="כתוב לי…" aria-label="כתוב לי" enterkeyhint="send" @paste="onPaste($event)"
+          @input="autosize($event.target)" @keydown.enter="if(!$event.shiftKey && !$event.isComposing && window.matchMedia('(min-width: 900px)').matches){ $event.preventDefault(); sendChat(); }"></textarea>
+        <button type="button" class="icon-btn" :class="{rec: listening}" @click="toggleMic()" aria-label="הקלטה קולית" title="הקלטה קולית"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <button type="button" class="btn primary send" @click="sendChat()" x-bind:disabled="sending || uploading() || (!chatText.trim() && !chatFiles.some(f => f.done))">שליחה</button>
+      </div>
+    </div></div>
+</aside>
+
+<div class="picker-bg" x-show="picker" x-transition.opacity @click.self="closePicker()" @keydown.escape.window="closePicker()">
+  <div class="picker" role="dialog" aria-modal="true" :style="pickerStyle()">
+    <div class="pk-head"><b x-text="picker ? picker.title : ''"></b><button class="icon-btn" @click="closePicker()" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <template x-if="picker && (picker.type==='due' || picker.type==='received')">
+      <div class="pk-date">
+        <div class="pk-chips" x-show="picker.type==='due'">
+          <button class="chip" @click="pickDate(offsetDate(0))">היום</button>
+          <button class="chip" @click="pickDate(offsetDate(1))">מחר</button>
+          <button class="chip" @click="pickDate(offsetDate(7))">בעוד שבוע</button>
+          <button class="chip" x-show="detail && detail.due_date" @click="pickDate('')">ניקוי</button>
+        </div>
+        <input type="date" class="pk-input" x-model="picker.date" aria-label="תאריך">
+        <input type="time" class="pk-input" x-model="picker.time" x-show="picker.type==='received'" aria-label="שעה">
+        <button class="btn primary" @click="pickDate(picker.type==='received' ? picker.date+' '+(picker.time||'00:00') : picker.date)" :disabled="!picker.date">אישור</button>
+      </div>
+    </template>
+    <template x-if="picker && picker.type==='fact'">
+      <div class="pk-fact">
+        <div class="pf-now"><b x-text="picker.fact.value + (picker.fact.unit ? ' ' + picker.fact.unit : '')"></b> <span class="muted" x-text="'נכון ל־' + dayOf(picker.fact.as_of_date)"></span></div>
+        <div class="pf-hist">
+          <template x-for="h in picker.history" :key="h.id">
+            <div class="pf-row" :class="{cur: h.current}">
+              <b x-text="h.value + (h.unit ? ' ' + h.unit : '')"></b>
+              <span class="muted" x-text="dayOf(h.as_of_date) + (h.current ? ' · הנוכחי' : '')"></span>
+              <button class="btn small ghost" x-show="h.source" @click="openFactSource(h)" x-text="factSourceLabel(h)"></button>
+              <span class="muted" x-show="!h.source" x-text="factSourceLabel(h)"></span>
+            </div>
+          </template>
+        </div>
+        <div class="pf-edit">
+          <input type="text" x-model="picker.value" placeholder="ערך חדש" aria-label="ערך">
+          <input type="text" x-model="picker.unit" placeholder="יחידה (אופציונלי)" aria-label="יחידה">
+          <input type="date" x-model="picker.date" class="pk-input" aria-label="נכון לתאריך">
+          <button class="btn primary" @click="saveFact()" :disabled="!picker.value.trim() || !picker.date">עדכון הנתון</button>
+        </div>
+      </div>
+    </template>
+    <template x-if="picker && picker.type==='event'">
+      <div class="pk-fact pf-edit">
+        <input type="text" x-model="picker.key" placeholder="כותרת האירוע" aria-label="כותרת">
+        <input type="date" x-model="picker.date" class="pk-input" aria-label="תאריך">
+        <label class="switch-row"><input type="checkbox" x-model="picker.allday"><span>כל היום</span></label>
+        <input type="time" x-model="picker.time" class="pk-input" x-show="!picker.allday" aria-label="שעה">
+        <input type="text" x-model="picker.location" placeholder="מקום (אופציונלי)" aria-label="מקום">
+        <button class="btn primary" @click="saveEvent()" :disabled="!picker.key.trim() || !picker.date">הוספה ליומן</button>
+      </div>
+    </template>
+    <template x-if="picker && picker.type==='factnew'">
+      <div class="pk-fact pf-edit">
+        <input type="text" x-model="picker.key" placeholder="שם הנתון, למשל: סטטוס שלד" aria-label="שם הנתון">
+        <input type="text" x-model="picker.value" placeholder="ערך" aria-label="ערך">
+        <input type="text" x-model="picker.unit" placeholder="יחידה (אופציונלי)" aria-label="יחידה">
+        <input type="date" x-model="picker.date" class="pk-input" aria-label="נכון לתאריך">
+        <button class="btn primary" @click="saveFact()" :disabled="!picker.key.trim() || !picker.value.trim() || !picker.date">הוספה לכרטיס</button>
+      </div>
+    </template>
+    <template x-if="picker && !(['due','received','fact','factnew','event'].includes(picker.type))">
+      <div class="pk-list">
+        <template x-for="o in pickerOptions()" :key="o.key">
+          <button class="pk-opt" :class="{on: o.on}" @click="pickValue(o.value)"><i x-show="o.color" :style="'background:'+o.color"></i><span x-text="o.label"></span><span class="pk-sub" x-show="o.sub" x-text="o.sub"></span></button>
+        </template>
+      </div>
+    </template>
+  </div>
+</div>
+
+<div class="toast" :class="{err: toastErr}" x-show="toastMsg" x-transition.opacity><span x-text="toastMsg"></span></div>
+
+<!-- project settings: a real dialog on document.body level (fixed, centered, backdrop), never inside a pane -->
+<div class="sheet-bg" x-show="menuOpen && pp" x-cloak x-transition.opacity @click.self="closeMenu()" @keydown.escape.window="menuOpen && closeMenu()" @keydown.tab="trapTab($event)">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pm-title" x-ref="pmenu" x-show="menuOpen && pp">
+    <div class="sheet-head"><b id="pm-title">הגדרות פרויקט</b>
+      <button type="button" class="icon-btn" @click="closeMenu()" aria-label="סגירה" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <template x-if="pp">
+    <div class="sheet-body">
+      <label class="field"><span>שם הפרויקט</span><input type="text" x-model="form.name" autocomplete="off"></label>
+      <label class="field"><span>כינויים (מופרדים בפסיק)</span><input type="text" x-model="form.aliases" autocomplete="off"></label>
+      <div class="field" x-show="!pp.project.is_default"><span>צבע</span>
+        <div class="swatches"><template x-for="c in colors" :key="c"><button type="button" class="sw" :class="{on: form.color===c}" :style="'background:'+c" @click="form.color=c" aria-label="בחירת צבע"></button></template></div></div>
+      <label class="field"><span>מצב הפרויקט</span><select x-model="form.status"><option>פעיל</option><option>מושהה</option><option>סגור</option></select></label>
+      <div class="btnrow sheet-actions"><button class="btn primary" @click="saveProject(pp.project)">שמירה</button><button class="btn" type="button" @click="closeMenu()">ביטול</button></div>
+      <div class="field sheet-merge" x-show="!pp.project.is_default"><span>מיזוג לתוך פרויקט אחר</span>
+        <select x-model="mergeInto"><option value="">בחרו פרויקט יעד</option>
+          <template x-for="o in boot.projects.filter(x=>x.id!==pp.project.id)" :key="o.id"><option :value="o.id" x-text="o.name_he"></option></template></select>
+        <button class="btn danger" :disabled="!mergeInto" @click="mergeProject(pp.project)">מיזוג הפרויקט</button>
+        <small class="muted">כל המשימות והמידע יעברו לפרויקט היעד, והשם הנוכחי יישמר ככינוי.</small></div>
+    </div>
+    </template>
+  </div>
+</div>
+
+<div class="modal-bg" x-show="dlg" x-transition.opacity @keydown.escape.window="closeDlg(false)">
+  <div class="modal" role="dialog" aria-modal="true" @click.outside="closeDlg(false)">
+    <p x-text="dlg && dlg.msg"></p>
+    <div class="btnrow"><button class="btn primary" @click="closeDlg(true)" x-text="dlg && dlg.ok"></button><button class="btn" @click="closeDlg(false)">ביטול</button></div>
+  </div>
+</div>
+</body>
+</html>

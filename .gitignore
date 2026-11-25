@@ -1,0 +1,33 @@
+# dependencies, runtime data and models
+node_modules/
+data/
+files/
+backups/
+models/
+venv/
+benchmarks/
+screenshots/
+*.db
+*.db-*
+# secrets and credentials
+.env
+.env.*
+!.env.example
+*.env
+web-password.txt
+*.pem
+*.key
+credentials*.json
+cert.pem
+# this installation's own configuration and memory (templates: config/*.example.json, agent/memory.example/)
+config/*.json
+!config/*.example.json
+config/cloudflared.yml
+agent/memory/*.md
+!agent/memory.example/*.md
+agent/memory/
+agent/tmp/
+# rendered from agent/AGENTS.template.md and the configuration (never edit, never commit)
+agent/AGENTS.md
+agent/CLAUDE.md
+agent/GEMINI.md

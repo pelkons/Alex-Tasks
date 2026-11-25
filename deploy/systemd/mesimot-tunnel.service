@@ -1,0 +1,11 @@
+[Unit]
+Description=Mesimot: Cloudflare tunnel for the Mesimot site
+After=network-online.target
+
+[Service]
+ExecStart=@CLOUDFLARED@ --no-autoupdate tunnel --config @ROOT@/config/cloudflared.yml run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

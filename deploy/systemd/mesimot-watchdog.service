@@ -1,0 +1,7 @@
+[Unit]
+Description=Mesimot: watchdog (services, heartbeats, site)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@NODE@ @ROOT@/bin/mesimot-watchdog

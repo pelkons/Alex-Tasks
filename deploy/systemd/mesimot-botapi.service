@@ -1,0 +1,16 @@
+[Unit]
+Description=Mesimot: local Telegram Bot API server (files up to 2 GB)
+After=network-online.target docker.service
+
+[Service]
+# needs TELEGRAM_API_ID and TELEGRAM_API_HASH in ~/.config/mesimot/env (from my.telegram.org); not enabled until they exist
+EnvironmentFile=%h/.config/mesimot/env
+ExecStartPre=/bin/sh -c 'test -n "$TELEGRAM_API_ID" && test -n "$TELEGRAM_API_HASH"'
+ExecStartPre=-/usr/bin/docker rm -f mesimot-botapi
+ExecStart=/bin/sh -c 'exec /usr/bin/docker run --rm --name mesimot-botapi --user "$(id -u):$(id -g)" --entrypoint telegram-bot-api -e TELEGRAM_API_ID -e TELEGRAM_API_HASH -p 127.0.0.1:8081:8081 -v @ROOT@/data/botapi:/var/lib/telegram-bot-api aiogram/telegram-bot-api:latest --local --dir=/var/lib/telegram-bot-api --temp-dir=/tmp --http-port=8081'
+ExecStop=/usr/bin/docker stop mesimot-botapi
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

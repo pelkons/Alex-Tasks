@@ -1,0 +1,8 @@
+[Unit]
+Description=Mesimot: weekly memory curator
+
+[Service]
+Type=oneshot
+TimeoutStartSec=3000
+WorkingDirectory=@ROOT@
+ExecStart=@NODE@ @ROOT@/bin/mesimot-runner --curator

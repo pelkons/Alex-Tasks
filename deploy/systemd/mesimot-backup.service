@@ -1,0 +1,6 @@
+[Unit]
+Description=Mesimot: daily database backup
+
+[Service]
+Type=oneshot
+ExecStart=@ROOT@/deploy/backup.sh

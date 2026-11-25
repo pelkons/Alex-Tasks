@@ -1,0 +1,9 @@
+[Unit]
+Description=Mesimot: reconciliation, Sunday to Thursday 18:30 Jerusalem time
+
+[Timer]
+OnCalendar=Sun,Mon,Tue,Wed,Thu *-*-* 18:30:00 @TZ@
+Persistent=true
+
+[Install]
+WantedBy=timers.target

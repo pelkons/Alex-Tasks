@@ -1,0 +1,44 @@
+{
+  "site_url": "https://tasks.example.org",
+  "public_url": "https://tasks.example.org",
+  "inbox": "assistant@agentmail.example",
+  "owner": {
+    "name_he": "דנה",
+    "name_en": "Dana Levi",
+    "emails": [
+      "dana@exconstruct.example",
+      "dana.levi@mail.example"
+    ],
+    "work_email": "dana@exconstruct.example"
+  },
+  "assistant": {
+    "name_he": "אלכס",
+    "name_en": "Alex"
+  },
+  "team": [
+    {
+      "name_he": "רון שחר",
+      "name_en": "Ron Shachar",
+      "role": "pm"
+    },
+    {
+      "name_he": "מיכל גלעד",
+      "name_en": "Michal Gilad",
+      "role": "pm"
+    }
+  ],
+  "bosses": [
+    {
+      "name_he": "אבי כהן",
+      "name_en": "Avi Cohen"
+    },
+    {
+      "name_he": "יעל רוזן",
+      "name_en": "Yael Rosen"
+    }
+  ],
+  "digest_to": "dana.levi@mail.example",
+  "tunnel_id": "00000000-0000-0000-0000-000000000000",
+  "timezone": "Asia/Jerusalem",
+  "agent_models": {}
+}

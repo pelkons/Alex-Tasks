@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+'use strict';
+// Oneshot, every 5 minutes (mesimot-watchdog.timer). Independent of the runner so it can restart it.
+const { open } = require('../lib/db');
+const { createStore } = require('../lib/store');
+const { createNotify } = require('../lib/notify');
+const { createWatchdog } = require('../lib/watchdog');
+const db = open(process.env.MESIMOT_DB);
+const store = createStore(db);
+const notify = createNotify(db, store);
+createWatchdog(db, store, { isQuiet: (d) => notify.isQuiet(d), log: console.error }).run()
+  .then((r) => { const bad = r.components.filter((c) => !c.ok); console.log(bad.length ? `problems: ${bad.map((c) => c.id + ' (' + c.detail + ')').join(', ')}` : 'all ok', r.actions.length ? JSON.stringify(r.actions) : ''); process.exit(0); })
+  .catch((e) => { console.error('watchdog failed:', e.message); process.exit(1); });

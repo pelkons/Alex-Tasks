@@ -1,0 +1,269 @@
+#!/usr/bin/env node
+'use strict';
+// CLI for Mesimot. Writes through the local API with the token, so every change is logged as the assistant.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const root = path.join(__dirname, '..');
+const { readEnvFile } = require(path.join(root, 'lib', 'server.js'));
+
+const BASE = process.env.MESIMOT_URL || 'http://127.0.0.1:8110';
+
+function parse(argv) {
+  const pos = [], opt = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--')) {
+      const k = a.slice(2);
+      const eq = k.indexOf('=');
+      if (eq >= 0) opt[k.slice(0, eq)] = k.slice(eq + 1);
+      else if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) opt[k] = argv[++i];
+      else opt[k] = true;
+    } else pos.push(a);
+  }
+  return { pos, opt };
+}
+
+const out = (v) => console.log(JSON.stringify(v, null, 2));
+function fail(msg, code = 1) { console.error(JSON.stringify({ error: msg })); process.exit(code); }
+
+async function api(method, url, body) {
+  const token = process.env.MESIMOT_TOKEN || readEnvFile().MESIMOT_TOKEN;
+  if (!token) fail('API token not found in ~/.config/mesimot/env');
+  let res;
+  try {
+    res = await fetch(BASE + url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (e) { fail(`cannot reach server at ${BASE}: ${e.message}`); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) fail(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+const qs = (o, keys) => {
+  const p = new URLSearchParams();
+  for (const k of keys) if (o[k] !== undefined && o[k] !== true) p.set(k === 'all' ? 'include_hidden' : k, o[k]);
+  if (o.all) p.set('include_hidden', '1');
+  const s = p.toString();
+  return s ? '?' + s : '';
+};
+
+const pick = (o, keys) => {
+  const r = {};
+  for (const k of keys) if (o[k] !== undefined) r[k] = o[k] === true ? '' : o[k];
+  return r;
+};
+const nullable = (v) => (v === 'none' || v === '' ? null : v);
+
+function setWebPassword(opt) {
+  if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+  const { open } = require(path.join(root, 'lib', 'db.js'));
+  const auth = require(path.join(root, 'lib', 'auth.js'));
+  const db = open(process.env.MESIMOT_DB);
+  let pw;
+  if (opt.generate) {
+    pw = require('crypto').randomBytes(18).toString('base64url');
+    const file = typeof opt.out === 'string' ? opt.out : path.join(os.homedir(), '.config', 'mesimot', 'web-password.txt');
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(file, pw + '\n', { mode: 0o600 });
+    fs.chmodSync(file, 0o600);
+    auth.setPassword(db, pw);
+    out({ ok: true, saved_to: file });
+    return;
+  }
+  const finish = (p) => { try { auth.setPassword(db, p); out({ ok: true }); } catch (e) { fail(e.message); } };
+  if (opt.stdin) { finish(fs.readFileSync(0, 'utf8').replace(/\r?\n$/, '')); return; }
+  if (!process.stdin.isTTY) fail('run in a terminal, or use --stdin / --generate');
+  const readline = require('readline');
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  rl._writeToOutput = function (s) { if (s.includes('\n') || s.startsWith('Password') || s.startsWith('Repeat')) rl.output.write(s); };
+  rl.question('Password (12+ chars): ', (p1) => {
+    rl.question('\nRepeat: ', (p2) => {
+      rl.close();
+      console.log();
+      if (p1 !== p2) fail('passwords do not match');
+      finish(p1);
+    });
+  });
+}
+
+const USAGE = `mesimot <command>
+  task list|show|add|update      note add      draft add
+  project list|add [--partial]|update|merge|resolve|show   person list|add [--status partial --company --role-text]|update|merge|resolve|show
+  pending     ack <id...>        attention add|list|update
+  usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
+  ask "<question>" [--project P]   (Q&A retrieval: synonyms + keyword + semantic, with file/page)
+  search "<query>" [--project --person --kind --from --to --limit --mode keyword|semantic|hybrid]
+  show task|email|knowledge|chunk|file <id>
+  calendar list|add|update|delete  calendar-token [--rotate]
+  knowledge list|add|update|supersede   fact set|list   file list|classify
+  protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6]  chat list      email show|thread <id>
+  apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
+  run-summary --text "..."
+  web-password [--generate]`;
+
+async function main() {
+  const { pos, opt } = parse(process.argv.slice(2));
+  const [cmd, sub, arg] = pos;
+  if (!cmd || opt.help) { console.log(USAGE); return; }
+
+  switch (cmd) {
+    case 'web-password': return setWebPassword(opt);
+    case 'init-config': { // used by deploy/install.sh: writes config/mesimot.config.json from the example and the answers (never overwrites an existing file)
+      const fs = require('fs'), path = require('path');
+      const root = path.join(__dirname, '..'), target = path.join(root, 'config', 'mesimot.config.json');
+      if (fs.existsSync(target) && !opt.force) { console.log('config/mesimot.config.json exists: left as it is'); return; }
+      const c = JSON.parse(fs.readFileSync(path.join(root, 'config', 'mesimot.config.example.json'), 'utf8'));
+      const set = (o, k, v) => { if (v !== undefined && v !== true && v !== '') o[k] = v; };
+      set(c.owner, 'name_he', opt['owner-name-he']); set(c.owner, 'name_en', opt['owner-name-en']);
+      if (opt['owner-email']) { c.owner.emails = String(opt['owner-email']).split(',').map((x) => x.trim()); c.owner.work_email = c.owner.emails[0]; c.digest_to = c.owner.emails[c.owner.emails.length - 1]; }
+      set(c.assistant, 'name_he', opt['assistant-name-he']); set(c.assistant, 'name_en', opt['assistant-name-en']);
+      if (opt.domain) { c.site_url = String(opt.domain).replace(/\/$/, ''); c.public_url = c.site_url; }
+      set(c, 'inbox', opt.inbox); set(c, 'timezone', opt.timezone);
+      c.mirror_url = ''; c.tunnel_id = opt['tunnel-id'] && opt['tunnel-id'] !== true ? opt['tunnel-id'] : '';
+      c.team = []; c.bosses = [];
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, JSON.stringify(c, null, 2) + '\n');
+      console.log('created config/mesimot.config.json');
+      return;
+    }
+    case 'render-agent': { const dir = require('path').resolve(opt.dir || require('path').join(__dirname, '..', 'agent')); console.log('rendered', require('../lib/agentdoc').install(dir)); return; }
+    case 'search': {
+      if (!sub) fail('usage: search "<query>"');
+      return out(await api('GET', '/api/search' + qs({ q: sub, ...opt }, ['q', 'project', 'person', 'kind', 'from', 'to', 'limit', 'mode'])));
+    }
+    case 'show': {
+      if (!['task', 'email', 'knowledge', 'chunk', 'file'].includes(sub) || !arg) fail('usage: show task|email|knowledge|chunk|file <id>');
+      const url = { task: `/api/tasks/${arg}`, email: `/api/emails/${arg}`, knowledge: `/api/knowledge/${arg}`, chunk: `/api/chunks/${arg}`, file: `/api/files/${arg}/show` }[sub];
+      return out(await api('GET', url));
+    }
+    case 'knowledge':
+      if (sub === 'list') return out(await api('GET', '/api/knowledge' + qs(opt, ['project', 'include_superseded'])));
+      if (sub === 'add') return out(await api('POST', '/api/knowledge', pick(opt, ['project', 'kind', 'title', 'body', 'source', 'source_ref'])));
+      if (sub === 'update') { if (!arg) fail('missing id'); return out(await api('PATCH', `/api/knowledge/${arg}`, pick(opt, ['project', 'kind', 'title', 'body']))); }
+      if (sub === 'supersede') { if (!arg) fail('missing id'); return out(await api('POST', `/api/knowledge/${arg}/supersede`, pick(opt, ['by', 'title', 'body', 'source', 'source_ref']))); }
+      break;
+    case 'protocol': {
+      if (sub === 'list') return out(await api('GET', '/api/protocols' + qs(opt, ['project'])));
+      if (sub === 'show') { if (!arg) fail('missing id'); return out(await api('GET', `/api/protocols/${arg}`)); }
+      if (sub === 'add') {
+        const b = pick(opt, ['project', 'date', 'title', 'location', 'participants', 'source', 'summary']);
+        if (opt['next-meeting']) b.next_meeting_at = opt['next-meeting'];
+        return out(await api('POST', '/api/protocols', b));
+      }
+      if (sub === 'item') {
+        const [, , action, idArg] = pos;
+        if (action === 'add') { if (!opt.protocol) fail('--protocol required'); const b = pick(opt, ['kind', 'text', 'owner', 'party', 'due']); if (opt.recommended) b.recommended = true; return out(await api('POST', `/api/protocols/${opt.protocol}/items`, b)); }
+        if (action === 'update') { if (!idArg) fail('missing item id'); const b = pick(opt, ['kind', 'text', 'owner', 'party', 'due', 'status']); if (opt.recommended !== undefined) b.recommended = opt.recommended !== 'false'; return out(await api('PATCH', `/api/protocol-items/${idArg}`, b)); }
+        if (['promote', 'done', 'dismiss'].includes(action)) { if (!idArg) fail('missing item id'); return out(await api('POST', `/api/protocol-items/${idArg}/${action}`, {})); }
+      }
+      break;
+    }
+    case 'calendar':
+      if (sub === 'list') return out(await api('GET', '/api/calendar' + qs(opt, ['from', 'to'])));
+      if (sub === 'add') return out(await api('POST', '/api/calendar/items', pick(opt, ['title', 'start', 'end', 'location', 'description', 'task', 'project', 'email'])));
+      if (sub === 'update') { if (!arg) fail('missing id'); return out(await api('PATCH', `/api/calendar/items/${arg}`, pick(opt, ['title', 'start', 'end', 'location', 'description']))); }
+      if (sub === 'delete') { if (!arg) fail('missing id'); return out(await api('DELETE', `/api/calendar/items/${arg}`)); }
+      break;
+    case 'calendar-token':
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      return out(await api(sub === '--rotate' || opt.rotate ? 'POST' : 'GET', opt.rotate || sub === '--rotate' ? '/api/calendar/token' : '/api/calendar/info', opt.rotate ? {} : undefined));
+    case 'ask': {
+      const question = pos.slice(1).join(' ').trim() || opt.q;
+      if (!question) fail('usage: mesimot ask "<question>" [--project P]');
+      return out(await api('GET', '/api/ask' + qs({ q: question, project: opt.project, limit: opt.limit }, ['q', 'project', 'limit'])));
+    }
+    case 'usage': {
+      const u = await api('GET', '/api/usage' + qs({ days: opt.days, by: opt.by }, ['days', 'by']));
+      if (opt.json) return out(u);
+      const line = (r) => `${String(r.label || r.key).padEnd(26)} ${String(r.runs).padStart(5)} runs  ${String(r.input + r.output).padStart(9)} tok  cache ${String(r.cache_read + r.cache_write).padStart(10)}  $${r.cost.toFixed(2).padStart(7)}  ${Math.round(r.avg_ms / 1000)}s avg`;
+      console.log(`API-equivalent cost (an estimate; the subscription is a flat fee with limits)`);
+      for (const [n, t] of [['today', u.today], ['7 days', u.week], ['30 days', u.month]]) console.log(`${n.padEnd(8)} ${t.runs} runs, in ${t.input} out ${t.output} cache ${t.cache_read + t.cache_write}, $${t.cost.toFixed(2)}, rate-limit hits ${t.limited}`);
+      console.log(`\nby ${opt.by === 'model' ? 'model' : 'kind'} (last ${u.days} days):`); for (const r of u.by) console.log(line(r));
+      if (u.imports.length) { console.log('\ndaily imports:'); for (const i of u.imports) console.log(`#${i.id} ${i.emails} emails, ${i.runs} runs, $${i.cost.toFixed(2)} ($${i.per_email ?? '-'} per email)`); }
+      console.log(`\nrate-limit events: ${u.rate_limit_events.week} (7d), ${u.rate_limit_events.month} (30d)${u.rate_limit_events.backoff_until ? ', background paused until ' + u.rate_limit_events.backoff_until : ''}`);
+      return;
+    }
+    case 'fact':
+      if (sub === 'set') { const body = pick(opt, ['project', 'key', 'value', 'unit', 'source']); if (opt['as-of']) body.as_of = opt['as-of']; return out(await api('POST', '/api/facts', body)); }
+      if (sub === 'list') return out(await api('GET', '/api/facts' + qs({ project: opt.project, history: opt.history ? '1' : undefined }, ['project', 'history'])));
+      break;
+    case 'file':
+      if (sub === 'list') return out(await api('GET', '/api/files' + qs(opt, ['project'])));
+      if (sub === 'classify') { if (!arg) fail('missing file id'); return out(await api('PATCH', `/api/files/${arg}`, pick(opt, ['project', 'task', 'summary', 'facts_checked']))); }
+      break;
+    case 'chat':
+      if (sub === 'send') return out(await api('POST', '/api/chat', pick(opt, ['text', 'task'])));
+      if (sub === 'list') return out(await api('GET', '/api/chat' + qs({ limit: opt.limit || 20 }, ['limit'])));
+      break;
+    case 'email':
+      if (sub === 'show') { if (!arg) fail('missing id'); return out(await api('GET', `/api/emails/${arg}`)); }
+      if (sub === 'thread') { if (!arg) fail('missing id'); return out(await api('GET', `/api/emails/${arg}/thread`)); }
+      break;
+    case 'telegram':
+      if (sub === 'send') return out(await api('POST', '/api/chat', pick(opt, ['text', 'task'])));
+      if (sub === 'status') return out(await api('GET', '/api/telegram/status'));
+      if (sub === 'bind') { if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant'); return out(await api('POST', '/api/telegram/bind', {})); }
+      break;
+    case 'apply': {
+      const raw = opt.json ? opt.json : opt.file ? fs.readFileSync(opt.file, 'utf8') : fs.readFileSync(0, 'utf8');
+      let payload; try { payload = JSON.parse(raw); } catch (e) { fail('stdin must be JSON: ' + e.message); }
+      return out(await api('POST', '/api/apply' + (opt.dry ? '?dry=1' : ''), payload));
+    }
+    case 'run-summary': return out(await api('POST', '/api/run-summary', { text: opt.text }));
+    case 'pending': return out(await api('GET', '/api/pending'));
+    case 'ack': {
+      const ids = pos.slice(1).flatMap((x) => String(x).split(',')).map(Number).filter(Boolean);
+      return out(await api('POST', '/api/ack', { ids }));
+    }
+    case 'task':
+      if (sub === 'list') return out(await api('GET', '/api/tasks' + qs(opt, ['project', 'assignee', 'requester', 'status', 'priority', 'q', 'stale_days', 'overdue', 'all'])));
+      if (sub === 'show') return out(await api('GET', `/api/tasks/${arg}`));
+      if (sub === 'add') return out(await api('POST', '/api/tasks', pick(opt, ['title', 'project', 'assignee', 'requester', 'status', 'priority', 'due', 'source-date', 'due-source', 'email', 'desc', 'parent', 'unassigned-reason'])));
+      if (sub === 'update') {
+        if (!arg) fail('missing task id');
+        const body = pick(opt, ['title', 'project', 'assignee', 'requester', 'status', 'priority', 'due', 'source-date', 'due-source', 'desc', 'parent', 'email', 'relation']);
+        for (const k of ['assignee', 'requester', 'due', 'source-date', 'parent']) if (k in body) body[k] = nullable(body[k]);
+        return out(await api('PATCH', `/api/tasks/${arg}`, body));
+      }
+      break;
+    case 'note':
+      if (sub === 'add') {
+        if (!opt.task && !opt.project) fail('--task or --project required');
+        return out(await api('POST', '/api/notes', { task: opt.task, project: opt.project, text: opt.text, kind: opt.kind }));
+      }
+      break;
+    case 'draft':
+      if (sub === 'add') { if (!opt.task) fail('--task required'); return out(await api('POST', `/api/tasks/${opt.task}/drafts`, { text: opt.text })); }
+      break;
+    case 'project':
+      if (sub === 'list') return out(await api('GET', '/api/projects'));
+      if (sub === 'add') { const b = pick(opt, ['name', 'aliases', 'description', 'status', 'color']); if (opt.partial) b.partial = true; return out(await api('POST', '/api/projects', b)); }
+      if (sub === 'show') { if (!arg) fail('missing project'); return out(await api('GET', `/api/projects/${encodeURIComponent(arg)}/show`)); }
+      if (sub === 'update') { if (!arg) fail('missing project'); return out(await api('PATCH', `/api/projects/${encodeURIComponent(arg)}`, pick(opt, ['name', 'aliases', 'description', 'status', 'color', 'summary', 'partial']))); }
+      if (sub === 'resolve') { if (!arg) fail('usage: project resolve <vague> --into <project> | --name ... --aliases ...'); const b = pick(opt, ['into', 'name', 'aliases', 'description']); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/resolve`, b)); }
+      if (sub === 'merge') { if (!arg || !pos[3]) fail('usage: project merge <from> <into>'); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/merge`, { into: pos[3] })); }
+      break;
+    case 'person':
+      if (sub === 'list') return out(await api('GET', '/api/people'));
+      if (sub === 'add') { const b = pick(opt, ['name', 'role', 'emails', 'notes', 'status', 'company']); if (opt['name-en']) b.name_en = opt['name-en']; if (opt['role-text']) b.role_text = opt['role-text']; return out(await api('POST', '/api/people', b)); }
+      if (sub === 'update') { if (!arg) fail('missing person'); const b = pick(opt, ['name', 'role', 'emails', 'notes', 'status', 'company']); if (opt['role-text'] !== undefined) b.role_text = opt['role-text']; if (opt['name-en'] !== undefined) b.name_en = opt['name-en']; return out(await api('PATCH', `/api/people/${encodeURIComponent(arg)}`, b)); }
+      if (sub === 'resolve') { if (!arg) fail('usage: person resolve <partial_id> --into <full_id> | --name ... --emails ... --company ... --role-text ...'); const b = pick(opt, ['into', 'name', 'emails', 'email', 'company', 'notes']); if (opt['role-text']) b.role_text = opt['role-text']; if (opt['name-en']) b.name_en = opt['name-en']; return out(await api('POST', `/api/people/${encodeURIComponent(arg)}/resolve`, b)); }
+      if (sub === 'show') { if (!arg) fail('missing person'); return out(await api('GET', `/api/people/${encodeURIComponent(arg)}`)); }
+      if (sub === 'merge') { if (!arg || !pos[3]) fail('usage: person merge <from> <into>'); return out(await api('POST', `/api/people/${encodeURIComponent(arg)}/merge`, { into: pos[3] })); }
+      break;
+    case 'attention':
+      if (sub === 'list') return out(await api('GET', '/api/attention' + qs(opt, ['status'])));
+      if (sub === 'add') return out(await api('POST', '/api/attention', pick(opt, ['kind', 'text', 'task'])));
+      if (sub === 'update') return out(await api('PATCH', `/api/attention/${arg}`, pick(opt, ['status'])));
+      break;
+    default:
+  }
+  console.error(USAGE);
+  process.exit(2);
+}
+
+main().catch((e) => fail(e.message));

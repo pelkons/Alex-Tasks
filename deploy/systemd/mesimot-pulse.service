@@ -1,0 +1,7 @@
+[Unit]
+Description=Mesimot: daytime pulse (code collects, the assistant writes one short message or stays silent)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@NODE@ @ROOT@/bin/mesimot-runner --pulse

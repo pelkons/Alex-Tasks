@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+'use strict';
+// Background text extraction for big uploads (started detached by the server, low priority): mesimot-extract <file id>
+const { open } = require('../lib/db');
+const { createStore } = require('../lib/store');
+const { createKnowledge } = require('../lib/knowledge');
+const id = +process.argv[2];
+const db = open(process.env.MESIMOT_DB);
+const store = createStore(db);
+const knowledge = createKnowledge(db, store);
+const actor = store.ownerId();
+knowledge.indexInBackground(actor, id).then(() => process.exit(0)).catch((e) => {
+  db.prepare("UPDATE files SET text_status='unsupported', index_note=? WHERE id=?").run('העיבוד נכשל: ' + String(e.message || e).slice(0, 120), id);
+  process.exit(1);
+});

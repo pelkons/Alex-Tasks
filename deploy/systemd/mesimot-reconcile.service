@@ -1,0 +1,9 @@
+[Unit]
+Description=Mesimot: daily reconciliation of open tasks against recent mail, chat and files
+After=mesimot.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=@NODE@ @ROOT@/bin/mesimot-runner --reconcile
+TimeoutStartSec=1800

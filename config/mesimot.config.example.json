@@ -1,0 +1,54 @@
+{
+  "site_url": "https://tasks.example.com",
+  "public_url": "https://tasks.example.com",
+  "tunnel_id": "",
+  "timezone": "Asia/Jerusalem",
+  "inbox": "assistant@agentmail.to",
+  "owner": {
+    "name_he": "ישראל ישראלי",
+    "name_en": "Israel Israeli",
+    "emails": [
+      "israel@example.com"
+    ],
+    "work_email": "israel@example.com"
+  },
+  "assistant": {
+    "name_he": "אלכס",
+    "name_en": "Alex"
+  },
+  "team": [
+    {
+      "name_he": "דנה כהן",
+      "name_en": "Dana Cohen",
+      "role": "pm"
+    }
+  ],
+  "bosses": [
+    {
+      "name_he": "רונית לוי",
+      "name_en": "Ronit Levi"
+    }
+  ],
+  "digest_to": "israel@example.com",
+  "agent_models": {
+    "claude-code": {
+      "default": {
+        "model": "sonnet",
+        "effort": "medium"
+      },
+      "jobs": {
+        "pulse": {
+          "model": "haiku",
+          "effort": "low",
+          "fallback": "sonnet"
+        },
+        "names": {
+          "model": "haiku",
+          "effort": "low",
+          "fallback": "sonnet"
+        }
+      }
+    }
+  },
+  "mirror_url": "https://tasks-mirror.example.workers.dev"
+}

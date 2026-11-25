@@ -1,0 +1,9 @@
+[Unit]
+Description=Mesimot: pulse every 2 hours, 08:00 to 18:00, Sunday to Thursday (Jerusalem time)
+
+[Timer]
+OnCalendar=Sun,Mon,Tue,Wed,Thu *-*-* 08,10,12,14,16,18:00:00 @TZ@
+Persistent=false
+
+[Install]
+WantedBy=timers.target

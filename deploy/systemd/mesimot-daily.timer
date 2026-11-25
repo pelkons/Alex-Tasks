@@ -1,0 +1,9 @@
+[Unit]
+Description=Mesimot: morning reminders, Sunday to Thursday 08:00 Jerusalem time
+
+[Timer]
+OnCalendar=Sun,Mon,Tue,Wed,Thu *-*-* 08:00:00 @TZ@
+Persistent=true
+
+[Install]
+WantedBy=timers.target

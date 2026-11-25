@@ -1,0 +1,9 @@
+# Cloudflare Tunnel for the Mesimot site only. install.sh renders this into config/cloudflared.yml.
+# Create the tunnel once:  cloudflared tunnel login && cloudflared tunnel create mesimot && cloudflared tunnel route dns mesimot @DOMAIN@
+tunnel: @TUNNEL_ID@
+credentials-file: @HOME@/.cloudflared/@TUNNEL_ID@.json
+
+ingress:
+  - hostname: @DOMAIN@
+    service: http://127.0.0.1:@PORT@
+  - service: http_status:404

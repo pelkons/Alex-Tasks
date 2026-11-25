@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+'use strict';
+const { build, readEnvFile } = require('../lib/server.js');
+const port = +(process.env.MESIMOT_PORT || 8110);
+const app = build({ dbPath: process.env.MESIMOT_DB });
+if (!process.env.MESIMOT_TOKEN && !readEnvFile().MESIMOT_TOKEN) console.warn('warning: no API token configured');
+app.listen({ host: '127.0.0.1', port }).then(() => { console.log(`mesimot listening on 127.0.0.1:${port}`); app.semantic.startIndexer(); }).catch((e) => { console.error(e); process.exit(1); });
