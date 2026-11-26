@@ -95,6 +95,7 @@ const USAGE = `mesimot <command>
   project list|find|add [--partial]|update|merge|resolve|show   person list|find|add [--status partial --company --role-text]|update|merge|resolve|show
   pending     ack <id...>        attention add|list|update
   usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
+  chat send --text "..." [--file FILEID[,FILEID]]   (--file sends the document(s) to the owner: web chip + Telegram document)
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete   (asks the owner with two buttons; only his answer deletes)
@@ -200,7 +201,7 @@ async function main() {
       if (sub === 'classify') { if (!arg) fail('missing file id'); return out(await api('PATCH', `/api/files/${arg}`, pick(opt, ['project', 'task', 'summary', 'facts_checked']))); }
       break;
     case 'chat':
-      if (sub === 'send') return out(await api('POST', '/api/chat', { ...pick(opt, ['text', 'task']), ...(opt['task-scope'] !== undefined && opt['task-scope'] !== true ? { task_scope: opt['task-scope'] } : {}) }));
+      if (sub === 'send') return out(await api('POST', '/api/chat', { ...pick(opt, ['text', 'task', 'file']), ...(opt['task-scope'] !== undefined && opt['task-scope'] !== true ? { task_scope: opt['task-scope'] } : {}) }));
       if (sub === 'list') return out(await api('GET', '/api/chat' + qs({ limit: opt.limit || 20 }, ['limit'])));
       break;
     case 'email':
