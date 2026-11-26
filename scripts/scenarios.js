@@ -9,6 +9,7 @@ const T = '/tmp/mesimot-test';
 // npm run scenarios -- --agent=claude-code|codex|gemini [--model=...]: the suite is the benchmark for comparing agents
 for (const a of process.argv.slice(2)) { const m = /^--(agent|model)=(.+)$/.exec(a); if (m) process.env[m[1] === 'agent' ? 'MESIMOT_AGENT' : 'MESIMOT_AGENT_MODEL'] = m[2]; }
 process.env.MESIMOT_DB = `${T}/test.db`; process.env.MESIMOT_FILES = `${T}/files`; process.env.MESIMOT_LOCK = `${T}/runner.lock`;
+process.env.MESIMOT_INGEST_TOKEN = 'test-ingest-token-1234'; process.env.MESIMOT_INGEST_PORT = '8131'; process.env.MESIMOT_INGEST_HOST = process.env.MESIMOT_INGEST_HOST || require('child_process').execSync("ip -4 -o addr show tailscale0 | awk '{print $4}' | cut -d/ -f1", { encoding: 'utf8' }).trim();
 process.env.MESIMOT_URL = 'http://127.0.0.1:8111'; process.env.MESIMOT_SEMANTIC = process.env.MESIMOT_SEMANTIC || '1';
 const { open } = require('../lib/db');
 const { createStore } = require('../lib/store');
@@ -681,6 +682,35 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     const run = db.prepare('SELECT edited_msg_id FROM claude_runs WHERE edited_msg_id=?').get(posted.id);
     expect(run, 'no run references the edited message');
     return [`one task "${now[0].title}" due ${now[0].due_date}; ${out.undone} actions undone; new reply: ${fresh[0].text.replace(/\n/g, ' / ').slice(0, 160)}`, `${Math.round((Date.now() - t0) / 1000)}s for the re-run`];
+  });
+
+  await scenario('31. live Outlook ingest: mail pushed over the listener is processed without per-mail chat messages; a boss request and a due-tomorrow item produce ONE urgent message; the owner\'s sent mail closes a task; calendar events mirror', async () => {
+    const { buildMsg } = require(`${root}/test/helpers/msg-builder`);
+    const owner = store.ownerId(), assistant = store.assistantId();
+    const proj = store.listProjects().find((p) => p.name_he === 'מגדל הנוף') || store.listProjects().find((p) => !p.is_default);
+    const open = store.createTask(assistant, { title: 'להעביר לקבלן את פרטי הזיון של קומה 5', project: proj.id, requester: owner, assignee: owner, due: '2026-12-10' });
+    const base = `http://${process.env.MESIMOT_INGEST_HOST}:${process.env.MESIMOT_INGEST_PORT}`; const auth = { Authorization: 'Bearer ' + process.env.MESIMOT_INGEST_TOKEN };
+    const push = async (entry, folder, msg, mid) => { const fd = new FormData(); fd.append('meta', new Blob([JSON.stringify({ entry_id: entry, folder, received_or_sent_at: new Date().toISOString(), internet_message_id: mid, size: msg.length })], { type: 'application/json' }), 'meta.json'); fd.append('file', new Blob([msg]), 'm.msg'); return (await fetch(base + '/ingest/mail', { method: 'POST', headers: auth, body: fd })).json(); };
+    const t = Date.now(); const to = [{ name: 'דנה', addr: 'dana@exconstruct.example' }];
+    const r1 = await push('OL1', 'inbox', buildMsg({ from_name: 'אבי כהן', from_addr: 'avi@bosscompany.example', to, subject: 'דחוף: להכין לי דוח התקדמות למגדל הנוף', body: 'דנה שלום, אני צריך ממך עד מחר דוח התקדמות שבועי למגדל הנוף, כולל מצב היציקות. תודה, אבי', date: t }), '<ol1@bosscompany.example>');
+    const r2 = await push('OL2', 'inbox', buildMsg({ from_name: 'ידיעון', from_addr: 'newsletter@vendor.example', to, subject: 'מה חדש בחודש הזה', body: 'עדכון כללי לידיעה, אין צורך בפעולה.', date: t + 1000 }), '<ol2@vendor.example>');
+    const r3 = await push('OL3', 'sent', buildMsg({ from_name: 'דנה', from_addr: 'dana@exconstruct.example', to: [{ name: 'קבלן', addr: 'c@contractor.example' }], subject: 'פרטי הזיון של קומה 5', body: 'שלום, מצורפים פרטי הזיון של קומה 5 כפי שביקשת. נשלח.', date: t + 2000 }), '<ol3@exconstruct.example>');
+    expect([r1.status, r2.status, r3.status].every((x) => x === 'stored'), `push failed: ${JSON.stringify([r1, r2, r3])}`);
+    expect((await push('OL1', 'inbox', Buffer.from('x'), '<ol1@bosscompany.example>')).status === 'duplicate', 'a repeated push is not a duplicate');
+    const cal = await (await fetch(base + '/ingest/calendar', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify([{ entry_id: 'CE1', subject: 'ישיבת קבלנים', start: '2026-12-01T09:00:00+02:00', end: '2026-12-01T10:00:00+02:00', location: 'אתר' }]) })).json();
+    expect(cal.created === 1, `calendar: ${JSON.stringify(cal)}`);
+    const before = db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
+    await waitIdle('live ingest', 8 * 60 * 1000);
+    for (let i = 0; i < 90; i++) { const imp = db.prepare("SELECT status FROM imports WHERE json_extract(stats,'$.live')=1 ORDER BY id DESC LIMIT 1").get(); if (imp && imp.status === 'done') break; await sleep(5000); }
+    const imp = db.prepare("SELECT * FROM imports WHERE json_extract(stats,'$.live')=1 ORDER BY id DESC").get();
+    expect(imp && imp.status === 'done', `the live import is ${imp && imp.status}`);
+    const msgs = db.prepare("SELECT author, text FROM chat_messages WHERE id > ? AND author='claude' AND scope IS NULL").all(before);
+    const urgent = msgs.filter((m) => /דחוף מהמייל/.test(m.text));
+    expect(msgs.length <= 2, `${msgs.length} chat messages from the assistant (expected only urgent ones): ${JSON.stringify(msgs).slice(0, 300)}`);
+    const created = db.prepare("SELECT t.id, t.title, t.due_date FROM tasks t WHERE t.id > ? AND t.created_by=?").all(open.id, assistant);
+    const closedOpen = store.getTask(open.id);
+    const st = await (await fetch(base + '/ingest/status', { headers: auth })).json();
+    return [`new tasks: ${created.map((x) => x.title + ' (' + x.due_date + ')').join(' | ') || 'none'}`, `urgent messages: ${urgent.length}${urgent[0] ? ' - ' + urgent[0].text.slice(0, 160) : ''}`, `the sent-mail task is now ${closedOpen.status}`, `status: ${st.mail.total} mails, ${st.calendar.items} calendar items`, `import ${imp.id}: ${imp.status}`];
   });
 
   const H2 = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };

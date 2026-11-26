@@ -4,4 +4,12 @@ const { build, readEnvFile } = require('../lib/server.js');
 const port = +(process.env.MESIMOT_PORT || 8110);
 const app = build({ dbPath: process.env.MESIMOT_DB });
 if (!process.env.MESIMOT_TOKEN && !readEnvFile().MESIMOT_TOKEN) console.warn('warning: no API token configured');
-app.listen({ host: '127.0.0.1', port }).then(() => { console.log(`mesimot listening on 127.0.0.1:${port}`); app.semantic.startIndexer(); }).catch((e) => { console.error(e); process.exit(1); });
+// the Outlook connector's listener: a separate Fastify instance, bound to the Tailscale address ONLY (never 0.0.0.0, never the tunnel), Bearer token + 100.64.0.0/10 source check
+function startIngest() {
+  const { createIngestApp, tailscaleAddr, readToken } = require('../lib/ingest');
+  const host = tailscaleAddr(), iport = +(process.env.MESIMOT_INGEST_PORT || 8130);
+  if (!readToken()) { console.warn('ingest listener not started: MESIMOT_INGEST_TOKEN is not set'); return; }
+  if (!host) { console.warn('ingest listener not started: no Tailscale address'); return; }
+  createIngestApp({ ingest: app.ingest }).listen({ host, port: iport }).then(() => console.log(`ingest listening on ${host}:${iport} (Tailscale only)`)).catch((e) => console.error('ingest listener failed:', e.message));
+}
+app.listen({ host: '127.0.0.1', port }).then(() => { console.log(`mesimot listening on 127.0.0.1:${port}`); app.semantic.startIndexer(); startIngest(); }).catch((e) => { console.error(e); process.exit(1); });

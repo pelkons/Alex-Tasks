@@ -165,7 +165,7 @@ async function main() {
       break;
     }
     case 'calendar':
-      if (sub === 'list') return out(await api('GET', '/api/calendar' + qs(opt, ['from', 'to'])));
+      if (sub === 'list') return out(await api('GET', '/api/calendar' + qs(opt, ['from', 'to', 'q'])));
       if (sub === 'add') return out(await api('POST', '/api/calendar/items', pick(opt, ['title', 'start', 'end', 'location', 'description', 'task', 'project', 'email'])));
       if (sub === 'update') { if (!arg) fail('missing id'); return out(await api('PATCH', `/api/calendar/items/${arg}`, pick(opt, ['title', 'start', 'end', 'location', 'description']))); }
       if (sub === 'delete') { if (!arg) fail('missing id'); return out(await api('DELETE', `/api/calendar/items/${arg}`)); }

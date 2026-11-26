@@ -30,6 +30,7 @@ reopenable); permanent deletion exists, but only after a one-question confirmati
 * **Questions answered from your own data** (`mesimot ask`): synonyms, keyword + semantic search, answers with file and page; a code-enforced "do not give up" ladder.
 * **Daily bulk import**: drop a day of exported Outlook mail (`.msg`, `.eml`, zip) into the chat; duplicates and noise are dropped, threads are grouped, sent mail
   closes or opens tasks, one digest comes back.
+* **Live Outlook ingest** (optional): a small connector on a Windows PC pushes new mail and calendar changes over Tailscale (`docs/OUTLOOK-INGEST.md`); mail is processed within minutes, only urgent items interrupt, one morning digest, a read-only calendar mirror.
 * **Validation gate**: the code checks every run (project, requester, dates, people, language, attachments, facts) and re-prompts the agent.
 * People and projects mentioned casually are resolved later and everything that referred to them is re-linked.
 * Meeting minutes tab, calendar feed (subscribe from Outlook), voice messages (local speech-to-text), Telegram bot, web research command (`/s`).

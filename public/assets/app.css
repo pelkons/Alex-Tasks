@@ -1022,3 +1022,8 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .purge-undo { position: fixed; z-index: 90; inset-inline-start: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: var(--text); color: var(--bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .sc-chat { margin-top: 12px; }
 .sc-feed { max-height: 280px; }
+
+/* the Outlook mirror: read-only, subtle, hatched edge instead of the project colour */
+.cal-chip.outlook, .cal-item.outlook { background: color-mix(in srgb, var(--muted, #6b7280) 9%, var(--surface)); border-inline-start-style: dashed; font-weight: 400; }
+.cal-item.outlook .ci-k { font-size: .7rem; letter-spacing: .02em; }
+.cal-chip.outlook .cc-t::before { content: 'O '; opacity: .55; font-weight: 600; }
