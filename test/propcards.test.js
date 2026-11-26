@@ -53,7 +53,7 @@ test('Telegram: every question is its own message (a few per round) with the exc
   calls.length = 0; await tg.deliverPending(); let sent = calls.filter((c) => c.method === 'sendMessage');
   assert.equal(sent.length, 3, 'three per round, each its own message'); const m = sent[0].body;
   for (const part of ['רון לוי', 'הצעת מחיר לתכנון', 'שלום דנה', 'הצעה.pdf', 'האם נדרשת משימה', 'א) המערכת החליטה: אין משימה', 'ב) המודל אומר: כן, נדרשת משימה', 'כותרת משימה מוצעת']) assert.ok(m.text.includes(part), part);
-  const kb = m.reply_markup.inline_keyboard; assert.deepEqual(kb[0].map((b) => b.text), ['כן, צריך משימה', 'לא, רק מידע (אין משימה)']); assert.match(kb[1][0].url, /\/email\/\d+$/);
+  const kb = m.reply_markup.inline_keyboard; assert.deepEqual(kb.flat().slice(0, 2).map((b) => b.text), ['כן, צריך משימה', 'לא, רק מידע (אין משימה)'], 'the answers, primary first (on separate rows: they are long)'); assert.match(kb[kb.length - 1][0].url, /\/email\/\d+$/);
   await tg.deliverPending(); sent = calls.filter((c) => c.method === 'sendMessage'); assert.equal(sent.length, 5, 'the rest follows in the next round, the legacy question is never sent');
   const pid = +kb[0][0].callback_data.split(':')[1];
   await tg.handleUpdate({ update_id: 5, callback_query: { id: 'c', data: `pqy:${pid}`, message: { chat: { id: 7 }, message_id: 55 } } }); assert.equal(S.db.prepare('SELECT status FROM proposals WHERE id=?').get(pid).status, 'applied');

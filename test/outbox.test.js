@@ -188,13 +188,13 @@ test('Telegram: only the owner chat can approve with the card button; a stale bu
   const OWNER = 777001; await tg.handleUpdate({ update_id: 1, message: { message_id: 1, chat: { id: OWNER }, text: '/start ' + tg.createBindCode() } });
   const a = store.assistantId(); const d = outbox.create(a, { to: 'a@b.co', subject: 'שלום', body: 'גוף קצר' });
   await tg.deliverPending(); const sent = calls.filter((c) => c.method === 'sendMessage').pop().body;
-  const btns = sent.reply_markup.inline_keyboard[0]; assert.deepEqual(btns.map((b) => b.text), ['✅ שלח', '✏️ ערוך', '❌ בטל']); assert.ok(sent.text.includes('גוף קצר') && sent.text.includes('אל: a@b.co'));
+  const btns = sent.reply_markup.inline_keyboard.flat(); assert.deepEqual(btns.map((b) => b.text), ['✅ שלח', '✏️ ערוך', '❌ בטל']); assert.ok(sent.text.includes('גוף קצר') && sent.text.includes('אל: a@b.co'));
   const cb = (data, chat_id = OWNER) => tg.handleUpdate({ update_id: Math.floor(Math.random() * 1e6) + 10, callback_query: { id: 'c' + data, data, message: { chat: { id: chat_id }, message_id: 9 } } });
   await cb(btns[0].callback_data, 4242); assert.equal(outbox.get(d.id).status, 'pending', 'another chat cannot approve');
   const e = outbox.update(a, d.id, { body: 'גוף אחר' }); await cb(btns[0].callback_data); assert.equal(outbox.get(d.id).status, 'pending', 'the old card button refuses');
   assert.ok(calls.some((c) => c.method === 'answerCallbackQuery' && /הטיוטה השתנתה, אשר שוב/.test(c.body.text)));
-  await tg.deliverPending(); const fresh = calls.filter((c) => c.method === 'sendMessage').pop().body.reply_markup.inline_keyboard[0][0].callback_data;
+  await tg.deliverPending(); const fresh = calls.filter((c) => c.method === 'sendMessage').pop().body.reply_markup.inline_keyboard.flat()[0].callback_data;
   await cb(fresh); assert.equal(outbox.get(d.id).status, 'approved'); assert.equal(outbox.get(d.id).approved_via, 'telegram'); assert.ok(e.hash_short);
   const big = outbox.create(a, { to: 'a@b.co', subject: 'ארוך', body: 'מילה '.repeat(1000) }); await tg.deliverPending();
-  const bk = calls.filter((c) => c.method === 'sendMessage').pop().body.reply_markup.inline_keyboard[0]; assert.ok(!bk.some((b) => /obok/.test(b.callback_data || '')), 'no approve button on a card that Telegram cannot show in full'); assert.ok(big.id);
+  const bk = calls.filter((c) => c.method === 'sendMessage').pop().body.reply_markup.inline_keyboard.flat(); assert.ok(!bk.some((b) => /obok/.test(b.callback_data || '')), 'no approve button on a card that Telegram cannot show in full'); assert.ok(big.id);
 });
