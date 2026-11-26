@@ -147,7 +147,7 @@
       <template x-for="t in sec.items" :key="t.id">
         <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, unassigned: t.project_default}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
           <button class="check" @click="toggleDone(t)" aria-label="סימון כהושלמה"><i>✓</i></button>
-          <button class="body" @click="openTask(t.id)">
+          <button class="body" @click="!t._bad && openTask(t.id)">
             <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
             <span class="title" x-text="t.title"></span>
             <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
@@ -964,7 +964,7 @@
     <section class="card filters-card">
       <h3>סינון מיילים</h3>
       <p class="muted sm">כללים שלך שמופעלים בקוד, לפני שמודל רואה את המייל (בייבוא היומי ובדואר שוטף). "לדלג": המייל נשמר וניתן לחיפוש אבל לא מעובד. "לידיעה": רק עובדות, בלי משימות. "תמיד רלוונטי": לעולם לא מסוננים. אפשר גם בצ׳אט: "תסנן מיילים מ-X".</p>
-      <template x-for="f in filters" :key="f.id">
+      <template x-for="f in mailFilters" :key="f.id">
         <div class="frule" :class="{off: !f.enabled}">
           <span class="fk" x-text="{sender:'שולח', domain:'דומיין', text:'טקסט', regex:'ביטוי'}[f.kind]"></span>
           <b dir="auto" x-text="f.pattern"></b>
@@ -975,7 +975,7 @@
           <button class="icon-btn" @click="deleteFilter(f)" aria-label="מחיקת כלל" title="מחיקה">✕</button>
         </div>
       </template>
-      <p class="muted sm" x-show="filters.length===0">אין כללים עדיין.</p>
+      <p class="muted sm" x-show="mailFilters.length===0">אין כללים עדיין.</p>
       <form class="fform" @submit.prevent="addFilter()">
         <select x-model="fform.kind" aria-label="סוג כלל"><option value="sender">כתובת שולח</option><option value="domain">דומיין השולח</option><option value="text">מכיל טקסט</option><option value="regex">ביטוי רגולרי (מתקדם)</option></select>
         <input type="text" x-model="fform.pattern" :placeholder="{sender:'name@example.com', domain:'example.com', text:'למשל: Out of office', regex:'^(RE|FW):'}[fform.kind]" dir="auto" aria-label="תבנית">
@@ -1332,7 +1332,7 @@
   <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="delDlg">
     <div class="pk-head"><b>מחיקת הודעה</b><button class="icon-btn" @click="delDlg=null" aria-label="סגירה">✕</button></div>
     <p class="muted" x-text="delDlg ? clipText(delDlg.m.text, 120) : ''"></p>
-    <label class="switch-row" x-show="delDlg && delDlg.m.author==='owner'"><input type="checkbox" x-model="delDlg.undo"><span>בטל גם את מה שאלכס עשה בעקבות ההודעה</span></label>
+    <template x-if="delDlg && delDlg.m && delDlg.m.author==='owner'"><label class="switch-row"><input type="checkbox" x-model="delDlg.undo"><span>בטל גם את מה שאלכס עשה בעקבות ההודעה</span></label></template>
     <div class="btnrow"><button class="btn danger" @click="confirmDelete()">מחק</button><button class="btn" @click="delDlg=null">ביטול</button></div>
   </div>
 </div>

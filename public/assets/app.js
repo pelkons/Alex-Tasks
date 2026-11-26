@@ -24,12 +24,17 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], filters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
 
     async init() {
+      // one malformed row or value must never blank a screen: the pure render helpers return a harmless default instead of throwing
+      for (const [k, d] of [['pc', '#6b7280'], ['pcol', '#6b7280'], ['pname', ''], ['fmtReceived', ''], ['fmtDate', ''], ['fmtDateTime', ''], ['dayOf', ''], ['clipText', ''], ['isLate', false], ['fmtMoney', '']]) {
+        const f = this[k]; if (typeof f !== 'function') continue;
+        this[k] = (...a) => { try { return f.apply(this, a); } catch (e) { console.warn('render helper', k, e.message); return d; } };
+      }
       this.density = MesimotLayout.density();
       // never let the browser open a dropped file (it would leave the app): dragging files over anything that is not a drop zone does nothing
       for (const t of ['dragover', 'drop']) window.addEventListener(t, (e) => { if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) { e.preventDefault(); if (t === 'drop') this.dropping = null; } });
@@ -171,19 +176,28 @@ function app() {
     // ---------- data
     async loadBoot() { this.boot = await this.api('GET', '/api/bootstrap'); },
     async loadLists() { await Promise.all([this.loadTasks(), this.loadOpen(), this.loadAttention()]); },
+    // every task row is normalised once: null/undefined text fields become '', and a row that is not an object becomes a visible "פריט פגום" placeholder (logged), so the list always renders
+    normTasks(list) {
+      if (!Array.isArray(list)) return [];
+      const str = (v) => (v === null || v === undefined ? '' : String(v));
+      return list.map((t, i) => {
+        if (!t || typeof t !== 'object' || t.id === undefined || t.id === null) { console.error('bad task row', i, t); return { id: -1 - i, _bad: true, title: 'פריט פגום', project: '', requester: '', assignee: null, status: '', priority_sort: 9, status_closed: 0, due_date: null }; }
+        return { ...t, title: str(t.title), description: str(t.description), project: str(t.project), requester: t.requester == null ? '' : str(t.requester), assignee: t.assignee == null ? null : str(t.assignee), status: str(t.status), due_date: typeof t.due_date === 'string' && t.due_date ? t.due_date : null };
+      });
+    },
     async loadTasks() {
       const p = new URLSearchParams();
       const f = this.filters;
       p.set('open', '1'); // closed tasks live in the archive, not at the bottom of the list
-      if (f.q.trim()) p.set('q', f.q.trim());
+      const fq = String(f.q || '').trim(); if (fq) p.set('q', fq);
       if (f.project) p.set('project', f.project);
       if (f.assignee) p.set('assignee', f.assignee);
       if (f.status) p.set('status', f.status);
       if (f.requester) p.set('requester', f.requester);
-      this.tasks = await this.api('GET', '/api/tasks' + (p.toString() ? '?' + p : ''));
+      this.tasks = this.normTasks(await this.api('GET', '/api/tasks' + (p.toString() ? '?' + p : '')));
     },
     async loadOpen() {
-      this.openTasks = await this.api('GET', '/api/tasks?open=1');
+      this.openTasks = this.normTasks(await this.api('GET', '/api/tasks?open=1'));
       this.overdue = this.openTasks.filter((t) => t.due_date && t.due_date < todayISO()).sort((a, b) => a.due_date.localeCompare(b.due_date));
     },
     async loadAttention() { this.attention = await this.api('GET', '/api/attention?status=open'); },
@@ -232,7 +246,7 @@ function app() {
       return [{ title: 'צוות', items: ppl.filter((p) => p.role !== 'contact') }, { title: 'אנשי קשר', items: ppl.filter((p) => p.role === 'contact') }].filter((g) => g.items.length);
     },
     openCountFor(p) { return this.openTasks.filter((t) => t.assignee_id === p.id).length; },
-    hasFilters() { return !!(this.filters.q.trim() || this.activeChips().length); },
+    hasFilters() { return !!(String(this.filters.q || '').trim() || this.activeChips().length); },
     activeChips() {
       const f = this.filters, out = [];
       const nm = (list, id) => (list.find((x) => x.id === id) || {}).name_he;
@@ -286,6 +300,7 @@ function app() {
       } catch (e) { this.fail(e); }
     },
     async toggleDone(t) {
+      if (!t || t._bad) return;
       const target = t.status_done
         ? this.boot.statuses.find((s) => !s.is_closed)
         : this.boot.statuses.find((s) => s.is_done);
@@ -912,7 +927,7 @@ function app() {
       const a = this.arc; a.loading = true;
       const p = new URLSearchParams({ limit: '50', offset: more ? String(a.items.length) : '0' });
       for (const k of ['q', 'project', 'person', 'from', 'to']) if (String(a[k] || '').trim()) p.set(k, String(a[k]).trim());
-      try { const r = await this.api('GET', '/api/archive?' + p); a.items = more ? [...a.items, ...r.items] : r.items; a.total = r.total; } catch (e) { this.fail(e); }
+      try { const r = await this.api('GET', '/api/archive?' + p); const items = this.normTasks(r.items); a.items = more ? [...a.items, ...items] : items; a.total = r.total; } catch (e) { this.fail(e); }
       a.loading = false;
     },
     async reopenTask(t) { try { await this.api('PATCH', '/api/tasks/' + t.id, { status: 'בטיפול' }); this.toast('המשימה נפתחה מחדש'); await this.loadArchive(); } catch (e) { this.fail(e); } },
@@ -1137,7 +1152,7 @@ function app() {
     async obSaveEdit(o) { try { await this.api('PATCH', `/api/outbox/${o.id}`, { to: this.obEdit.to, cc: this.obEdit.cc, bcc: this.obEdit.bcc, subject: this.obEdit.subject, body: this.obEdit.body }); this.obEdit = null; this.toast('נוצר כרטיס חדש לאישור'); } catch (e) { this.fail(e); } await this.obRefresh(); },
     async loadIngest() { try { this.ingest = await this.api('GET', '/api/ingest/status'); } catch (e) { /* optional */ } },
     ingestState() { const t = this.ingest && this.ingest.last_contact_at ? Date.now() - Date.parse(this.ingest.last_contact_at) : null; return t === null ? 'לא מחובר' : t < 30 * 60000 ? 'מחובר' : t < 2 * 3600000 ? 'שקט (מעל חצי שעה)' : 'לא שולח מעל שעתיים'; },
-    async loadFilters() { try { this.filters = await this.api('GET', '/api/filters'); } catch (e) { /* optional */ } },
+    async loadFilters() { try { this.mailFilters = await this.api('GET', '/api/filters'); } catch (e) { /* optional */ } },
     async previewFilter() { try { this.fprev = await this.api('POST', '/api/filters/preview', { ...this.fform, project: this.fform.project || null }); } catch (e) { this.fail(e); } },
     async addFilter() { try { await this.api('POST', '/api/filters', { ...this.fform, project: this.fform.project || null }); this.fform.pattern = ''; this.fprev = null; this.toast('הכלל נוסף'); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async toggleFilter(f) { try { await this.api('PATCH', '/api/filters/' + f.id, { enabled: !f.enabled }); await this.loadFilters(); } catch (e) { this.fail(e); } },
