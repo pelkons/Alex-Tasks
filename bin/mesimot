@@ -100,7 +100,7 @@ const USAGE = `mesimot <command>
   show task|email|knowledge|chunk|file <id>
   calendar list|add|update|delete  calendar-token [--rotate]
   knowledge list|add|update|supersede   fact set|list   file list|classify
-  protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6]  chat list      email show|thread <id>
+  protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6] [--task-scope ID|0]  chat list      email show|thread <id>
   apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
   run-summary --text "..."
   web-password [--generate]`;
@@ -196,7 +196,7 @@ async function main() {
       if (sub === 'classify') { if (!arg) fail('missing file id'); return out(await api('PATCH', `/api/files/${arg}`, pick(opt, ['project', 'task', 'summary', 'facts_checked']))); }
       break;
     case 'chat':
-      if (sub === 'send') return out(await api('POST', '/api/chat', pick(opt, ['text', 'task'])));
+      if (sub === 'send') return out(await api('POST', '/api/chat', { ...pick(opt, ['text', 'task']), ...(opt['task-scope'] !== undefined && opt['task-scope'] !== true ? { task_scope: opt['task-scope'] } : {}) }));
       if (sub === 'list') return out(await api('GET', '/api/chat' + qs({ limit: opt.limit || 20 }, ['limit'])));
       break;
     case 'email':

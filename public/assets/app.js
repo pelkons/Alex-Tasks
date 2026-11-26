@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, tcText: '', tcSending: false, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '' }, sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
@@ -52,9 +52,9 @@ function app() {
       this.$nextTick(() => this.watchFeed());
       document.addEventListener('visibilitychange', () => { if (!document.hidden) { this.refresh(); this.scrollFeed(); } });
       setInterval(() => { if (!document.hidden) this.refresh(); }, 30000);
-      try { this.seenId = +localStorage.getItem('seenChatId') || 0; } catch (e) {}
+      try { this.seenId = +localStorage.getItem('seenChatId') || 0; this.chatTaskMsgs = localStorage.getItem('chatTaskMsgs') !== '0'; } catch (e) {}
       await this.loadBoot();
-      await this.loadChat();
+      try { await this.loadChat(); } catch (e) { /* the chat retries on the next poll; the app still starts */ }
       this.ready = true;
       await this.onRoute();
       this.pollLoop();
@@ -336,6 +336,68 @@ function app() {
         this.fail(e);
         if (ev && ev.target) ev.target.value = this.fmtReceivedFull(this.detail);
       }
+    },
+    // ---- edit / delete chat messages
+    startEdit(m) { this.msgMenu = null; this.editing = { id: m.id, text: m.text }; },
+    cancelEdit() { this.editing = null; },
+    async refreshAfterEdit() {
+      await this.loadChat();
+      if (this.route.name === 'task' && this.detail) { await this.loadDetail(true); }
+      this.pollNow();
+    },
+    async saveEdit() {
+      const e = this.editing; if (!e) return;
+      const text = e.text.trim(); if (!text) return;
+      try {
+        const r = await this.api('PATCH', '/api/chat/' + e.id, { text });
+        this.editing = null; this.awaitingId = e.id; this._awaitSince = Date.now();
+        this.toast(r.undone ? `נערך. ביטלתי ${r.undone} פעולות קודמות ואלכס חושב מחדש` + (r.skipped && r.skipped.length ? ` (${r.skipped.length} לא ניתנו לביטול)` : '') : 'נערך. אלכס חושב מחדש');
+        await this.refreshAfterEdit();
+      } catch (err) { this.fail(err); }
+    },
+    askDelete(m) { this.msgMenu = null; this.delDlg = { m, undo: m.author === 'owner' }; },
+    async confirmDelete() {
+      const d = this.delDlg; if (!d) return;
+      try {
+        const r = await this.api('DELETE', `/api/chat/${d.m.id}?undo=${d.m.author === 'owner' && d.undo ? 1 : 0}`);
+        this.delDlg = null;
+        this.toast(r.undone ? `נמחק. בוטלו ${r.undone} פעולות` : 'נמחק');
+        await this.refreshAfterEdit();
+      } catch (err) { this.fail(err); }
+    },
+    // ---- task-scoped chat (the "שיחה על המשימה" block of the card): the thread, the assistant's actions and the old notes in one chronological list
+    taskConv() {
+      const d = this.detail; if (!d) return [];
+      const me = this.assistantName();
+      const items = [
+        ...(d.thread || []).map((m) => ({ key: 'm' + m.id, type: 'msg', at: m.created_at, m })),
+        ...(d.notes || []).map((n) => ({ key: 'n' + n.id, type: 'note', at: n.created_at, n })),
+        ...(d.history || []).filter((e) => e.actor === me && !['note', 'draft'].includes(e.action) && !(e.action === 'create' && false)).map((e) => ({ key: 'e' + e.id, type: 'ev', at: e.created_at, e })),
+      ];
+      return items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    },
+    setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatTaskMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },
+    // a message that arrives with a missing field must never break the whole list: every message is normalised once, and the view never throws
+    normMsg(m) { if (!m || typeof m !== 'object') return null; m.files = Array.isArray(m.files) ? m.files : []; m.tasks = Array.isArray(m.tasks) ? m.tasks : []; m.refs = m.refs && typeof m.refs === 'object' ? m.refs : { task: {}, projects: {}, email: {} }; m.text = m.text == null ? '' : String(m.text); return m; },
+    chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return this.chatTaskMsgs ? all : all.filter((m) => m && m.scope !== 'task'); } catch (e) { return []; } },
+    scrollTaskFeed() { this.$nextTick(() => { const f = this.$refs.tcfeed || document.querySelector('.tc-feed'); if (f) f.scrollTop = f.scrollHeight; }); },
+    async sendTaskChat() {
+      const text = this.tcText.trim();
+      if (this.uploading()) { this.toast('ממתינים לסיום העלאת הקבצים'); return; }
+      const files = this.chatFiles.filter((f) => f.done);
+      if (this.tcSending || (!text && !files.length) || !this.detail) return;
+      this.tcSending = true;
+      try {
+        const m = await this.api('POST', '/api/chat', { text, file_ids: files.map((f) => f.id), task_scope: this.detail.id });
+        this.tcText = ''; this.chatFiles = []; this.chatTask = null;
+        document.querySelectorAll('.tc-in').forEach((el) => { el.style.height = 'auto'; });
+        this.normMsg(m);
+        if (m.id > this.lastMsgId && !this.chatMsgs.some((x) => x.id === m.id)) { this.chatMsgs.push(m); this.lastMsgId = m.id; }
+        this.detail.thread = [...(this.detail.thread || []), m];
+        this.awaitingId = m.id; this._awaitSince = Date.now();
+        this.scrollTaskFeed(); this.pollNow();
+      } catch (e) { this.fail(e); }
+      this.tcSending = false;
     },
     async addNote() {
       const text = this.noteText.trim();
@@ -621,13 +683,13 @@ function app() {
     importStage(i) { return { collecting: 'ממתין להודעות נוספות…', staging: 'קורא את הקבצים…', parsed: 'מסנן כפילויות…', triage: 'ממיין שרשורים…', processing: 'מעבד שרשורים…', digest: 'מכין סיכום…', done: 'הושלם' }[i.status] || ''; },
     async pollImports() {
       for (const m of this.chatMsgs) {
-        if (m.import_id && (!m.import || m.import.status !== 'done')) { try { const p = await this.api('GET', '/api/imports/' + m.import_id); m.import = p; } catch (e) { /* later */ } }
+        if (m.import_id && !m._noimp && (!m.import || m.import.status !== 'done')) { try { const p = await this.api('GET', '/api/imports/' + m.import_id); m.import = p; } catch (e) { m._noimp = true; } }
       }
     },
     async pollNow() {
       const was = this.busy();
       this.status = await this.api('GET', '/api/status');
-      if (this.chatMsgs.some((m) => m.import_id && (!m.import || m.import.status !== 'done'))) this.pollImports();
+      if (this.chatMsgs.some((m) => m.import_id && !m._noimp && (!m.import || m.import.status !== 'done'))) this.pollImports();
       if (this.status.last_message_id > this.lastMsgId) await this.loadChat(true);
       if (this.awaitingId && !this.status.working && this.status.pending_chat === 0 && this.chatMsgs.some((m) => m.author === 'claude' && m.id > this.awaitingId)) this.awaitingId = 0;
       if (this.awaitingId && !this.status.working && this.status.pending_chat === 0 && Date.now() - (this._awaitSince || 0) > 15000) this.awaitingId = 0;
@@ -642,17 +704,22 @@ function app() {
       if (more && this.lastMsgId) {
         if (this._chatLoading) return; this._chatLoading = true; // concurrent polls used to push the same message twice
         let add; try { add = await this.api('GET', '/api/chat?after=' + this.lastMsgId); } finally { this._chatLoading = false; }
+        if (!Array.isArray(add)) return;
         add = add.filter((m) => !this.chatMsgs.some((x) => x.id === m.id));
         if (add.length) {
           const stick = this._stick !== false || add.every((m) => m.author !== 'claude');
-          this.chatMsgs.push(...add); this.lastMsgId = add[add.length - 1].id;
+          add.forEach((m) => this.normMsg(m)); this.chatMsgs.push(...add); this.lastMsgId = Math.max(this.lastMsgId, ...add.map((m) => m.id));
+          this.chatMsgs.sort((a, b) => (a.pos || a.id) - (b.pos || b.id)); // a reply to an edited message sits right after it
           const fromClaude = add.filter((m) => m.author === 'claude');
           if (fromClaude.length && !this.chatVisible()) { const m = fromClaude[fromClaude.length - 1]; this.toast('אלכס: ' + this.clipText(m.text.replace(/https?:\/\/\S+/g, '').trim(), 90)); }
           this.markSeen();
+          if (this.route.name === 'task' && add.some((m) => m.scope === 'task' && m.task_id === this.route.id)) { await this.loadDetail(true); this.scrollTaskFeed(); }
           if (stick) this.scrollFeed(); else this.newBelow += add.length;
         }
       } else {
-        this.chatMsgs = await this.api('GET', '/api/chat?limit=80');
+        const first = await this.api('GET', '/api/chat?limit=80');
+        if (!Array.isArray(first)) throw new Error('chat list');
+        this.chatMsgs = first.map((m) => this.normMsg(m)).filter(Boolean);
         this.lastMsgId = this.chatMsgs.length ? this.chatMsgs[this.chatMsgs.length - 1].id : 0;
         this.markSeen(); this.scrollFeed();
       }
@@ -748,23 +815,25 @@ function app() {
       const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
       this.attachFiles(files.map((f, i) => (f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) ? f : new File([f], `צילום-${stamp}-${i + 1}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: f.type }))));
     },
-    toggleMic() {
+    toggleMic(target) {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { this.toast('הדפדפן אינו תומך בזיהוי דיבור. השתמשו בכרום או בספארי', true); return; }
       if (this._rec) { this._rec.stop(); return; }
       const rec = new SR();
       rec.lang = 'he-IL'; rec.interimResults = true; rec.continuous = false;
-      const base = this.chatText ? this.chatText.trimEnd() + ' ' : '';
-      rec.onresult = (ev) => { let t = ''; for (const r of ev.results) t += r[0].transcript; this.chatText = base + t; };
-      rec.onend = () => { this.listening = false; this._rec = null; };
+      const key = target === 'task' ? 'tcText' : 'chatText';
+      const base = this[key] ? this[key].trimEnd() + ' ' : '';
+      rec.onresult = (ev) => { let t = ''; for (const r of ev.results) t += r[0].transcript; this[key] = base + t; };
+      rec.onend = () => { this.listening = false; this.listeningTask = false; this._rec = null; };
       rec.onerror = () => { this.listening = false; this._rec = null; this.toast('לא הצלחתי להקליט. נסו שוב', true); };
-      this._rec = rec; this.listening = true; rec.start();
+      this._rec = rec; this.listening = true; this.listeningTask = target === 'task'; rec.start();
     },
     // links to the main or the mirror address stay on whichever host the owner is using now
     localize(t) { let s = String(t || ''); for (const u of [this.boot?.urls?.main, this.boot?.urls?.mirror].filter(Boolean)) { try { s = s.split(new URL(u).origin).join(location.origin); } catch { /* bad url */ } } return s; },
     // an absolute address of this site (calendar feed, copied links) on the host in use
     here(url) { try { return location.origin + new URL(url, location.origin).pathname + new URL(url, location.origin).search; } catch { return url; } },
-    chatHtml(text, refs) {
+    chatHtml(text, refs) { try { return this.chatHtml0(text, refs); } catch (e) { return String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); } },
+    chatHtml0(text, refs) {
       const esc = this.localize(String(text || '')).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const fall = { task: 'משימה', projects: 'פרויקט', email: 'מייל' };
       const clip = (t) => (t.length > 48 ? t.slice(0, 48) + '…' : t);

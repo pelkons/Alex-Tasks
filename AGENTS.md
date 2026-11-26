@@ -11,3 +11,10 @@ A Hebrew-only task board that an AI coding agent operates for its owner. This fi
   `npm run scenarios -- --agent=<claude-code|codex|gemini>` (real-agent regression suite on a throw-away test database, also the benchmark).
 - Layout: `lib/` server and logic, `bin/` entry points, `public/` the web app (no build step), `agent/` the assistant's instructions and memory, `deploy/` installer and
   systemd units, `config/` this installation's settings, `docs/` operating notes. Secrets live in `~/.config/mesimot/`, never in the repo.
+
+## Working in this repository (public)
+
+This repository is public: every commit goes straight to `main` and is pushed to the public remote. Personal data (names, addresses, domains, project
+names, numbers from real documents, secrets) must NEVER be in a tracked file. It belongs only in the untracked places: `config/` (your configuration),
+`agent/memory/`, `data/`, `files/`, `~/.config/mesimot/`. Tests, fixtures, docs and scenarios use clearly fictional values. A local `pre-commit` and
+`pre-push` hook (not part of the repository) checks every commit against a private list of patterns and blocks pushes of anything but `main`.

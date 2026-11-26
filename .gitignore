@@ -1,4 +1,5 @@
 # dependencies, runtime data and models
+node_modules
 node_modules/
 data/
 files/
@@ -22,7 +23,8 @@ cert.pem
 # this installation's own configuration and memory (templates: config/*.example.json, agent/memory.example/)
 config/*.json
 !config/*.example.json
-# your own list of private values for scripts/release-check.sh (never committed)
+# local-only tooling and your own list of private values for the publish check (never committed)
+.local/
 config/release-patterns.txt
 config/cloudflared.yml
 agent/memory/*.md

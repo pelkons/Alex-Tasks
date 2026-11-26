@@ -962,3 +962,31 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .imp-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin: 8px 0 6px; }
 .imp-bar i { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .4s; }
 .imp-n { font-size: .8rem; }
+
+/* task-scoped chat */
+.tc-feed { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; padding: 4px 2px; }
+.tc-b { max-width: 92%; }
+.tc-note, .tc-ev { font-size: .82rem; padding: 4px 8px; border-radius: 8px; }
+.tc-note { background: var(--surface-2); }
+.tc-ev { color: var(--muted); border-inline-start: 3px solid var(--border); }
+.tc-form { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; }
+.tc-form .tc-in { flex: 1; min-height: 40px; max-height: 140px; resize: none; }
+.tchip-top { display: inline-block; font-size: .72rem; padding: 1px 8px; margin-bottom: 4px; border-radius: 99px; background: var(--surface-2); color: var(--primary); text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.bubble.scoped { opacity: .92; font-size: .9rem; }
+.cp-tog { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+@media (max-width: 899px) { .cp-tog span { display: none; } }
+
+/* edit / delete messages */
+.bubble { position: relative; }
+.msg-act { position: absolute; top: 2px; inset-inline-end: 4px; opacity: 0; transition: opacity .15s; }
+.bubble:hover .msg-act, .bubble:focus-within .msg-act, .msg-act:has(.msg-menu:not([style*="display: none"])) { opacity: 1; }
+@media (hover: none) { .msg-act { opacity: .7; } }
+.msg-dots { width: 24px; height: 24px; min-height: 0; line-height: 1; font-size: 1.1rem; }
+.msg-menu { position: absolute; z-index: 30; inset-inline-end: 0; top: 26px; display: flex; flex-direction: column; min-width: 90px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); overflow: hidden; }
+.msg-menu button { border: 0; background: transparent; padding: 8px 14px; text-align: start; min-height: 36px; }
+.msg-menu button:hover { background: var(--surface-2); }
+.edited-mark { font-size: .68rem; color: var(--muted); margin-inline-start: 6px; }
+.msg-edit .edit-in { width: 100%; min-height: 64px; resize: vertical; }
+.sup-reply { opacity: .7; font-size: .85rem; }
+.sup-reply summary { cursor: pointer; color: var(--muted); }
+.del-dlg { max-width: 420px; padding: 14px; }

@@ -633,6 +633,56 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
       `closed: A ${closed(tA.id)}, B ${closed(tB.id)}; promise "${promise.title}" due ${promise.due_date}; follow-up "${followup.title}" ${stRow ? '[' + stRow.name + ']' : ''}; new task "${ins.title}"`, `digest: ${digest.text.replace(/\n/g, ' / ').slice(0, 330)}`];
   });
 
+  await scenario('27. task-scoped chat: "תדחה בשבוע" in a task card moves the due date by 7 days, the reply is in the card thread and shows as a chip in the main chat', async () => {
+    const owner = store.ownerId(), assistant = store.assistantId();
+    const proj = store.listProjects().find((p) => p.name_he === 'מגדל הנוף') || store.listProjects().find((p) => !p.is_default);
+    const t = store.createTask(assistant, { title: 'להגיש תוכנית פיגומים לאישור', project: proj.id, due: '2026-12-01', requester: owner, assignee: owner });
+    const before = db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
+    const t0 = Date.now();
+    const res = await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' }, body: JSON.stringify({ text: 'תדחה בשבוע', task_scope: t.id }) });
+    expect(res.status === 201, `post failed: ${res.status}`);
+    await waitIdle('task chat', 5 * 60 * 1000);
+    const task = store.getTask(t.id);
+    expect(task.due_date === '2026-12-08', `due date is ${task.due_date}, expected 2026-12-08`);
+    const replies = db.prepare("SELECT text, scope, task_id FROM chat_messages WHERE author='claude' AND id > ? ORDER BY id").all(before);
+    const inThread = replies.filter((r) => r.scope === 'task' && r.task_id === t.id);
+    expect(inThread.length >= 1, `no reply in the task thread: ${JSON.stringify(replies).slice(0, 200)}`);
+    expect(/08\/12|8\/12|שבוע|דחיתי|הזזתי/.test(inThread[0].text), `the reply does not say what changed: ${inThread[0].text}`);
+    const thread = await (await fetch(`http://127.0.0.1:8111/api/tasks/${t.id}`, { headers: { Cookie: cookie } })).json();
+    expect(thread.thread && thread.thread.length >= 2, 'the card thread is missing the messages');
+    const main = await (await fetch('http://127.0.0.1:8111/api/chat?limit=20', { headers: { Cookie: cookie } })).json();
+    const chip = main.find((m) => m.scope === 'task' && m.task_id === t.id && m.task_title);
+    expect(chip, 'the main chat has no task-scoped message with a chip');
+    const other = db.prepare('SELECT COUNT(*) c FROM events WHERE entity=\'task\' AND entity_id<>? AND actor_id=? AND created_at >= ?').get(t.id, assistant, new Date(t0).toISOString()).c;
+    return [`due ${task.due_date} (${task.due_source}); reply: ${inThread[0].text.replace(/\n/g, ' / ').slice(0, 200)}`, `thread ${thread.thread.length} messages; chip "${chip.task_title}"; changes to other tasks: ${other}`];
+  });
+
+  await scenario('28. edit a chat message: "תפתח משימה לבדוק X עד מחר" edited to "... עד יום ראשון": one task with the new due date, the old reply superseded', async () => {
+    const H = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
+    const posted = await (await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H, body: JSON.stringify({ text: 'תפתח משימה לבדוק את תוכנית האיטום עד מחר' }) })).json();
+    await waitIdle('first version', 5 * 60 * 1000);
+    const visible = () => db.prepare("SELECT id, title, due_date FROM tasks WHERE title LIKE '%איטום%' AND status_id <> (SELECT id FROM statuses WHERE hidden_default=1)").all();
+    expect(visible().length === 1, `before the edit: ${visible().length} tasks`);
+    const old = db.prepare("SELECT id FROM chat_messages WHERE author='claude' AND id > ? ORDER BY id").all(posted.id);
+    expect(old.length >= 1, 'no first reply');
+    const t0 = Date.now();
+    const r = await fetch(`http://127.0.0.1:8111/api/chat/${posted.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ text: 'תפתח משימה לבדוק את תוכנית האיטום עד יום ראשון' }) });
+    const out = await r.json();
+    expect(r.status === 200 && out.message.edited, `edit failed: ${JSON.stringify(out).slice(0, 200)}`);
+    await waitIdle('re-thought', 5 * 60 * 1000);
+    const now = visible();
+    expect(now.length === 1, `after the edit: ${now.length} visible tasks (${JSON.stringify(now)})`);
+    const d = new Date(Date.now() + 2 * 3600e3); const toSun = (7 - d.getUTCDay()) % 7 || 7; const sun = new Date(d.getTime() + toSun * 86400e3).toISOString().slice(0, 10);
+    expect(now[0].due_date === sun, `due ${now[0].due_date}, expected the next Sunday ${sun}`);
+    const sup = db.prepare('SELECT COUNT(*) c FROM chat_messages WHERE id IN (' + old.map((x) => x.id).join(',') + ') AND superseded=1').get().c;
+    expect(sup === old.length, 'the old reply is not superseded');
+    const fresh = db.prepare("SELECT id, after_id, text FROM chat_messages WHERE author='claude' AND superseded=0 AND id > ? ORDER BY id").all(old[old.length - 1].id);
+    expect(fresh.length >= 1 && fresh[0].after_id === posted.id, `the new reply is not tied to the edited message: ${JSON.stringify(fresh).slice(0, 200)}`);
+    const run = db.prepare('SELECT edited_msg_id FROM claude_runs WHERE edited_msg_id=?').get(posted.id);
+    expect(run, 'no run references the edited message');
+    return [`one task "${now[0].title}" due ${now[0].due_date}; ${out.undone} actions undone; new reply: ${fresh[0].text.replace(/\n/g, ' / ').slice(0, 160)}`, `${Math.round((Date.now() - t0) / 1000)}s for the re-run`];
+  });
+
   const runs = db.prepare('SELECT COUNT(*) c, SUM(retries) r, ROUND(AVG(duration_ms)/1000,1) avg FROM claude_runs').get();
   console.log(`\n${results.filter((r) => r.ok).length}/${results.length} scenarios passed; ${runs.c} assistant runs (avg ${runs.avg}s), ${runs.r || 0} re-prompts for missing decisions`);
   // the suite is the benchmark for comparing agents: one summary file per agent
