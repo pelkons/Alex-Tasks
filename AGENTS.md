@@ -18,3 +18,10 @@ This repository is public: every commit goes straight to `main` and is pushed to
 names, numbers from real documents, secrets) must NEVER be in a tracked file. It belongs only in the untracked places: `config/` (your configuration),
 `agent/memory/`, `data/`, `files/`, `~/.config/mesimot/`. Tests, fixtures, docs and scenarios use clearly fictional values. A local `pre-commit` and
 `pre-push` hook (not part of the repository) checks every commit against a private list of patterns and blocks pushes of anything but `main`.
+
+
+## Post-deploy gate (mandatory)
+
+Every deploy or restart of the live services is followed by `mesimot health --quick` (a real headless-Chrome UI smoke test on every address plus the API checks). Use `scripts/deploy.sh <previous-commit>`
+after merging: it backs up the database, restarts, runs the gate and, if a critical check fails, rolls the live tree back to the previous commit and exits 1. A failed gate is reported to the coordinator at once.
+The same checks run every 15 minutes (`mesimot-health.timer`); results are in the `health` table and Settings, "מצב המערכת".

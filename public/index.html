@@ -862,7 +862,7 @@
           <span class="ci-k" x-text="it.kind==='task' ? 'משימה' : (it.source==='outlook' ? 'Outlook' : 'פגישה')"></span>
         </button>
       </template>
-<div class="sect sc-chat" x-data x-init="scLoad('day:'+calSel)">
+<div class="sect sc-chat" x-data x-effect="calSel && scLoad('day:'+calSel)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על על היום הזה</h3>
   <div class="tc-feed sc-feed" x-effect="scMsgs('day:'+calSel).length && scScroll()">
     <p class="muted sm" x-show="scMsgs('day:'+calSel).length===0">כתבו לאלכס על היום: "תעביר את הפגישה ליום חמישי", "תוסיף פגישה ב-10:00", "מה יש לי ביום הזה?"</p>
@@ -933,6 +933,19 @@
       <h3>תקציב יומי: עבודה לא דחופה בלבד</h3>
       <label class="field"><span>תקרה רכה ביום ($ שווה ערך API; 0 = כבוי, ברירת המחדל)</span><input type="number" min="0" step="1" :value="st.daily_budget_usd" @change="saveSet({daily_budget_usd: $event.target.value})"></label>
       <p class="muted sm">היום נוצלו <b x-text="usd(st.spent_today_usd)"></b>. כשהתקרה מושגת נדחית רק עבודה לא דחופה (סיכום זיכרון שבועי, השלמות, חילוץ עובדות מלידיעה בלבד), עד 24 שעות. משימות, דואר שוטף, שרשורי ייבוא, צ׳אט ותזכורות לעולם לא נדחים. בנוסף תקבלו התראה אם ההוצאה היומית גבוהה פי 2 מהממוצע.</p>
+    </section>
+
+    <section class="card health-card" x-init="loadSysHealth()">
+      <h3>מצב המערכת</h3>
+      <p class="muted sm">בדיקה מלאה כל 15 דקות, כולל פתיחה אמיתית של האתר בדפדפן. תקלה אדומה מדווחת לך פעם אחת, ושוב כשהיא חוזרת לתקין.</p>
+      <template x-if="sysHealth">
+        <div>
+          <p><b x-text="sysHealth.summary || 'עדיין לא רצה בדיקה'"></b></p>
+          <template x-for="c in sysHealth.checks" :key="c.id">
+            <div class="hc-row sm"><span class="hc-dot" :class="c.status" :title="c.status"></span><b x-text="c.label"></b> <span class="muted" x-text="c.message"></span> <span class="muted hc-t" x-text="fmtDateTime(c.at)"></span></div>
+          </template>
+        </div>
+      </template>
     </section>
 
     <section class="card ob-set" x-init="loadOutbox()">

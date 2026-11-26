@@ -1,0 +1,10 @@
+[Unit]
+Description=Mesimot: system health check every 15 minutes, round the clock
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

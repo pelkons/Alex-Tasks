@@ -95,6 +95,7 @@ const USAGE = `mesimot <command>
   project list|find|add [--partial]|update|merge|resolve|show   person list|find|add [--status partial --company --role-text]|update|merge|resolve|show
   pending     ack <id...>        attention add|list|update
   usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
+  health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete   (asks the owner with two buttons; only his answer deletes)
   filter list|add|preview|delete|enable|disable   (owner mail filters: --sender/--domain/--text/--regex --action skip|fyi|relevant [--project P])
@@ -251,6 +252,10 @@ async function main() {
       if (sub === 'resolve') { if (!arg) fail('usage: project resolve <vague> --into <project> | --name ... --aliases ...'); const b = pick(opt, ['into', 'name', 'aliases', 'description']); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/resolve`, b)); }
       if (sub === 'merge') { if (!arg || !pos[3]) fail('usage: project merge <from> <into>'); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/merge`, { into: pos[3] })); }
       break;
+    case 'health': { // the full system check (opens the real UI in headless Chrome); not for the assistant
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, 'mesimot-health'), ...process.argv.slice(3)], { stdio: 'inherit' });
+      process.exit(r.status ?? 2); }
     case 'outbox': { // outgoing mail: DRAFTS only. There is no approve and no send command: the owner approves the exact content with a button on the card.
       const flds = () => { const b = {}; if (opt.json) { try { Object.assign(b, JSON.parse(opt.json)); } catch { fail('--json is not valid JSON'); } }
         for (const k of ['kind', 'to', 'cc', 'bcc', 'subject', 'body', 'attach', 'task']) if (opt[k] !== undefined && opt[k] !== true) b[k] = opt[k];

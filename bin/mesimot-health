@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+'use strict';
+// `mesimot health [--quick] [--json] [--no-alert]`: every check that everything works (timer: every 15 minutes, round the clock).
+// --quick = the real UI smoke test + the APIs: the POST-DEPLOY GATE (exit code 1 when anything is red).
+const { open } = require('../lib/db');
+const { createStore } = require('../lib/store');
+const { createNotify } = require('../lib/notify');
+const { createWatchdog } = require('../lib/watchdog');
+const { createHealth } = require('../lib/health');
+const args = process.argv.slice(2); const flag = (f) => args.includes(f);
+const db = open(process.env.MESIMOT_DB); const store = createStore(db); const notify = createNotify(db, store);
+const wd = createWatchdog(db, store, { isQuiet: (d) => notify.isQuiet(d), log: console.error });
+const health = createHealth(db, store, { isQuiet: (d) => notify.isQuiet(d), tell: (t, op) => wd.tell(t, op), log: console.error });
+const ICON = { ok: '🟢', warn: '🟡', red: '🔴' };
+health.run({ quick: flag('--quick'), alert: !flag('--no-alert') }).then((r) => {
+  if (flag('--json')) console.log(JSON.stringify(r, null, 1));
+  else { for (const c of r.results) console.log(`${ICON[c.status]} ${c.label}: ${c.message}`); console.log(r.ok ? (r.problems.length ? `ok, ${r.problems.length} warnings` : 'all ok') : `FAILED: ${r.results.filter((c) => c.status === 'red').map((c) => c.id).join(', ')}`); if (r.alerts.length) console.log('alerts:', JSON.stringify(r.alerts)); }
+  process.exit(r.ok ? 0 : 1);
+}).catch((e) => { console.error('health failed:', e.message); process.exit(2); });

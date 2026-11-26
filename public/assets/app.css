@@ -1032,3 +1032,8 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .ob-text { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0 0 8px; max-height: 360px; overflow: auto; }
 .ob-edit label { display: block; font-size: .85rem; margin-bottom: 6px; } .ob-edit input, .ob-edit textarea { width: 100%; margin-top: 2px; }
 .ob-state { margin: 4px 0; }
+
+.hc-row { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; padding: 3px 0; border-top: 1px solid var(--border, #e5e7eb); }
+.hc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #16a34a; flex: none; align-self: center; }
+.hc-dot.warn { background: #eab308; } .hc-dot.red { background: #dc2626; }
+.hc-t { margin-inline-start: auto; font-size: .72rem; }

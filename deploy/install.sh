@@ -87,7 +87,7 @@ for f in deploy/systemd/*; do
   sed -e "s#@ROOT@#$root#g; s#@NODE@#$NODE#g; s#@CLOUDFLARED@#$CF#g; s#@TZ@#$TZN#g" "$f" > "$dest/$(basename "$f")"
 done
 systemctl --user daemon-reload
-UNITS="mesimot.service mesimot-runner.service mesimot-backup.timer mesimot-reconcile.timer mesimot-daily.timer mesimot-housekeeping.timer mesimot-pulse.timer mesimot-watchdog.timer mesimot-curator.timer mesimot-usage.timer"
+UNITS="mesimot.service mesimot-runner.service mesimot-backup.timer mesimot-reconcile.timer mesimot-daily.timer mesimot-housekeeping.timer mesimot-pulse.timer mesimot-watchdog.timer mesimot-curator.timer mesimot-usage.timer mesimot-health.timer"
 [ -f config/cloudflared.yml ] && UNITS="$UNITS mesimot-tunnel.service" || echo "No config/cloudflared.yml: the public tunnel is not enabled (set tunnel_id in the config, see deploy/cloudflared.yml.template)"
 systemctl --user enable --now $UNITS
 have loginctl && loginctl enable-linger "$USER" 2>/dev/null || true
