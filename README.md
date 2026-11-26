@@ -15,6 +15,13 @@ open that agent inside this repository and it operates the system through the `m
 > agent's credentials or tokens, never calls a vendor's private endpoints and never shares one login between users. It only starts the official CLI
 > binary as a normal local user would.
 
+## Principle: the assistant operates the system, the owner instructs
+
+The owner should do nothing by hand. Every entity page (task, project, person, protocol, calendar day) has its own chat pinned to that entity, and a sentence such as
+"rename this project", "merge these two people" or "move the meeting to Thursday" is carried out by the assistant, through the same validated, undoable path as
+everything else, with a reply that says exactly what changed. Pickers and menus remain as a secondary way. Closed tasks leave the main list for an archive (searchable,
+reopenable); permanent deletion exists, but only after a one-question confirmation with buttons, and a task deletion has a 30-second undo.
+
 ## Features
 
 * Tasks with project, requester, assignee, due date (explicit or estimated), status, notes, undo of every change.

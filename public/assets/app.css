@@ -1012,3 +1012,13 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .fb-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; } .fb-chips .chip.on { background: var(--primary); color: var(--primary-text); }
 .fb-panel input[type=text] { flex: 1; min-width: 160px; }
 .tchip-w { display: inline-flex; align-items: center; gap: 2px; } .fbq { border: 0; background: transparent; cursor: pointer; opacity: .55; padding: 0 2px; font-size: .85rem; } .fbq:hover { opacity: 1; }
+
+/* archive */
+.arc-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; } .arc-filters input[type=search] { flex: 1; min-width: 180px; }
+.archive-page .row.closed { display: flex; align-items: center; gap: 8px; } .archive-page .row .body { flex: 1; }
+
+/* confirmations and permanent deletion */
+.cf-card { min-width: 240px; } .purge-row { margin: 14px 0 4px; text-align: start; } .linkbtn { border: 0; background: none; padding: 0; font-size: .78rem; text-decoration: underline; cursor: pointer; color: var(--muted); } .linkbtn.danger { color: var(--danger); }
+.purge-undo { position: fixed; z-index: 90; inset-inline-start: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: var(--text); color: var(--bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.sc-chat { margin-top: 12px; }
+.sc-feed { max-height: 280px; }

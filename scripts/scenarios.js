@@ -610,7 +610,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     const secs = Math.round((Date.now() - t0) / 1000);
     expect(st === 'done', `the import did not finish (status ${st}) after ${secs}s`);
     const p = JSON.parse(db.prepare('SELECT stats FROM imports WHERE id=?').get(card.import_id).stats);
-    const ownerChatCount = db.prepare("SELECT COUNT(*) c FROM chat_messages WHERE author='owner'").get().c;
+    const ownerChatCount = db.prepare("SELECT COUNT(*) c FROM chat_messages WHERE author='owner' AND import_id IS NOT NULL").get().c;
     expect(ownerChatCount === 1, `${ownerChatCount} owner chat messages (one card expected)`);
     const stat = (s) => db.prepare('SELECT COUNT(*) c FROM emails WHERE import_id=? AND import_state=?').get(card.import_id, s).c;
     expect(stat('dup') === 1, `duplicates: ${stat('dup')}`);
@@ -681,6 +681,43 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     const run = db.prepare('SELECT edited_msg_id FROM claude_runs WHERE edited_msg_id=?').get(posted.id);
     expect(run, 'no run references the edited message');
     return [`one task "${now[0].title}" due ${now[0].due_date}; ${out.undone} actions undone; new reply: ${fresh[0].text.replace(/\n/g, ' / ').slice(0, 160)}`, `${Math.round((Date.now() - t0) / 1000)}s for the re-run`];
+  });
+
+  const H2 = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
+  const post = (body) => fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H2, body: JSON.stringify(body) });
+  await scenario('29. project chat: "תשנה את שם הפרויקט ל..." renames it, keeps the old name as an alias and says what changed, in the project thread', async () => {
+    const assistant = store.assistantId(), owner = store.ownerId();
+    const pr = store.createProject(assistant, { name: 'פרויקט בדיקת שינוי שם' });
+    store.createTask(owner, { title: 'משימה בפרויקט שישנה שם', project: pr.id, requester: owner });
+    const before = db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
+    const res = await post({ text: 'תשנה את שם הפרויקט ל"מגדל החדש"', entity_scope: `project:${pr.id}` });
+    expect(res.status === 201, `post failed: ${res.status}`);
+    await waitIdle('project rename', 5 * 60 * 1000);
+    const p = store.getProject(pr.id);
+    expect(p.name_he.includes('מגדל החדש'), `the name is "${p.name_he}"`);
+    expect(/פרויקט בדיקת שינוי שם/.test(p.aliases || JSON.stringify(p.aliases)), 'the old name is not kept as an alias');
+    const rep = db.prepare("SELECT text, scope_ref FROM chat_messages WHERE author='claude' AND id > ? AND scope='entity' ORDER BY id").all(before);
+    expect(rep.length >= 1 && rep[0].scope_ref === `project:${pr.id}`, `no reply in the project thread: ${JSON.stringify(rep).slice(0, 200)}`);
+    return [`renamed to "${p.name_he}"; reply: ${rep[0].text.replace(/\n/g, ' / ').slice(0, 200)}`];
+  });
+
+  await scenario('30. project chat: "תמחק את הפרויקט ותעביר את המשימות ל-X" asks for confirmation, moves the tasks, deletes the project only after the owner says yes', async () => {
+    const assistant = store.assistantId(), owner = store.ownerId();
+    const from = store.createProject(assistant, { name: 'פרויקט למחיקה' }), to = store.createProject(assistant, { name: 'פרויקט יעד למשימות' });
+    const t1 = store.createTask(owner, { title: 'משימה ראשונה למעבר', project: from.id, requester: owner }), t2 = store.createTask(owner, { title: 'משימה שנייה למעבר', project: from.id, requester: owner });
+    const res = await post({ text: 'תמחק את הפרויקט ותעביר את המשימות לפרויקט יעד למשימות', entity_scope: `project:${from.id}` });
+    expect(res.status === 201, `post failed: ${res.status}`);
+    await waitIdle('project delete request', 5 * 60 * 1000);
+    expect(db.prepare('SELECT COUNT(*) c FROM projects WHERE id=?').get(from.id).c === 1, 'the project was deleted without a confirmation');
+    const cf = db.prepare("SELECT * FROM confirmations WHERE kind='project_delete' AND target_id=? ORDER BY id DESC").get(from.id);
+    expect(cf && cf.status === 'open', `no open confirmation: ${JSON.stringify(cf)}; replies: ${JSON.stringify(db.prepare("SELECT text FROM chat_messages WHERE author='claude' ORDER BY id DESC LIMIT 2").all()).slice(0, 600)}`);
+    expect(JSON.parse(cf.payload).tasks === `move:${to.id}` || String(JSON.parse(cf.payload).tasks).startsWith('move:'), `the tasks disposition is ${cf.payload}`);
+    const ans = await fetch(`http://127.0.0.1:8111/api/confirm/${cf.id}/answer`, { method: 'POST', headers: H2, body: JSON.stringify({ yes: true }) });
+    expect(ans.status === 200, `answer failed: ${ans.status}`);
+    expect(db.prepare('SELECT COUNT(*) c FROM projects WHERE id=?').get(from.id).c === 0, 'the project is still there after yes');
+    const moved = db.prepare('SELECT COUNT(*) c FROM tasks WHERE id IN (?,?) AND project_id=?').get(t1.id, t2.id, to.id).c;
+    expect(moved === 2, `${moved} of 2 tasks moved to the target project`);
+    return [`confirmation: ${cf.text.slice(0, 160)}`, 'after yes: project gone, 2 tasks moved'];
   });
 
   const runs = db.prepare('SELECT COUNT(*) c, SUM(retries) r, ROUND(AVG(duration_ms)/1000,1) avg FROM claude_runs').get();

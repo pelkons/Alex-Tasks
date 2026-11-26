@@ -24,8 +24,8 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], filters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, proposalCards: {}, propSel: {}, tcText: '', tcSending: false, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
-    sq: { q: '', kind: '', project: '', person: '', from: '', to: '' }, sres: null, sErr: '',
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], filters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
 
@@ -109,6 +109,7 @@ function app() {
       if (path === '/chat') return { name: 'home', id: null, chat: true };
       if (path === '/activity') return { name: 'activity', id: null };
       if (path === '/search') return { name: 'search', id: null };
+      if (path === '/archive') return { name: 'archive', id: null };
       return { name: 'home', id: null };
     },
     go(path, replace) {
@@ -136,6 +137,7 @@ function app() {
           if (prev && prev.name === 'task' && this.listScroll != null) this.$nextTick(() => window.scrollTo(0, this.listScroll));
         }
         else if (r.name === 'activity') { await this.loadBoot(); await this.loadActivity(); }
+        else if (r.name === 'archive') { await this.loadBoot(); await this.loadArchive(); }
         else if (r.name === 'search') { const q = new URLSearchParams(location.search).get('q'); if (q) this.sq.q = q; await this.loadBoot(); if (this.sq.q) this.runSearch(); }
         else if (r.name === 'email') await this.loadEmail(r.id);
         else if (r.name === 'calendar') { await this.loadBoot(); await this.loadCalendar(); }
@@ -172,6 +174,7 @@ function app() {
     async loadTasks() {
       const p = new URLSearchParams();
       const f = this.filters;
+      p.set('open', '1'); // closed tasks live in the archive, not at the bottom of the list
       if (f.q.trim()) p.set('q', f.q.trim());
       if (f.project) p.set('project', f.project);
       if (f.assignee) p.set('assignee', f.assignee);
@@ -337,6 +340,27 @@ function app() {
         if (ev && ev.target) ev.target.value = this.fmtReceivedFull(this.detail);
       }
     },
+    // ---- permanent deletion with a 30-second undo; destructive requests from the assistant arrive as a confirmation with two buttons
+    purgeLeft() { void this.purgeTick; return this.purgeUndo ? Math.max(0, Math.ceil((this.purgeUndo.until - Date.now()) / 1000)) : 0; },
+    undoLeft(c) { void this.purgeTick; const u = c && c.result && c.result.token ? this.undoTokens[c.result.token] || { until: Date.parse(c.decided_at || 0) + (c.result.undo_seconds || 30) * 1000 } : null; return u ? Math.max(0, Math.ceil((u.until - Date.now()) / 1000)) : 0; },
+    startPurgeTimer() { if (this._pt) return; this._pt = setInterval(() => { this.purgeTick++; }, 1000); },
+    async confirmPurge() {
+      const t = this.purgeDlg?.t; if (!t) return;
+      try { const r = await this.api('DELETE', '/api/tasks/' + t.id); this.purgeDlg = null; this.purgeUndo = { token: r.token, title: r.title, until: Date.now() + (r.undo_seconds || 30) * 1000 }; this.startPurgeTimer(); this.go('/'); await Promise.all([this.loadLists(), this.loadBoot()]); } catch (e) { this.fail(e); }
+    },
+    async undoPurge(x) {
+      const token = x.token || (x.result && x.result.token); if (!token) return;
+      try { const r = await this.api('POST', '/api/purge/undo', { token }); this.purgeUndo = null; this.toast('המחיקה בוטלה: ' + r.title); await Promise.all([this.loadLists(), this.loadBoot(), this.loadChat()]); } catch (e) { this.fail(e); }
+    },
+    async answerConfirm(m, yes) {
+      try {
+        const r = await this.api('POST', `/api/confirm/${m.confirm.id}/answer`, { yes });
+        if (r.status === 'yes' && r.result && r.result.token) { this.undoTokens[r.result.token] = { until: Date.now() + (r.result.undo_seconds || 30) * 1000 }; this.startPurgeTimer(); }
+        await this.loadChat(); await Promise.all([this.loadLists(), this.loadBoot()]);
+        if (r.status === 'yes' && this.route.name === 'projects' && this.route.id && !this.boot.projects.some((p) => p.id === this.route.id)) this.go('/projects');
+        if (r.status === 'yes' && this.route.name === 'protocols' && this.route.id) { try { await this.loadProtocol(this.route.id); } catch (e) { this.go('/protocols'); } await this.loadProtocols(); }
+      } catch (e) { this.fail(e); }
+    },
     // ---- bulk proposals (task merges / closures, people cleanup): approve all, selected, or one by one
     async loadProposals(id) { try { this.proposalCards[id] = await this.api('GET', '/api/proposals/' + id); } catch (e) { /* not available */ } },
     selectProposals(id, on) { for (const it of (this.proposalCards[id]?.items || [])) if (it.status === 'open') this.propSel[it.id] = on; },
@@ -390,8 +414,26 @@ function app() {
     setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatTaskMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },
     // a message that arrives with a missing field must never break the whole list: every message is normalised once, and the view never throws
     normMsg(m) { if (!m || typeof m !== 'object') return null; m.files = Array.isArray(m.files) ? m.files : []; m.tasks = Array.isArray(m.tasks) ? m.tasks : []; m.refs = m.refs && typeof m.refs === 'object' ? m.refs : { task: {}, projects: {}, email: {} }; m.text = m.text == null ? '' : String(m.text); return m; },
-    chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return this.chatTaskMsgs ? all : all.filter((m) => m && m.scope !== 'task'); } catch (e) { return []; } },
+    chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return all.filter((m) => m && m.scope !== 'entity' && (this.chatTaskMsgs || m.scope !== 'task')); } catch (e) { return []; } },
     scrollTaskFeed() { this.$nextTick(() => { const f = this.$refs.tcfeed || document.querySelector('.tc-feed'); if (f) f.scrollTop = f.scrollHeight; }); },
+    // ENTITY-SCOPED chat (project / person / protocol / calendar day): the same thread component as the task chat; the ref is e.g. 'project:5'
+    scMsgs(ref) { return (this.chatMsgs || []).filter((m) => m && m.scope === 'entity' && m.scope_ref === ref); },
+    scScroll() { this.$nextTick(() => document.querySelectorAll('.sc-feed').forEach((f) => { f.scrollTop = f.scrollHeight; })); },
+    async scLoad(ref) {
+      try { const list = await this.api('GET', '/api/chat/scope/' + ref.replace(':', '/')); let add = 0; for (const m of list) { if (!this.chatMsgs.some((x) => x.id === m.id)) { this.normMsg(m); this.chatMsgs.push(m); add++; } } if (add) { this.chatMsgs.sort((a, b) => (a.pos || a.id) - (b.pos || b.id)); this.lastMsgId = Math.max(this.lastMsgId, ...this.chatMsgs.map((m) => m.id)); } } catch (e) { /* the thread is optional */ }
+    },
+    async scSend(ref) {
+      const text = this.sc.text.trim(); if (!text || this.sc.sending) return;
+      this.sc.sending = true;
+      try {
+        const m = await this.api('POST', '/api/chat', { text, entity_scope: ref });
+        this.sc.text = ''; document.querySelectorAll('.sc-chat .tc-in').forEach((el) => { el.style.height = 'auto'; });
+        this.normMsg(m);
+        if (!this.chatMsgs.some((x) => x.id === m.id)) { this.chatMsgs.push(m); this.lastMsgId = Math.max(this.lastMsgId, m.id); }
+        this.sc.waiting = ref; this.awaitingId = m.id; this._awaitSince = Date.now(); this.scScroll(); this.pollNow();
+      } catch (e) { this.fail(e); }
+      this.sc.sending = false;
+    },
     async sendTaskChat() {
       const text = this.tcText.trim();
       if (this.uploading()) { this.toast('ממתינים לסיום העלאת הקבצים'); return; }
@@ -709,6 +751,10 @@ function app() {
         if (['home', 'task'].includes(this.route.name)) await this.loadLists();
         if (this.route.name === 'task') await this.loadDetail(true);
         if (this.route.name === 'projects' && this.route.id) await this.loadProjectPage(this.route.id, true);
+        if (this.route.name === 'protocols' && this.route.id) { await this.loadProtocol(this.route.id); await this.loadProtocols(); }
+        if (this.route.name === 'calendar') await this.loadCalendar();
+        if (this.route.name === 'people' && typeof this.loadPeople === 'function') await this.loadPeople();
+        this.sc.waiting = '';
       }
     },
     async loadChat(more) {
@@ -861,12 +907,22 @@ function app() {
       this.emailView = null; this.emailErr = '';
       try { this.emailView = await this.api('GET', '/api/emails/' + id); } catch (e) { this.emailErr = 'הדוא״ל לא נמצא'; }
     },
+    // ---- archive: closed (done / cancelled) tasks, newest first, with its own search and filters; a task can be reopened
+    async loadArchive(more = false) {
+      const a = this.arc; a.loading = true;
+      const p = new URLSearchParams({ limit: '50', offset: more ? String(a.items.length) : '0' });
+      for (const k of ['q', 'project', 'person', 'from', 'to']) if (String(a[k] || '').trim()) p.set(k, String(a[k]).trim());
+      try { const r = await this.api('GET', '/api/archive?' + p); a.items = more ? [...a.items, ...r.items] : r.items; a.total = r.total; } catch (e) { this.fail(e); }
+      a.loading = false;
+    },
+    async reopenTask(t) { try { await this.api('PATCH', '/api/tasks/' + t.id, { status: 'בטיפול' }); this.toast('המשימה נפתחה מחדש'); await this.loadArchive(); } catch (e) { this.fail(e); } },
     async runSearch() {
       const q = this.sq.q.trim();
       this.sErr = '';
       if ([...q].length < 3) { this.sres = null; if (q) this.sErr = 'יש להזין לפחות שלוש אותיות לחיפוש'; return; }
       const p = new URLSearchParams({ q, limit: '60' });
       for (const k of ['kind', 'project', 'person', 'from', 'to']) if (this.sq[k]) p.set(k, this.sq[k]);
+      if (this.sq.archive) p.set('archive', '1');
       try { this.sres = await this.api('GET', '/api/search?' + p); } catch (e) { this.sres = null; this.sErr = e.message; }
       try { this.sem = await this.api('GET', '/api/semantic/status'); } catch (e) { /* ignore */ }
     },

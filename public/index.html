@@ -127,7 +127,7 @@
           <option value="none" :selected="filters.requester==='none'">ללא שולח</option>
         </select></label>
       <label class="switch-row"><input type="checkbox" :checked="filters.group" @change="toggleGroup($event.target.checked)"><span>קבץ לפי פרויקט</span></label>
-      <div class="btnrow fp-actions"><button class="btn small" @click="clearFilters()" :disabled="!activeChips().length">ניקוי הכל</button><button class="btn small ghost" @click="showFilters=false">סגירה</button></div>
+      <div class="btnrow fp-actions"><a class="btn small ghost" href="/archive" @click.prevent="go('/archive')">ארכיון</a><button class="btn small" @click="clearFilters()" :disabled="!activeChips().length">ניקוי הכל</button><button class="btn small ghost" @click="showFilters=false">סגירה</button></div>
     </div>
 
     <div class="active-chips" x-show="activeChips().length">
@@ -167,24 +167,6 @@
       </template>
     </div>
     </div>
-    </template>
-    <template x-if="closedList().length">
-      <div>
-        <div class="closed-h">סגורות (<span x-text="closedList().length"></span>)</div>
-        <div class="rows">
-          <template x-for="t in closedList()" :key="t.id">
-            <div class="row closed" :class="{sel: route.id===t.id, unassigned: t.project_default}" :style="'--pcol:'+pc(t)">
-              <button class="check" :class="{done: t.status_done}" @click="toggleDone(t)" :aria-label="t.status_done ? 'סימון כלא הושלמה' : 'פתיחה מחדש'"><i>✓</i></button>
-              <button class="body" @click="openTask(t.id)">
-                <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
-                <span class="title" x-text="t.title"></span>
-                <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
-                <span class="meta"><span x-show="t.assignee" x-text="t.assignee"></span><span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span></span>
-              </button>
-            </div>
-          </template>
-        </div>
-      </div>
     </template>
   </section>
 
@@ -338,6 +320,8 @@
           </form>
         </div>
 
+        <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">מחק לצמיתות</button></div>
+
         <details class="sect hist-d">
           <summary>היסטוריית שינויים</summary>
           <ul class="hist">
@@ -448,11 +432,40 @@
 </template>
 
 <!-- ===== SEARCH ===== -->
+<template x-if="route.name==='archive'">
+<div class="archive-page">
+  <div class="page-h"><h1>ארכיון</h1><button class="btn small ghost" @click="go('/')">חזרה לרשימה</button></div>
+  <p class="muted sm">משימות שהושלמו או בוטלו, מהחדשות לישנות. כאן אפשר לחפש, לסנן ולפתוח משימה מחדש. החיפוש הכללי מוצא אותן רק עם "כולל ארכיון".</p>
+  <form class="arc-filters" @submit.prevent="loadArchive()">
+    <input type="search" x-model="arc.q" placeholder="חיפוש בארכיון" aria-label="חיפוש בארכיון" @input.debounce.400ms="loadArchive()">
+    <select x-model="arc.project" @change="loadArchive()" aria-label="פרויקט"><option value="">כל הפרויקטים</option><template x-for="p in boot.projects" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+    <select x-model="arc.person" @change="loadArchive()" aria-label="אדם"><option value="">כל האנשים</option><template x-for="p in boot.people" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+    <label class="sm muted">מתאריך <input type="date" x-model="arc.from" @change="loadArchive()"></label><label class="sm muted">עד תאריך <input type="date" x-model="arc.to" @change="loadArchive()"></label>
+  </form>
+  <p class="muted sm" x-text="arc.total+' משימות בארכיון'+(arc.total>=1000 ? ' (מוצגות עד 1000)' : '')"></p>
+  <div class="rows">
+    <template x-for="t in arc.items" :key="t.id">
+      <div class="row closed" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)">
+        <button class="body" @click="openTask(t.id)">
+          <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
+          <span class="title" x-text="t.title"></span>
+          <span class="meta"><span x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span><span class="muted" x-text="dayOf(t.done_at || t.updated_at)"></span></span>
+        </button>
+        <button class="btn small" @click="reopenTask(t)">פתח מחדש</button>
+      </div>
+    </template>
+  </div>
+  <p class="muted" x-show="!arc.items.length && !arc.loading">אין משימות בארכיון שמתאימות לסינון.</p>
+  <button class="btn" x-show="arc.items.length < arc.total" @click="loadArchive(true)">עוד…</button>
+</div>
+</template>
+
 <template x-if="route.name==='search'">
 <div>
   <div class="page-h"><h1>חיפוש</h1></div>
   <form class="searchbox" @submit.prevent="runSearch()">
     <input type="search" x-model="sq.q" placeholder="חיפוש בכל המידע (לפחות שלוש אותיות)" aria-label="חיפוש" @input.debounce.400ms="runSearch()">
+    <label class="switch-row sm"><input type="checkbox" x-model="sq.archive" @change="runSearch()"><span>כולל ארכיון</span></label>
     <button class="btn primary" type="submit">חיפוש</button>
   </form>
   <div class="sfilters">
@@ -551,6 +564,31 @@
             <button class="icon-btn" @click="toggleMenu($event)" aria-haspopup="dialog" :aria-expanded="menuOpen" aria-label="תפריט פרויקט" title="תפריט פרויקט"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
           </div>
         </div>
+<div class="sect sc-chat" x-data x-init="scLoad('project:'+pp.project.id)">
+  <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרויקט</h3>
+  <div class="tc-feed sc-feed" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
+    <p class="muted sm" x-show="scMsgs('project:'+pp.project.id).length===0">כתבו לאלכס על הפרויקט: "תשנה את השם ל…", "תעביר את המשימות ל…", "תמחק את הפרויקט", "תוסיף כינוי", "מה המצב?"</p>
+    <template x-for="m in scMsgs('project:'+pp.project.id)" :key="m.id">
+      <div class="bubble tc-b" :class="m.author">
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="cf-card" x-show="m.confirm" x-cloak>
+          <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+        </div>
+      </div>
+    </template>
+    <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('project:'+pp.project.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
+  </div>
+  <form class="tc-form" @submit.prevent="scSend('project:'+pp.project.id)">
+    <textarea x-model="sc.text" rows="1" class="tc-in comp-input" :placeholder="'כתוב ל'+assistantName()+' על הפרויקט…'" :aria-label="'כתוב ל'+assistantName()+' על הפרויקט'" enterkeyhint="send" @input="autosize($event.target)"
+      @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('project:'+pp.project.id); }"></textarea>
+    <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
+  </form>
+</div>
 
         <div class="pcard">
           <div class="pc-h"><h3>כרטיס פרויקט</h3><button class="btn small ghost" @click="openFactAdd()">+ נתון</button></div>
@@ -695,6 +733,31 @@
           <span class="sep" x-show="proto.next_meeting_at">·</span><span class="mi static" x-show="proto.next_meeting_at" x-text="'הפגישה הבאה '+fmtDateTime(proto.next_meeting_at)"></span></div>
         <div class="p-chips"><template x-for="x in proto.participants" :key="x.name+x.email"><span class="p-chip" :title="[x.company, x.role, x.email].filter(Boolean).join(' · ')"><b x-text="partName(x)"></b><i x-show="x.company || x.role" x-text="[x.company, x.role].filter(Boolean).join(', ')"></i></span></template></div>
         <p class="desc-text" x-show="proto.summary_he" x-text="proto.summary_he" style="margin:10px 0"></p>
+<div class="sect sc-chat" x-data x-init="scLoad('protocol:'+proto.id)">
+  <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרוטוקול</h3>
+  <div class="tc-feed sc-feed" x-effect="scMsgs('protocol:'+proto.id).length && scScroll()">
+    <p class="muted sm" x-show="scMsgs('protocol:'+proto.id).length===0">כתבו לאלכס על הפרוטוקול: "תשייך לפרויקט…", "תמחק את הפרוטוקול", "תוסיף סעיף…"</p>
+    <template x-for="m in scMsgs('protocol:'+proto.id)" :key="m.id">
+      <div class="bubble tc-b" :class="m.author">
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="cf-card" x-show="m.confirm" x-cloak>
+          <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+        </div>
+      </div>
+    </template>
+    <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('protocol:'+proto.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
+  </div>
+  <form class="tc-form" @submit.prevent="scSend('protocol:'+proto.id)">
+    <textarea x-model="sc.text" rows="1" class="tc-in comp-input" :placeholder="'כתוב ל'+assistantName()+' על הפרוטוקול…'" :aria-label="'כתוב ל'+assistantName()+' על הפרוטוקול'" enterkeyhint="send" @input="autosize($event.target)"
+      @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('protocol:'+proto.id); }"></textarea>
+    <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
+  </form>
+</div>
 
         <div class="sect">
           <div class="pc-h"><h3>משימות מהפרוטוקול</h3>
@@ -789,6 +852,31 @@
           <span class="ci-k" x-text="it.kind==='task' ? 'משימה' : 'פגישה'"></span>
         </button>
       </template>
+<div class="sect sc-chat" x-data x-init="scLoad('day:'+calSel)">
+  <h3>שיחה עם <span x-text="assistantName()"></span> על על היום הזה</h3>
+  <div class="tc-feed sc-feed" x-effect="scMsgs('day:'+calSel).length && scScroll()">
+    <p class="muted sm" x-show="scMsgs('day:'+calSel).length===0">כתבו לאלכס על היום: "תעביר את הפגישה ליום חמישי", "תוסיף פגישה ב-10:00", "מה יש לי ביום הזה?"</p>
+    <template x-for="m in scMsgs('day:'+calSel)" :key="m.id">
+      <div class="bubble tc-b" :class="m.author">
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="cf-card" x-show="m.confirm" x-cloak>
+          <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+        </div>
+      </div>
+    </template>
+    <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('day:'+calSel)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
+  </div>
+  <form class="tc-form" @submit.prevent="scSend('day:'+calSel)">
+    <textarea x-model="sc.text" rows="1" class="tc-in comp-input" :placeholder="'כתוב ל'+assistantName()+' על היום הזה…'" :aria-label="'כתוב ל'+assistantName()+' על היום הזה'" enterkeyhint="send" @input="autosize($event.target)"
+      @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('day:'+calSel); }"></textarea>
+    <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
+  </form>
+</div>
     </div>
   </div>
 </div>
@@ -984,6 +1072,31 @@
             <button class="btn small" style="margin-top:6px" @click="togglePersonCard(p)" x-text="personCard && personCard.id===p.id ? 'הסתר פירוט' : 'אזכורים ומשימות'"></button>
             <template x-if="personCard && personCard.id===p.id">
               <div class="pcard">
+<div class="sect sc-chat" x-data x-init="scLoad('person:'+p.id)">
+  <h3>שיחה עם <span x-text="assistantName()"></span> על על איש הקשר</h3>
+  <div class="tc-feed sc-feed" x-effect="scMsgs('person:'+p.id).length && scScroll()">
+    <p class="muted sm" x-show="scMsgs('person:'+p.id).length===0">כתבו לאלכס על האיש: "תמזג עם…", "תשנה את השם", "הוא עובד ב…", "תמחק אותו"</p>
+    <template x-for="m in scMsgs('person:'+p.id)" :key="m.id">
+      <div class="bubble tc-b" :class="m.author">
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="cf-card" x-show="m.confirm" x-cloak>
+          <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+        </div>
+      </div>
+    </template>
+    <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('person:'+p.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
+  </div>
+  <form class="tc-form" @submit.prevent="scSend('person:'+p.id)">
+    <textarea x-model="sc.text" rows="1" class="tc-in comp-input" :placeholder="'כתוב ל'+assistantName()+' על איש הקשר…'" :aria-label="'כתוב ל'+assistantName()+' על איש הקשר'" enterkeyhint="send" @input="autosize($event.target)"
+      @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('person:'+p.id); }"></textarea>
+    <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
+  </form>
+</div>
                 <h4>משימות (<span x-text="personCard.tasks.length"></span>)</h4>
                 <template x-for="t in personCard.tasks" :key="'pt'+t.id"><button class="mini-row" @click="openTask(t.id)"><b x-text="t.title"></b><span class="muted" x-text="(t.role==='requester' ? 'מאת · ' : 'אחראי · ')+t.project+' · '+t.status"></span></button></template>
                 <p class="muted" x-show="!personCard.tasks.length">אין משימות מקושרות</p>
@@ -1091,6 +1204,13 @@
         </div>
         <template x-if="editing && editing.id===m.id"><div class="msg-edit"><textarea class="edit-in" x-model="editing.text" rows="3" @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); saveEdit(); }" @keydown.escape.stop="cancelEdit()" x-init="$nextTick(() => $el.focus())"></textarea><div class="muted sm">Enter לשמירה, Esc לביטול</div></div></template>
         <details class="sup-reply" x-show="m.superseded && !(editing && editing.id===m.id)"><summary>תשובה קודמת (הוחלפה)</summary><div class="b-text" x-html="chatHtml(m.text, m.refs)"></div></details>
+        <div class="cf-card" x-show="m.confirm" x-cloak>
+          <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
+          <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחקה לצמיתות.</b> <button class="btn small" x-show="undoLeft(m.confirm) > 0" @click="undoPurge(m.confirm)" x-text="'בטל ('+undoLeft(m.confirm)+')'"></button></p>
+        </div>
         <div class="prop-card" x-show="m.proposal_batch" x-cloak x-init="m.proposal_batch && loadProposals(m.proposal_batch)">
           <template x-if="m.proposal_batch && proposalCards[m.proposal_batch]">
             <div>
@@ -1108,7 +1228,7 @@
             </div>
           </template>
         </div>
-        <div class="b-text" x-show="!m.import && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="b-text" x-show="!m.import && !m.confirm && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
         <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><span class="tchip-w"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button><button type="button" class="fbq" @click="fbQuick(t.id, 'up')" aria-label="מועיל" title="מועיל">👍</button><button type="button" class="fbq" @click="openTask(t.id)" aria-label="לא מועיל (פתיחת המשימה)" title="לא מועיל: פתיחת המשימה לתיקון">👎</button></span></template></div>
       </div>
@@ -1132,6 +1252,16 @@
       </div>
     </div></div>
 </aside>
+
+<div class="picker-bg" x-show="purgeDlg" x-cloak @click.self="purgeDlg=null" @keydown.escape.window="purgeDlg=null">
+  <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="purgeDlg">
+    <div class="pk-head"><b>מחיקה לצמיתות</b><button class="icon-btn" @click="purgeDlg=null" aria-label="סגירה">✕</button></div>
+    <p x-text="purgeDlg ? '״'+purgeDlg.t.title+'״' : ''"></p>
+    <p class="muted sm">המשימה, ההערות, הקישורים למיילים והשיחה עליה יימחקו לצמיתות (לא לארכיון). אפשר לבטל תוך 30 שניות.</p>
+    <div class="btnrow"><button class="btn danger" @click="confirmPurge()">מחק לצמיתות</button><button class="btn" @click="purgeDlg=null">ביטול</button></div>
+  </div>
+</div>
+<div class="purge-undo" x-show="purgeUndo && purgeLeft()>0" x-cloak><span x-text="'נמחקה לצמיתות: '+(purgeUndo ? clipText(purgeUndo.title, 40) : '')"></span><button class="btn small" @click="undoPurge(purgeUndo)" x-text="'בטל ('+purgeLeft()+')'"></button></div>
 
 <div class="picker-bg" x-show="delDlg" x-cloak @click.self="delDlg=null" @keydown.escape.window="delDlg=null">
   <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="delDlg">

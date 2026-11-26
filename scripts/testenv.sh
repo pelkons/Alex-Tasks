@@ -7,6 +7,7 @@ case "${1:-env}" in
   start)
     "$0" stop >/dev/null 2>&1
     rm -rf "$T"; mkdir -p "$T/files" "$T/runs" "$T/agent/memory"
+    mkdir -p "$T/bin"; ln -sf "$root/bin/mesimot" "$T/bin/mesimot"; export MESIMOT_BIN_DIR="$T/bin" PATH="$T/bin:$PATH" # the assistant must run THIS tree's CLI, not an installed one
     node "$root/bin/mesimot" render-agent --dir "$T/agent" >/dev/null
     printf '# Owner\n(empty)\n' > "$T/agent/memory/owner.md"; printf '# People\n- אבי כהן and יעל רוזן: the owner'"'"'s bosses.\n' > "$T/agent/memory/people.md"; printf '# Projects\n(no projects yet)\n' > "$T/agent/memory/projects-index.md"
     export MESIMOT_LOCK="$T/runner.lock" MESIMOT_DB="$T/test.db" MESIMOT_FILES="$T/files" MESIMOT_PORT=8111 MESIMOT_AGENT_DIR="$T/agent" MESIMOT_RUN_LOG="$T/runs" MESIMOT_URL=http://127.0.0.1:8111 MESIMOT_POLL_EMAIL=0 MESIMOT_TELEGRAM=0 MESIMOT_MAIL_ENV_FILE=/nonexistent MESIMOT_QUIET_S="${MESIMOT_QUIET_S:-5}"
