@@ -763,6 +763,20 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     return [`reply: ${replies[0].text.replace(/\n/g, ' / ').slice(0, 220)}`, `run ${runs[0].id}: retries ${runs[0].retries}, error ${runs[0].error}`];
   });
 
+  await scenario('34. a REPLY to an older message is about THAT message: "תדחה בשבוע" replying to the message about task B moves task B, not the task of the latest message', async () => {
+    const owner = store.ownerId(), assistant = store.assistantId(); const proj = store.createProject(assistant, { name: 'מגדל התשובות' });
+    const A = store.createTask(assistant, { title: 'להכין דוח התקדמות חודשי', project: proj.id, requester: owner, assignee: owner, due: '2026-12-10' });
+    const B = store.createTask(assistant, { title: 'לתאם סיור מדידות באתר', project: proj.id, requester: owner, assignee: owner, due: '2026-12-11' });
+    const ins = (text, tid) => ({ id: db.prepare("INSERT INTO chat_messages (author, channel, text, file_ids, task_ids, created_at, tg_sent) VALUES ('claude','web',?,'[]',?,?,1)").run(text, JSON.stringify([tid]), new Date().toISOString()).lastInsertRowid });
+    const mB = ins('המשימה "לתאם סיור מדידות באתר" ממתינה לתיאום.', B.id); const mA = ins('המשימה "להכין דוח התקדמות חודשי" מתקרבת ליעד.', A.id);
+    const r = await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' }, body: JSON.stringify({ text: 'תדחה בשבוע', reply_to: mB.id }) }); expect(r.status === 201, 'post failed');
+    await waitIdle('reply', 5 * 60 * 1000);
+    const a = store.getTask(A.id), b = store.getTask(B.id);
+    expect(b.due_date === '2026-12-18', `task B (the one replied to) due is ${b.due_date}, expected 2026-12-18`); expect(a.due_date === '2026-12-10', `task A (the latest message) was changed: ${a.due_date}`);
+    const rep = db.prepare("SELECT text FROM chat_messages WHERE author='claude' AND id > ? ORDER BY id").all(mA.id); expect(rep.length >= 1 && /סיור|מדידות/.test(rep[0].text), `the reply does not mention the quoted task: ${(rep[0] || {}).text}`);
+    return [`B due ${b.due_date}, A due ${a.due_date}`, `reply: ${rep[0].text.replace(/\n/g, ' / ').slice(0, 160)}`];
+  });
+
   const H2 = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
   const post = (body) => fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H2, body: JSON.stringify(body) });
   await scenario('29. project chat: "תשנה את שם הפרויקט ל..." renames it, keeps the old name as an alias and says what changed, in the project thread', async () => {

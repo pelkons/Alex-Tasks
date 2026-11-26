@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, sysHealth: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, replyTo: null, sysHealth: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
@@ -822,6 +822,8 @@ function app() {
       f.addEventListener('load', keep, true); // images / late content
     },
     autosize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; },
+    // quote a message: the next message is a REPLY to it (the assistant sees which message he answered)
+    startReply(m) { this.msgMenu = null; this.replyTo = { id: m.id, text: String(m.text || '').replace(/\s+/g, ' ').slice(0, 140) }; this.$nextTick(() => { const t = document.querySelector('.chat-panel .comp-input'); if (t) t.focus(); }); },
     async sendChat() {
       const text = this.chatText.trim();
       if (this.uploading()) { this.toast('ממתינים לסיום העלאת הקבצים'); return; }
@@ -829,8 +831,8 @@ function app() {
       if (this.sending || (!text && !this.chatFiles.length)) return;
       this.sending = true;
       try {
-        const m = await this.api('POST', '/api/chat', { text, file_ids: this.chatFiles.map((f) => f.id), ...(this.chatTask ? { task: this.chatTask } : {}) });
-        this.chatText = ''; this.chatFiles = []; this.chatTask = null;
+        const m = await this.api('POST', '/api/chat', { text, file_ids: this.chatFiles.map((f) => f.id), ...(this.chatTask ? { task: this.chatTask } : {}), ...(this.replyTo ? { reply_to: this.replyTo.id } : {}) });
+        this.chatText = ''; this.chatFiles = []; this.chatTask = null; this.replyTo = null;
         document.querySelectorAll('.comp-input').forEach((el) => { el.style.height = 'auto'; });
         this.awaitingId = m.id; this._awaitSince = Date.now();
         if (m.id > this.lastMsgId && !this.chatMsgs.some((x) => x.id === m.id)) { this.chatMsgs.push(m); this.lastMsgId = m.id; }

@@ -1239,7 +1239,7 @@
         <a class="tchip-top" x-show="m.scope==='task' && m.task_title" @click.prevent="openTask(m.task_id)" href="#" x-text="'📌 '+(m.task_title||'')"></a>
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="web-mark" x-show="m.web" title="תשובה מחיפוש באינטרנט" aria-label="תשובה מחיפוש באינטרנט">🌐</span> <span x-text="fmtDateTime(m.created_at)"></span><span class="tg-tag" x-show="m.channel==='telegram'">טלגרם</span></div>
         <span class="msg-act" x-show="!m.import_id" @click.outside="if(msgMenu===m.id) msgMenu=null"><button type="button" class="icon-btn msg-dots" @click.stop="msgMenu = (msgMenu===m.id ? null : m.id)" aria-label="פעולות להודעה" title="פעולות להודעה">⋯</button>
-                    <span class="msg-menu" x-show="msgMenu===m.id" x-cloak><button type="button" x-show="m.author==='owner'" @click="startEdit(m)">ערוך</button><button type="button" @click="askDelete(m)">מחק</button></span></span>
+                    <span class="msg-menu" x-show="msgMenu===m.id" x-cloak><button type="button" @click="startReply(m)">השב</button><button type="button" x-show="m.author==='owner'" @click="startEdit(m)">ערוך</button><button type="button" @click="askDelete(m)">מחק</button></span></span>
         <span class="edited-mark" x-show="m.edited">נערך</span>
         <div class="imp-card" x-show="m.import" x-cloak>
           <template x-if="m.import">
@@ -1325,6 +1325,7 @@
             </div>
           </template>
         </div>
+        <div class="reply-quote sm" x-show="m.reply || m.reply_quote" x-text="'↩ ' + (m.reply ? m.reply.text : m.reply_quote)"></div>
         <div class="b-text" x-show="!m.import && !m.confirm && !m.outbox && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
         <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><span class="tchip-w"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button><button type="button" class="fbq" @click="fbQuick(t.id, 'up')" aria-label="מועיל" title="מועיל">👍</button><button type="button" class="fbq" @click="openTask(t.id)" aria-label="לא מועיל (פתיחת המשימה)" title="לא מועיל: פתיחת המשימה לתיקון">👎</button></span></template></div>
@@ -1339,6 +1340,7 @@
           <span x-text="f.error ? '⚠️' : fileIcon(f)"></span><span class="fn" x-text="f.name"></span><span class="fs" x-show="!f.done" x-text="f.error ? f.text : (f.pct ? f.pct+'%' : '…')"></span>
           <button type="button" @click="cancelChip(f)" :aria-label="f.done ? 'הסרת קובץ' : 'ביטול ההעלאה'" :title="f.done ? 'הסרה' : 'ביטול ההעלאה'">✕</button><i class="bar" x-show="!f.done && !f.error"></i></span></template>
       </div>
+      <div class="reply-chip" x-show="replyTo" x-cloak><span class="muted sm">משיב ל:</span> <span class="rc-t" x-text="replyTo ? replyTo.text : ''"></span><button type="button" class="icon-btn" @click="replyTo=null" aria-label="ביטול תשובה">✕</button></div>
       <div class="comp-row">
         <button type="button" class="icon-btn" @click="$refs.fileinput_chat.click()" aria-label="צירוף קובץ" title="צירוף קובץ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11l-9.2 9.2a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-9.2 9.2a2 2 0 0 1-3-3L15 7"/></svg></button>
         <input type="file" multiple class="sr" x-ref="fileinput_chat" @change="attachFiles($event.target.files); $event.target.value=''" tabindex="-1">
