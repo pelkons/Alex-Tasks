@@ -110,7 +110,8 @@ test('assistant messages are delivered with quick buttons; the buttons act like 
   // done
   await tg.handleUpdate({ update_id: 21, callback_query: { id: 'cb2', data: `done:${t.id}`, message: { chat: { id: OWNER_CHAT }, message_id: 55 } } });
   assert.equal(store.getTask(t.id).status, 'הושלם');
-  assert.ok(calls.some((c) => c.method === 'answerCallbackQuery' && c.body.text === 'סומן כהושלם'));
+  assert.ok(calls.some((c) => c.method === 'answerCallbackQuery' && c.body.text === `✔ סגרתי: ${t.title}`));
+  assert.ok(calls.some((c) => c.method === 'sendMessage' && c.body.text === `✔ סגרתי: ${t.title}`), 'a short confirmation message');
   // a callback from another chat does nothing
   const t2 = store.createTask(store.assistantId(), { title: 'אחרת' });
   await tg.handleUpdate({ update_id: 22, callback_query: { id: 'cb3', data: `done:${t2.id}`, message: { chat: { id: 1 }, message_id: 1 } } });

@@ -145,8 +145,8 @@
     <template x-if="sec.title"><div class="grp-h" :class="{unassigned: sec.def}" :style="'--pcol:'+sec.color"><i></i><span x-text="sec.title"></span><span class="n" x-text="sec.items.length"></span></div></template>
     <div class="rows" :class="{grouped: filters.group}">
       <template x-for="t in sec.items" :key="t.id">
-        <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, overdue: isLate(t), unassigned: t.project_default}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
-          <button class="check" @click="toggleDone(t)" aria-label="סימון כהושלמה"><i>✓</i></button>
+        <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, overdue: isLate(t), unassigned: t.project_default, 'row-enter': enterId===t.id}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
+          <button class="check" @click="toggleDone(t, $event)" aria-label="סימון כהושלמה"><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" pathLength="1"/></svg></i></button>
           <button class="body" @click="!t._bad && openTask(t.id)">
             <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
             <span class="title" x-text="t.title"></span>
@@ -1429,6 +1429,7 @@
   </div>
 </div>
 
+<div class="toast done-toast" x-show="doneUndo" x-cloak x-transition.opacity><span class="dt-msg">✔ הושלם</span> · <button type="button" class="dt-undo" @click="undoDoneNow()">ביטול</button></div>
 <div class="toast" :class="{err: toastErr}" x-show="toastMsg" x-transition.opacity><span x-text="toastMsg"></span></div>
 
 <!-- project settings: a real dialog on document.body level (fixed, centered, backdrop), never inside a pane -->

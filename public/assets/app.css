@@ -1091,3 +1091,23 @@ body[data-density="compact"] .rows .row .check { height: 34px; margin-top: 4px; 
 .hist .h { color: var(--muted); }
 
 .stamps { font-size: .78rem; line-height: 1.5; margin: 18px 0 4px; }
+
+/* ===== marking done: circle fills, the check draws in, a soft green flash, the row collapses ===== */
+.row .check i svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.row .check i { font-size: 0; }
+.row .check.done i svg { stroke-dashoffset: 0; }
+.row { position: relative; }
+.row.done-anim { overflow: hidden; }
+.row.done-anim .check i { background: var(--ok); border-color: var(--ok); animation: done-pop .3s ease-out; }
+.row.done-anim .check i svg { animation: done-draw .25s ease-out forwards; }
+.row.done-anim::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ok) 24%, transparent), transparent); transform: translateX(100%); animation: done-flash .5s ease-out forwards; }
+.row.collapsing { overflow: hidden; opacity: 0; padding-block: 0; border-width: 0; transition: height .35s ease, opacity .3s ease, padding .35s ease, margin .35s ease; min-height: 0; }
+.row.row-enter { animation: row-in .45s ease-out; }
+@keyframes done-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes done-pop { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes done-flash { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+@keyframes row-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.done-toast { pointer-events: none; } .done-toast > * { pointer-events: auto; }
+.done-toast { background: none; } .done-toast .dt-msg, .done-toast .dt-undo { background: var(--text, #111); color: var(--surface, #fff); padding: 8px 14px; font-size: .95rem; }
+.done-toast { gap: 0; align-items: center; } .done-toast .dt-msg { border-radius: 10px 0 0 10px; } .done-toast .dt-undo { border: 0; border-radius: 0 10px 10px 0; font-weight: 600; cursor: pointer; text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .row.done-anim .check i, .row.done-anim .check i svg, .row.done-anim::after, .row.row-enter { animation: none !important; } .row.collapsing { transition: none !important; } }

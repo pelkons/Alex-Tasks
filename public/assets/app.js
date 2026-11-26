@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, replyTo: null, sysHealth: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
@@ -299,15 +299,49 @@ function app() {
         await Promise.all([this.loadLists(), this.loadBoot()]);
       } catch (e) { this.fail(e); }
     },
-    async toggleDone(t) {
+    // marking a task done: the circle fills and the check draws in, a soft green flash crosses the row, a few small particles, then the row collapses and leaves the list (done tasks live in the archive).
+    // A 5-second "ביטול" brings it back. prefers-reduced-motion: no animation at all, just the state change and the toast. The list is edited in place, so the scroll position never moves.
+    reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } },
+    burst(btn) {
+      if (!btn || !btn.animate) return;
+      const r = btn.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; const colors = ['#22c55e', '#16a34a', '#86efac', '#f59e0b', '#38bdf8'];
+      for (let i = 0; i < 8; i++) {
+        const el = document.createElement('span'); const ang = (Math.PI * 2 * i) / 8 + Math.random() * 0.5; const dist = 22 + Math.random() * 16;
+        el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:5px;height:5px;border-radius:50%;background:${colors[i % colors.length]};pointer-events:none;z-index:90`;
+        document.body.appendChild(el);
+        el.animate([{ transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }, { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px)) scale(.4)`, opacity: 0 }], { duration: 600, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = () => el.remove();
+      }
+    },
+    async animateDone(row, btn) {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      row.classList.add('done-anim'); this.burst(btn); await wait(520);
+      const cs = getComputedStyle(row.parentElement); const gap = parseFloat(cs.rowGap) || 0;
+      row.style.height = row.offsetHeight + 'px'; void row.offsetHeight; row.classList.add('collapsing'); row.style.height = '0px'; if (gap) row.style.marginBottom = `-${gap}px`;
+      await wait(360);
+    },
+    async toggleDone(t, ev) {
       if (!t || t._bad) return;
-      const target = t.status_done
-        ? this.boot.statuses.find((s) => !s.is_closed)
-        : this.boot.statuses.find((s) => s.is_done);
+      const closing = !t.status_done;
+      const target = closing ? this.boot.statuses.find((s) => s.is_done) : this.boot.statuses.find((s) => !s.is_closed);
+      const prev = t.status_id;
+      const btn = ev && ev.currentTarget; const row = btn && btn.closest ? btn.closest('.row') : null;
       try {
-        await this.api('PATCH', '/api/tasks/' + t.id, { status: target.id });
-        await Promise.all([this.loadLists(), this.loadBoot()]);
+        const call = this.api('PATCH', '/api/tasks/' + t.id, { status: target.id });
+        if (closing && row && !this.reducedMotion()) await this.animateDone(row, btn);
+        await call;
+        if (closing) {
+          this.tasks = this.tasks.filter((x) => x.id !== t.id); this.openTasks = this.openTasks.filter((x) => x.id !== t.id);
+          this.doneUndo = { id: t.id, prev, title: t.title }; clearTimeout(this._doneT); this._doneT = setTimeout(() => { this.doneUndo = null; }, 5000);
+        }
+        Promise.all([this.loadLists(), this.loadBoot()]).catch(() => {});
         if (this.route.id === t.id) await this.loadDetail(true);
+      } catch (e) { if (row) { row.classList.remove('done-anim', 'collapsing'); row.style.height = ''; row.style.marginBottom = ''; } this.fail(e); }
+    },
+    async undoDoneNow() {
+      const u = this.doneUndo; if (!u) return; this.doneUndo = null; clearTimeout(this._doneT);
+      try {
+        await this.api('PATCH', '/api/tasks/' + u.id, { status: u.prev });
+        this.enterId = u.id; await Promise.all([this.loadLists(), this.loadBoot()]); setTimeout(() => { this.enterId = null; }, 800);
       } catch (e) { this.fail(e); }
     },
     async save(field, val, ev) {
