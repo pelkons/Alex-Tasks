@@ -10,6 +10,6 @@ function startIngest() {
   const host = tailscaleAddr(), iport = +(process.env.MESIMOT_INGEST_PORT || 8130);
   if (!readToken()) { console.warn('ingest listener not started: MESIMOT_INGEST_TOKEN is not set'); return; }
   if (!host) { console.warn('ingest listener not started: no Tailscale address'); return; }
-  createIngestApp({ ingest: app.ingest }).listen({ host, port: iport }).then(() => console.log(`ingest listening on ${host}:${iport} (Tailscale only)`)).catch((e) => console.error('ingest listener failed:', e.message));
+  createIngestApp({ ingest: app.ingest, outbox: app.outbox }).listen({ host, port: iport }).then(() => console.log(`ingest listening on ${host}:${iport} (Tailscale only)`)).catch((e) => console.error('ingest listener failed:', e.message));
 }
 app.listen({ host: '127.0.0.1', port }).then(() => { console.log(`mesimot listening on 127.0.0.1:${port}`); app.semantic.startIndexer(); startIngest(); }).catch((e) => { console.error(e); process.exit(1); });

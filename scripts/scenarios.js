@@ -10,6 +10,7 @@ const T = '/tmp/mesimot-test';
 for (const a of process.argv.slice(2)) { const m = /^--(agent|model)=(.+)$/.exec(a); if (m) process.env[m[1] === 'agent' ? 'MESIMOT_AGENT' : 'MESIMOT_AGENT_MODEL'] = m[2]; }
 process.env.MESIMOT_DB = `${T}/test.db`; process.env.MESIMOT_FILES = `${T}/files`; process.env.MESIMOT_LOCK = `${T}/runner.lock`;
 process.env.MESIMOT_INGEST_TOKEN = 'test-ingest-token-1234'; process.env.MESIMOT_INGEST_PORT = '8131'; process.env.MESIMOT_INGEST_HOST = process.env.MESIMOT_INGEST_HOST || require('child_process').execSync("ip -4 -o addr show tailscale0 | awk '{print $4}' | cut -d/ -f1", { encoding: 'utf8' }).trim();
+if ((process.env.SCENARIOS || '') === '32') { const cfg = '/tmp/mesimot-scn-outbox.json'; require('fs').writeFileSync(cfg, JSON.stringify({ owner: { name_he: 'דנה', name_en: 'Dana', emails: ['dana@exconstruct.example'], work_email: 'dana@exconstruct.example' } })); process.env.MESIMOT_CONFIG = cfg; }
 process.env.MESIMOT_URL = 'http://127.0.0.1:8111'; process.env.MESIMOT_SEMANTIC = process.env.MESIMOT_SEMANTIC || '1';
 const { open } = require('../lib/db');
 const { createStore } = require('../lib/store');
@@ -711,6 +712,39 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     const closedOpen = store.getTask(open.id);
     const st = await (await fetch(base + '/ingest/status', { headers: auth })).json();
     return [`new tasks: ${created.map((x) => x.title + ' (' + x.due_date + ')').join(' | ') || 'none'}`, `urgent messages: ${urgent.length}${urgent[0] ? ' - ' + urgent[0].text.slice(0, 160) : ''}`, `the sent-mail task is now ${closedOpen.status}`, `status: ${st.mail.total} mails, ${st.calendar.items} calendar items`, `import ${imp.id}: ${imp.status}`];
+  });
+
+  await scenario('32. outgoing mail: the owner asks for a reply, the assistant makes a DRAFT card (never claims to send), a typed "כן" is not approval, a revision makes a new card, the button approves, the connector claims and reports, only then "נשלח"', async () => {
+    const H = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
+    const api = async (m, u, b) => (await fetch('http://127.0.0.1:8111' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined })).json();
+    const base = `http://${process.env.MESIMOT_INGEST_HOST}:${process.env.MESIMOT_INGEST_PORT}`; const auth = { Authorization: 'Bearer ' + process.env.MESIMOT_INGEST_TOKEN };
+    const say = async (text) => { const r = await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H, body: JSON.stringify({ text }) }); expect(r.status === 201, 'chat post failed'); await waitIdle('chat', 5 * 60 * 1000); };
+    const rows = () => db.prepare('SELECT * FROM outbox ORDER BY id').all();
+    await say('תכתוב ליעל רוזן (yael@client.example) שהתוכניות אושרו ויישלחו אליה מחר, בקצרה ובנימוס');
+    expect(rows().length === 1, `${rows().length} drafts after the request`); const d = rows()[0];
+    expect(d.status === 'pending' && /yael@client\.example/.test(d.to_json), `draft: ${d.status} ${d.to_json}`);
+    const cards1 = db.prepare('SELECT * FROM chat_messages WHERE outbox_id=?').all(d.id); expect(cards1.length === 1, `${cards1.length} cards`);
+    const replies = db.prepare("SELECT text FROM chat_messages WHERE author='claude' AND outbox_id IS NULL ORDER BY id").all().map((r) => r.text);
+    expect(!replies.some((t) => /שלחתי|נשלח(?!ים)|יצא המייל/.test(t) && !/טיוטה|לאישור|לא נשלח|לא יישלח/.test(t)), `the assistant claimed to send: ${replies.join(' | ').slice(0, 300)}`);
+    await say('כן');
+    expect(rows()[0].status === 'pending', 'a typed yes approved the mail!');
+    await say('תוסיף בסוף שאשמח לקבל ממנה אישור קבלה');
+    const d2 = rows()[0]; expect(d2.status === 'pending' && d2.content_hash !== d.content_hash, `after the revision: ${d2.status}, hash changed ${d2.content_hash !== d.content_hash}`);
+    expect(rows().length === 1, `the revision made a second draft instead of updating (${rows().length})`);
+    const cards2 = db.prepare('SELECT * FROM chat_messages WHERE outbox_id=? ORDER BY id').all(d.id); expect(cards2.length === 2, `${cards2.length} cards after the revision`);
+    const list = await api('GET', '/api/chat?limit=30'); const mv = list.filter((m) => m.outbox); expect(mv[0].outbox.stale === true && mv[mv.length - 1].outbox.stale === false, 'the old card is not marked stale');
+    expect((await fetch(`${base}/outbox/approved`, { headers: auth })).status === 200 && (await (await fetch(`${base}/outbox/approved`, { headers: auth })).json()).items.length === 0, 'something is listed before approval');
+    const refused = await fetch(`http://127.0.0.1:8111/api/outbox/${d.id}/approve`, { method: 'POST', headers: H, body: JSON.stringify({ hash: mv[0].outbox.shown_hash }) }); expect(refused.status === 400, `the stale card approved (${refused.status})`);
+    const off = await fetch(`http://127.0.0.1:8111/api/outbox/${d.id}/approve`, { method: 'POST', headers: H, body: JSON.stringify({ hash: mv[mv.length - 1].outbox.shown_hash }) }); expect(off.status === 400, 'approval worked while sending is disabled');
+    await api('POST', '/api/outbox/settings', { enabled: true });
+    const okr = await fetch(`http://127.0.0.1:8111/api/outbox/${d.id}/approve`, { method: 'POST', headers: H, body: JSON.stringify({ hash: mv[mv.length - 1].outbox.shown_hash }) }); expect(okr.status === 200, `approve failed ${okr.status}`);
+    const items = (await (await fetch(`${base}/outbox/approved`, { headers: auth })).json()).items; expect(items.length === 1 && items[0].approval_sig, 'not listed for the connector');
+    expect(/יעל|שלום/.test(items[0].body_text) && /אישור קבלה|קבלה/.test(items[0].body_text), `the body: ${items[0].body_text}`);
+    expect((await fetch(`${base}/outbox/${d.id}/claim`, { method: 'POST', headers: auth })).status === 200, 'claim failed');
+    expect((await fetch(`${base}/outbox/${d.id}/claim`, { method: 'POST', headers: auth })).status === 409, 'a second claim was allowed');
+    const res = await fetch(`${base}/outbox/${d.id}/result`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: true, sent_entry_id: 'SENT-ENTRY-1', sent_at: new Date().toISOString() }) }); expect(res.status === 200, 'result failed');
+    const conf = db.prepare("SELECT text FROM chat_messages WHERE text LIKE 'נשלח: %' ORDER BY id DESC").get(); expect(conf, 'no confirmation in the chat');
+    return [`draft #${d.id}: ${JSON.parse(rows()[0].to_json).map((x) => x.email)} | subject: ${rows()[0].subject}`, `body: ${rows()[0].body_text.replace(/\n/g, ' / ').slice(0, 200)}`, `confirmation: ${conf.text}`];
   });
 
   const H2 = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };

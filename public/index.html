@@ -341,6 +341,16 @@
 <template x-if="route.name==='activity'">
 <div class="activity-page">
   <div class="page-h"><h1>פעילות</h1></div>
+    <template x-if="act && act.outbox && act.outbox.items.length">
+    <section class="card">
+      <h3>מיילים יוצאים (יומן ביקורת)</h3>
+      <p class="muted sm" x-text="(act.outbox.settings.enabled ? 'שליחה פעילה' : 'שליחה מושבתת')+' · נשלחו היום '+act.outbox.settings.sent_today+' מתוך '+act.outbox.settings.daily_cap"></p>
+      <template x-for="o in act.outbox.items" :key="'ob'+o.id">
+        <div class="sm" style="padding:4px 0;border-top:1px solid var(--border,#e5e7eb)"><b x-text="'#'+o.id+' '+o.subject"></b> <span class="muted" x-text="'→ '+o.to"></span><br>
+          <span class="muted" x-text="({draft:'טיוטה',pending:'ממתין לאישור',approved:'אושר, ממתין לשליחה',sending:'בשליחה',sent:'נשלח',failed:'נכשל',cancelled:'בוטל',expired:'פג תוקף'})[o.status]+(o.approved_via ? ' · אושר ב'+(o.approved_via==='telegram'?'טלגרם':'אתר')+' '+fmtDateTime(o.approved_at) : '')+(o.sent_at ? ' · נשלח '+fmtDateTime(o.sent_at) : '')+(o.error ? ' · '+o.error : '')"></span></div>
+      </template>
+    </section>
+  </template>
   <template x-if="act">
   <div>
     <div class="card counter">
@@ -925,6 +935,19 @@
       <p class="muted sm">היום נוצלו <b x-text="usd(st.spent_today_usd)"></b>. כשהתקרה מושגת נדחית רק עבודה לא דחופה (סיכום זיכרון שבועי, השלמות, חילוץ עובדות מלידיעה בלבד), עד 24 שעות. משימות, דואר שוטף, שרשורי ייבוא, צ׳אט ותזכורות לעולם לא נדחים. בנוסף תקבלו התראה אם ההוצאה היומית גבוהה פי 2 מהממוצע.</p>
     </section>
 
+    <section class="card ob-set" x-init="loadOutbox()">
+      <h3>שליחת מיילים</h3>
+      <p class="muted sm">העוזר מכין טיוטות בלבד. שום מייל לא יוצא מהחשבון שלך בלי שתאשר את הנוסח המדויק בכרטיס (כפתור ✅ בצ׳אט או בטלגרם), והשליחה עצמה נעשית מה-Outlook במחשב MAINPC.</p>
+      <template x-if="obSet">
+        <div>
+          <p><b x-text="obSet.enabled ? 'שליחת מיילים: פעיל' : 'שליחת מיילים: מושבת'"></b> <span class="muted sm" x-text="'נשלחו היום '+obSet.sent_today+' מתוך '+obSet.daily_cap"></span></p>
+          <div class="btnrow"><button class="btn" :class="obSet.enabled ? 'danger' : 'primary'" @click="obToggle()" x-text="obSet.enabled ? 'השבת שליחה' : 'הפעל שליחה'"></button>
+            <label class="sm">מגבלה יומית <input type="number" min="1" max="500" style="width:5em" x-model.number="obSet.daily_cap" @change="obSetCap()"></label></div>
+          <p class="muted sm" x-text="'כתובת שולח: '+(obSet.from || 'לא הוגדרה')+(obSet.signature_set ? ' · חתימה מוגדרת' : ' · ללא חתימה (המייל יוצא בשמך)')"></p>
+        </div>
+      </template>
+    </section>
+
     <section class="card ol-card" x-init="loadIngest()">
       <h3>Outlook</h3>
       <p class="muted sm">מחבר במחשב MAINPC שולח מיילים ויומן כל כמה דקות. מיילים חדשים מטופלים ברקע; רק דברים דחופים מגיעים מיד, והשאר בסיכום הבוקר (07:30).</p>
@@ -1217,6 +1240,35 @@
         </div>
         <template x-if="editing && editing.id===m.id"><div class="msg-edit"><textarea class="edit-in" x-model="editing.text" rows="3" @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); saveEdit(); }" @keydown.escape.stop="cancelEdit()" x-init="$nextTick(() => $el.focus())"></textarea><div class="muted sm">Enter לשמירה, Esc לביטול</div></div></template>
         <details class="sup-reply" x-show="m.superseded && !(editing && editing.id===m.id)"><summary>תשובה קודמת (הוחלפה)</summary><div class="b-text" x-html="chatHtml(m.text, m.refs)"></div></details>
+        <div class="ob-card" x-show="m.outbox" x-cloak>
+          <template x-if="m.outbox">
+            <div>
+              <template x-if="!(obEdit && obEdit.id===m.outbox.id && !m.outbox.stale && m.outbox.status==='pending')">
+                <pre class="ob-text" dir="auto" x-text="m.text"></pre>
+              </template>
+              <template x-if="obEdit && obEdit.id===m.outbox.id && !m.outbox.stale && m.outbox.status==='pending'">
+                <div class="ob-edit">
+                  <label>אל <input x-model="obEdit.to" dir="ltr"></label><label>עותק <input x-model="obEdit.cc" dir="ltr"></label><label>עותק מוסתר <input x-model="obEdit.bcc" dir="ltr"></label>
+                  <label>נושא <input x-model="obEdit.subject" dir="auto"></label>
+                  <label>הנוסח <textarea x-model="obEdit.body" rows="9" dir="auto"></textarea></label>
+                  <div class="btnrow"><button class="btn primary" @click="obSaveEdit(m.outbox)">שמור וצור כרטיס חדש</button><button class="btn" @click="obEdit=null">ביטול</button></div>
+                  <p class="muted sm">אחרי השמירה נוצר כרטיס חדש עם קוד נוסח חדש, ורק עליו אפשר לאשר.</p>
+                </div>
+              </template>
+              <p class="sm ob-state" x-show="m.outbox.stale && m.outbox.status!=='cancelled'" x-text="'הטיוטה השתנתה. הכרטיס העדכני נמצא למטה (קוד '+m.outbox.hash_short+').'"></p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='approved'">✅ אושר ב<span x-text="m.outbox.approved_via==='telegram' ? 'טלגרם' : 'אתר'"></span>. ממתין לשליחה מ-Outlook (תוקף 24 שעות).</p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='sending'">⏳ בשליחה מ-Outlook… אם אין אישור שליחה בתוך דקות, בדקו בפריטים שנשלחו ב-Outlook לפני שמבקשים שוב.</p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='sent'">📤 נשלח.</p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='failed'" x-text="'⚠️ השליחה נכשלה, המייל לא נשלח: '+(m.outbox.error||'')"></p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='cancelled'">❌ בוטל.</p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='expired'">⌛ פג תוקף (24 שעות). בקשו מהעוזר טיוטה חדשה.</p>
+              <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='pending' && !m.outbox.enabled">⛔ שליחת מיילים מושבתת. אפשר להפעיל בהגדרות.</p>
+              <div class="btnrow" x-show="!m.outbox.stale && m.outbox.status==='pending' && !(obEdit && obEdit.id===m.outbox.id)">
+                <button class="btn primary" @click="obApprove(m)">✅ שלח</button><button class="btn" @click="obStartEdit(m.outbox)">✏️ ערוך</button><button class="btn danger" @click="obCancel(m.outbox)">❌ בטל</button>
+              </div>
+            </div>
+          </template>
+        </div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
@@ -1241,7 +1293,7 @@
             </div>
           </template>
         </div>
-        <div class="b-text" x-show="!m.import && !m.confirm && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="b-text" x-show="!m.import && !m.confirm && !m.outbox && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
         <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><span class="tchip-w"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button><button type="button" class="fbq" @click="fbQuick(t.id, 'up')" aria-label="מועיל" title="מועיל">👍</button><button type="button" class="fbq" @click="openTask(t.id)" aria-label="לא מועיל (פתיחת המשימה)" title="לא מועיל: פתיחת המשימה לתיקון">👎</button></span></template></div>
       </div>

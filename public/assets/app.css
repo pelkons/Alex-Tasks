@@ -1027,3 +1027,8 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .cal-chip.outlook, .cal-item.outlook { background: color-mix(in srgb, var(--muted, #6b7280) 9%, var(--surface)); border-inline-start-style: dashed; font-weight: 400; }
 .cal-item.outlook .ci-k { font-size: .7rem; letter-spacing: .02em; }
 .cal-chip.outlook .cc-t::before { content: 'O '; opacity: .55; font-weight: 600; }
+
+.ob-card { border: 1px solid var(--border, #d1d5db); border-radius: 12px; padding: 10px 12px; background: var(--surface-2, #f8fafc); margin-top: 4px; }
+.ob-text { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0 0 8px; max-height: 360px; overflow: auto; }
+.ob-edit label { display: block; font-size: .85rem; margin-bottom: 6px; } .ob-edit input, .ob-edit textarea { width: 100%; margin-top: 2px; }
+.ob-state { margin: 4px 0; }
