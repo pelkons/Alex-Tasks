@@ -1273,6 +1273,8 @@
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='sending'">⏳ בשליחה מ-Outlook… אם אין אישור שליחה בתוך דקות, בדקו בפריטים שנשלחו ב-Outlook לפני שמבקשים שוב.</p>
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='sent'">📤 נשלח.</p>
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='failed'" x-text="'⚠️ השליחה נכשלה, המייל לא נשלח: '+(m.outbox.error||'')"></p>
+              <div class="btnrow" x-show="['failed','expired'].includes(m.outbox.status) && !m.outbox.resent_as"><button class="btn primary" @click="obResend(m.outbox)">🔁 שלח שוב (טיוטה חדשה)</button></div>
+              <p class="sm ob-state" x-show="m.outbox.resent_as" x-text="'נוצרה טיוטה חדשה #'+m.outbox.resent_as+' לאישור (הכרטיס שלה בצ׳אט)'"></p>
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='cancelled'">❌ בוטל.</p>
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='expired'">⌛ פג תוקף (24 שעות). בקשו מהעוזר טיוטה חדשה.</p>
               <p class="sm ob-state" x-show="!m.outbox.stale && m.outbox.status==='pending' && !m.outbox.enabled">⛔ שליחת מיילים מושבתת. אפשר להפעיל בהגדרות.</p>

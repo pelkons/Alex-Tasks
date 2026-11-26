@@ -28,7 +28,7 @@ Item:
   "to": [ { "name": "...", "email": "a@b.co" } ], "cc": [], "bcc": [], "subject": "...",
   "body_text": "...", "body_html": "<div ...>...</div>",
   "attachments": [ { "file_id": 5, "name": "plan.pdf", "size": 1234, "sha256": "hex", "download": "/outbox/12/attachment/5" } ],
-  "reply_to": { "entry_id": "Outlook EntryID or null", "internet_message_id": "..." },
+  "reply_to": { "entry_id": "Outlook EntryID or null", "internet_message_id": "<...@...> or null" },
   "orig_entry_id": "...", "orig_internet_message_id": "...",
   "content_hash": "hex", "approved_at": "ISO", "approved_via": "web|telegram", "approval_sig": "hex",
   "sig_format": "..." }
@@ -65,3 +65,13 @@ content_hash   = ef14bd9cc517090638a23eba30f64f36eed935508a370ad60287d683efbb528
 key            = test-key-0123456789abcdef0123456789abcdef  (id 7, approved_at 2026-11-26T10:00:00.000Z)
 approval_sig   = a92d2da2b2bbc018559cbed719adff0e0299006a3ece7212f74cd56545b4de85
 ```
+
+
+## Replies: finding the original (reply_to)
+For `kind` `reply`, `reply_all` and `forward` the item ALWAYS has a `reply_to` object (for `new` it is `null`):
+* `reply_to.entry_id`: the Outlook EntryID of the original when it came through the Outlook ingest (also when it was first imported by hand and the connector pushed it later). Try `GetItemFromID(entry_id)` first.
+* `reply_to.internet_message_id`: the original's Message-ID (with angle brackets) whenever the server knows it, including mail from the manual import or the Proton path. When the EntryID is missing or no longer resolves, search for the original by `PR_INTERNET_MESSAGE_ID` (`http://schemas.microsoft.com/mapi/proptag/0x1035001F`), comparing case-insensitively and ignoring the brackets.
+* Both null: send it as a new mail. The approval card tells the owner which way it goes ("תשובה בשרשור המקורי" or "יישלח כמייל חדש"). The ids are part of the signed content hash.
+
+## Failed items: re-send
+A failed item is never retried by the server. The owner re-sends it from its card ("שלח שוב (טיוטה חדשה)", or the Telegram button), which creates a NEW draft (new id, new card, fresh approval, the original found again by the rules above). The connector sees it only after the owner approves it, as a normal approved item.
