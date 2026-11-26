@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, tcText: '', tcSending: false, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], filters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, proposalCards: {}, propSel: {}, tcText: '', tcSending: false, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '' }, sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
@@ -336,6 +336,17 @@ function app() {
         this.fail(e);
         if (ev && ev.target) ev.target.value = this.fmtReceivedFull(this.detail);
       }
+    },
+    // ---- bulk proposals (task merges / closures, people cleanup): approve all, selected, or one by one
+    async loadProposals(id) { try { this.proposalCards[id] = await this.api('GET', '/api/proposals/' + id); } catch (e) { /* not available */ } },
+    selectProposals(id, on) { for (const it of (this.proposalCards[id]?.items || [])) if (it.status === 'open') this.propSel[it.id] = on; },
+    async approveProposals(id, selectedOnly = false) {
+      const ids = selectedOnly ? (this.proposalCards[id]?.items || []).filter((it) => it.status === 'open' && this.propSel[it.id]).map((it) => it.id) : null;
+      if (selectedOnly && !ids.length) { this.toast('לא סומנו הצעות'); return; }
+      try { this.proposalCards[id] = await this.api('POST', `/api/proposals/${id}/approve`, ids ? { ids } : {}); this.toast('בוצע'); await Promise.all([this.loadBoot(), this.route.name === 'home' ? this.loadLists() : Promise.resolve()]); } catch (e) { this.fail(e); }
+    },
+    async decideProposal(it, action) {
+      try { await this.api('POST', '/api/proposals/item/' + it.id, { action }); await this.loadProposals(it.batch); } catch (e) { this.fail(e); }
     },
     // ---- edit / delete chat messages
     startEdit(m) { this.msgMenu = null; this.editing = { id: m.id, text: m.text }; },
@@ -868,7 +879,8 @@ function app() {
 
     // ---------- activity and undo
     async loadActivity() { try { this.act = await this.api('GET', '/api/activity?limit=40'); } catch (e) { this.fail(e); } this.loadUsage(); },
-    async loadUsage() { try { this.usage = await this.api('GET', '/api/usage?days=' + this.usageDays); } catch (e) { /* the panel is optional */ } },
+    async loadFbStats() { try { this.fbStats = await this.api('GET', '/api/feedback/stats?days=30'); } catch (e) { /* optional */ } },
+    async loadUsage() { this.loadFbStats(); try { this.usage = await this.api('GET', '/api/usage?days=' + this.usageDays); } catch (e) { /* the panel is optional */ } },
     usd(n) { return '$' + (+n || 0).toFixed(2); },
     tok(n) { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); },
     usageBar(d) { const max = Math.max(...this.usage.daily.map((x) => x.cost), 0.0001); return Math.max(2, Math.round((d.cost / max) * 56)); },
@@ -1044,7 +1056,26 @@ function app() {
 
     // ---------- settings
     fmtGB(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' ג״ב' : Math.max(1, Math.round(n / 1048576)) + ' מ״ב'; },
-    async loadSettings() { this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
+    // ---- feedback on what the assistant produced from mail
+    fbReset() { this.fb = { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }; },
+    async fbVote(type, id, verdict) {
+      try {
+        const r = await this.api('POST', '/api/feedback', { item_type: type, item_id: id, verdict, reason: verdict === 'down' ? this.fb.reason || null : null, reason_text: verdict === 'down' ? this.fb.text || null : null });
+        this.fb.sent = verdict; this.fb.id = r.id; this.fb.open = false; this.fb.fixes = verdict === 'down' && !!this.fb.reason;
+        if (r.suggestion) this.toast('יש הצעה חדשה לכלל סינון בצ׳אט');
+      } catch (e) { this.fail(e); }
+    },
+    async fbFix(kind, value) {
+      if ((kind === 'project' || kind === 'assignee') && !value) return;
+      try { await this.api('POST', `/api/tasks/${this.detail.id}/fix`, { kind, value, feedback_id: this.fb.id }); this.toast('תוקן'); this.fb.fixes = false; await this.loadDetail(true); await this.loadLists(); } catch (e) { this.fail(e); }
+    },
+    async fbQuick(taskId, verdict) { try { await this.api('POST', '/api/feedback', { item_type: 'task', item_id: taskId, verdict }); this.toast(verdict === 'up' ? 'תודה' : 'נשמר'); } catch (e) { this.fail(e); } },
+    async loadFilters() { try { this.filters = await this.api('GET', '/api/filters'); } catch (e) { /* optional */ } },
+    async previewFilter() { try { this.fprev = await this.api('POST', '/api/filters/preview', { ...this.fform, project: this.fform.project || null }); } catch (e) { this.fail(e); } },
+    async addFilter() { try { await this.api('POST', '/api/filters', { ...this.fform, project: this.fform.project || null }); this.fform.pattern = ''; this.fprev = null; this.toast('הכלל נוסף'); await this.loadFilters(); } catch (e) { this.fail(e); } },
+    async toggleFilter(f) { try { await this.api('PATCH', '/api/filters/' + f.id, { enabled: !f.enabled }); await this.loadFilters(); } catch (e) { this.fail(e); } },
+    async deleteFilter(f) { try { await this.api('DELETE', '/api/filters/' + f.id); await this.loadFilters(); } catch (e) { this.fail(e); } },
+    async loadSettings() { this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
     async saveSet(b) { try { await this.api('PATCH', '/api/settings', b); this.toast('נשמר'); await this.loadSettings(); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async renameItem(table, s, name) { try { await this.api('PATCH', `/api/${table}/${s.id}`, { name_he: name }); this.toast('נשמר'); await Promise.all([this.loadSettings(), this.loadBoot()]); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async copyText(t) {

@@ -97,7 +97,7 @@ test('assistant messages are delivered with quick buttons; the buttons act like 
   assert.equal(await tg.deliverPending(), 1);
   const msg = sent().pop();
   const kb = msg.reply_markup.inline_keyboard[0];
-  assert.deepEqual(kb.map((b) => b.text), ['✔ הושלם', '⏰ דחה למחר', '👁 פתח באתר']);
+  assert.deepEqual(kb.map((b) => b.text), ['✔ הושלם', '⏰ דחה למחר', '👁 פתח באתר', '👍', '👎']);
   assert.equal(kb[1].callback_data, `snooze:${t.id}`);
   assert.match(kb[2].url, new RegExp(`/task/${t.id}$`));
   assert.equal(await tg.deliverPending(), 0, 'delivered once');

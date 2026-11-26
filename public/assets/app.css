@@ -990,3 +990,25 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .sup-reply { opacity: .7; font-size: .85rem; }
 .sup-reply summary { cursor: pointer; color: var(--muted); }
 .del-dlg { max-width: 420px; padding: 14px; }
+
+/* proposals card */
+.prop-card { min-width: 260px; }
+.prop-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.prop-list { max-height: 360px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 4px; }
+.prop-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; background: var(--surface-2); border-radius: 8px; font-size: .88rem; }
+.prop-row.applied { opacity: .55; } .prop-row.rejected { opacity: .4; text-decoration: line-through; } .prop-row.failed { border-inline-start: 3px solid var(--danger); }
+.prop-main { flex: 1; min-width: 0; overflow-wrap: anywhere; } .prop-k { font-size: .68rem; font-weight: 700; padding: 0 6px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); margin-inline-end: 4px; }
+.prop-btns { display: flex; gap: 2px; flex: none; }
+
+/* mail filters */
+.frule { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; background: var(--surface-2); border-radius: 8px; margin-top: 6px; }
+.frule.off { opacity: .5; } .fk { font-size: .7rem; padding: 0 7px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); } .fa { font-size: .8rem; color: var(--primary); }
+.fform { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; } .fform input { flex: 1; min-width: 160px; }
+
+/* feedback */
+.fb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; padding: 6px 10px; background: var(--surface-2); border-radius: 10px; }
+.fb-bar .icon-btn.on { background: var(--primary-soft); }
+.fb-panel, .fb-fix { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fb-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; } .fb-chips .chip.on { background: var(--primary); color: var(--primary-text); }
+.fb-panel input[type=text] { flex: 1; min-width: 160px; }
+.tchip-w { display: inline-flex; align-items: center; gap: 2px; } .fbq { border: 0; background: transparent; cursor: pointer; opacity: .55; padding: 0 2px; font-size: .85rem; } .fbq:hover { opacity: 1; }

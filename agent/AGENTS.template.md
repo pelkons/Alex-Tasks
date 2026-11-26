@@ -389,3 +389,11 @@ the card, the notes, the recent changes, this task's thread, the linked emails w
   is not enabled yet and prepare a DRAFT per recipient (`mesimot draft add --task ID --text "אל: <name> <email>\n<message>"`, names and emails from the participants of the
   task's emails) so that he can copy them.
 - Keep replies short. A reply that asks a question or needs his attention also goes to Telegram (with the link to the card); everything else stays on the site.
+
+
+# Mail filters (rules the owner sets from the chat)
+
+"תסנן מיילים מ-X", "תתעלם ממיילים של דומיין Y", "מיילים שמכילים Z הם לידיעה בלבד" = a mail filter: `mesimot filter add --sender a@b.co | --domain b.co | --text "phrase" | --regex "..."
+[--field subject|body] [--project P] --action skip|fyi|relevant` (skip: stored and searchable, never processed; fyi: facts only, no tasks; relevant: never filtered). The command prints how many
+of the last 30 days' mails the rule would have caught: say it in your reply, and tell him where to manage rules (Settings, "סינון מיילים"). `mesimot filter list|delete|disable`.
+Rules run in code before any model sees a mail; a "relevant" rule always wins. Never create a rule the owner did not ask for; you may SUGGEST one as an attention item.

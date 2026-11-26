@@ -241,6 +241,25 @@
         </div>
 
         <button class="btn small ghost" x-show="detail.protocol" @click="openProtocol(detail.protocol.protocol_id)" x-text="'מתוך פרוטוקול: '+(detail.protocol ? clipText(detail.protocol.title, 50) : '')"></button>
+        <div class="fb-bar" x-show="detail.source_email_id" x-init="fbReset()">
+          <span class="muted sm">האם אלכס צדק כשפתח את המשימה הזו?</span>
+          <button type="button" class="icon-btn" :class="{on: fb.sent==='up'}" @click="fbVote('task', detail.id, 'up')" aria-label="מועיל" title="מועיל">👍</button>
+          <button type="button" class="icon-btn" :class="{on: fb.sent==='down' || fb.open}" @click="fb.open=true" aria-label="לא מועיל" title="לא מועיל">👎</button>
+          <span class="muted sm" x-show="fb.sent && !fb.open">תודה, זה נשמר ומשפר את העיבוד.</span>
+          <div class="fb-panel" x-show="fb.open" x-cloak>
+            <div class="fb-chips"><template x-for="r in fbReasons" :key="r"><button type="button" class="chip" :class="{on: fb.reason===r}" @click="fb.reason=r" x-text="r"></button></template></div>
+            <input type="text" x-model="fb.text" placeholder="הערה (לא חובה)" aria-label="הערה לא חובה">
+            <div class="btnrow"><button class="btn small primary" @click="fbVote('task', detail.id, 'down')" :disabled="!fb.reason && !fb.text.trim()">שליחה</button><button class="btn small ghost" @click="fb.open=false">ביטול</button></div>
+          </div>
+          <div class="fb-fix" x-show="fb.fixes">
+            <span class="muted sm">תיקון מיידי:</span>
+            <button class="btn small" x-show="['לא משימה','משימה של מישהו אחר'].includes(fb.reason)" @click="fbFix('info')">הפוך למידע בלבד</button>
+            <select x-show="fb.reason==='פרויקט שגוי'" @change="fbFix('project', $event.target.value)"><option value="">בחרו פרויקט…</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+            <button class="btn small" x-show="fb.reason==='תאריך שגוי'" @click="openPicker('due', $event)">שינוי תאריך יעד</button>
+            <span x-show="fb.reason==='כפילות'"><input type="number" x-model="fb.mergeInto" placeholder="מספר משימה" style="width:110px"> <button class="btn small" @click="fbFix('merge', fb.mergeInto)" :disabled="!fb.mergeInto">מזג לתוכה</button></span>
+            <select x-show="fb.reason==='משימה של מישהו אחר'" @change="fbFix('assignee', $event.target.value)"><option value="">שייך ל…</option><template x-for="p in boot.people.filter(p=>p.role!=='assistant')" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+          </div>
+        </div>
         <div class="sect corr" x-show="detail.email || (detail.correspondence && detail.correspondence.length)">
           <h3>התכתבות</h3>
           <div x-show="detail.email" x-html="mailHeadHtml(detail.email)"></div>
@@ -343,6 +362,19 @@
     <div class="card counter">
       <div><b x-text="act.today_runs"></b> הרצות של אלכס היום</div>
       <div class="days"><template x-for="d in act.days" :key="d.date"><span class="day" :title="dayOf(d.date)"><b x-text="d.count"></b><i x-text="dayShort(d.date)"></i></span></template></div>
+    </div>
+    <div class="card fb-stats" x-show="fbStats && fbStats.total>0">
+      <h3>איכות העיבוד לפי המשוב שלך <span class="muted sm">· 30 ימים</span></h3>
+      <template x-if="fbStats">
+        <div>
+          <div class="u-tot"><div class="u-box"><span class="muted">דיוק משימות (👍)</span><b x-text="fbStats.task_precision===null ? '-' : Math.round(fbStats.task_precision*100)+'%'"></b></div>
+            <div class="u-box"><span class="muted">משוב כולל</span><b x-text="fbStats.up+' 👍 · '+fbStats.down+' 👎'"></b></div>
+            <div class="u-box"><span class="muted">מה הכי משתבש</span><b x-text="fbStats.reasons.length ? fbStats.reasons[0].reason : '-'"></b></div></div>
+          <div class="u-tbl"><div class="u-h" style="grid-template-columns:2fr 1fr 1fr"><span>שבוע</span><span>תיקונים (👎)</span><span>אישורים (👍)</span></div>
+            <template x-for="w in fbStats.corrections_per_week" :key="w.w"><div class="u-r" style="grid-template-columns:2fr 1fr 1fr"><span x-text="dayOf(w.from_day)"></span><span x-text="w.down"></span><span x-text="w.up"></span></div></template></div>
+          <div class="muted sm" x-show="fbStats.reasons.length" x-text="'סיבות: '+fbStats.reasons.map(r=>r.reason+' '+r.n).join(' · ')"></div>
+        </div>
+      </template>
     </div>
     <div class="card usage-panel" x-show="usage">
       <h3>שימוש <span class="muted sm">· העלות היא שווה ערך API (הערכה בלבד): המנוי עצמו הוא תשלום קבוע עם מגבלות שימוש</span></h3>
@@ -799,6 +831,38 @@
       <p class="muted sm">מעל שלושה קבצי מייל בצ׳אט, או הודעה שכוללת "ייבוא יומי", מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
     </section>
 
+    <section class="card">
+      <h3>תקציב יומי: עבודה לא דחופה בלבד</h3>
+      <label class="field"><span>תקרה רכה ביום ($ שווה ערך API; 0 = כבוי, ברירת המחדל)</span><input type="number" min="0" step="1" :value="st.daily_budget_usd" @change="saveSet({daily_budget_usd: $event.target.value})"></label>
+      <p class="muted sm">היום נוצלו <b x-text="usd(st.spent_today_usd)"></b>. כשהתקרה מושגת נדחית רק עבודה לא דחופה (סיכום זיכרון שבועי, השלמות, חילוץ עובדות מלידיעה בלבד), עד 24 שעות. משימות, דואר שוטף, שרשורי ייבוא, צ׳אט ותזכורות לעולם לא נדחים. בנוסף תקבלו התראה אם ההוצאה היומית גבוהה פי 2 מהממוצע.</p>
+    </section>
+
+    <section class="card filters-card">
+      <h3>סינון מיילים</h3>
+      <p class="muted sm">כללים שלך שמופעלים בקוד, לפני שמודל רואה את המייל (בייבוא היומי ובדואר שוטף). "לדלג": המייל נשמר וניתן לחיפוש אבל לא מעובד. "לידיעה": רק עובדות, בלי משימות. "תמיד רלוונטי": לעולם לא מסוננים. אפשר גם בצ׳אט: "תסנן מיילים מ-X".</p>
+      <template x-for="f in filters" :key="f.id">
+        <div class="frule" :class="{off: !f.enabled}">
+          <span class="fk" x-text="{sender:'שולח', domain:'דומיין', text:'טקסט', regex:'ביטוי'}[f.kind]"></span>
+          <b dir="auto" x-text="f.pattern"></b>
+          <span class="muted sm" x-show="f.project" x-text="'· '+f.project"></span>
+          <span class="fa" x-text="f.action_he"></span>
+          <span class="muted sm" x-text="f.hits+' פגיעות'"></span>
+          <button class="btn small ghost" @click="toggleFilter(f)" x-text="f.enabled ? 'השבת' : 'הפעל'"></button>
+          <button class="icon-btn" @click="deleteFilter(f)" aria-label="מחיקת כלל" title="מחיקה">✕</button>
+        </div>
+      </template>
+      <p class="muted sm" x-show="filters.length===0">אין כללים עדיין.</p>
+      <form class="fform" @submit.prevent="addFilter()">
+        <select x-model="fform.kind" aria-label="סוג כלל"><option value="sender">כתובת שולח</option><option value="domain">דומיין השולח</option><option value="text">מכיל טקסט</option><option value="regex">ביטוי רגולרי (מתקדם)</option></select>
+        <input type="text" x-model="fform.pattern" :placeholder="{sender:'name@example.com', domain:'example.com', text:'למשל: Out of office', regex:'^(RE|FW):'}[fform.kind]" dir="auto" aria-label="תבנית">
+        <select x-model="fform.action" aria-label="פעולה"><option value="skip">לדלג (רק לשמור)</option><option value="fyi">לידיעה בלבד</option><option value="relevant">תמיד רלוונטי</option></select>
+        <select x-model="fform.project" aria-label="היקף פרויקט"><option value="">כל הפרויקטים</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+        <button type="button" class="btn small" @click="previewFilter()">בדוק את הכלל</button>
+        <button type="submit" class="btn small primary" :disabled="!fform.pattern.trim()">הוספה</button>
+      </form>
+      <p class="sm" x-show="fprev" x-text="fprev ? 'הכלל היה תופס '+fprev.matches+' מתוך '+fprev.total+' המיילים של '+fprev.days+' הימים האחרונים'+(fprev.examples.length ? ': '+fprev.examples.map(e=>e.subject).join(' · ') : '') : ''"></p>
+    </section>
+
     <section class="card" x-show="st && st.urls">
       <h3>כתובות האתר</h3>
       <div class="copy-row"><span class="muted" style="min-width:5.5em">ראשית</span><input type="text" readonly :value="st.urls.main" dir="ltr" @focus="$event.target.select()" aria-label="כתובת ראשית"><button class="btn" @click="copyText(st.urls.main)">העתקה</button></div>
@@ -1027,9 +1091,26 @@
         </div>
         <template x-if="editing && editing.id===m.id"><div class="msg-edit"><textarea class="edit-in" x-model="editing.text" rows="3" @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); saveEdit(); }" @keydown.escape.stop="cancelEdit()" x-init="$nextTick(() => $el.focus())"></textarea><div class="muted sm">Enter לשמירה, Esc לביטול</div></div></template>
         <details class="sup-reply" x-show="m.superseded && !(editing && editing.id===m.id)"><summary>תשובה קודמת (הוחלפה)</summary><div class="b-text" x-html="chatHtml(m.text, m.refs)"></div></details>
-        <div class="b-text" x-show="!m.import && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="prop-card" x-show="m.proposal_batch" x-cloak x-init="m.proposal_batch && loadProposals(m.proposal_batch)">
+          <template x-if="m.proposal_batch && proposalCards[m.proposal_batch]">
+            <div>
+              <div class="imp-t"><b x-text="proposalCards[m.proposal_batch].title"></b><span class="muted" x-text="proposalCards[m.proposal_batch].open+' ממתינות · '+proposalCards[m.proposal_batch].applied+' אושרו · '+proposalCards[m.proposal_batch].rejected+' נדחו'"></span></div>
+              <div class="prop-actions" x-show="proposalCards[m.proposal_batch].open>0"><button class="btn small primary" @click="approveProposals(m.proposal_batch)">אשר הכל</button><button class="btn small" @click="approveProposals(m.proposal_batch, true)">אשר נבחרים</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, true)">סמן הכל</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, false)">נקה</button></div>
+              <div class="prop-list">
+                <template x-for="it in proposalCards[m.proposal_batch].items" :key="it.id">
+                  <div class="prop-row" :class="it.status">
+                    <input type="checkbox" x-show="it.status==='open'" :checked="!!propSel[it.id]" @change="propSel[it.id]=$event.target.checked" :aria-label="it.text">
+                    <div class="prop-main"><span class="prop-k" x-text="it.kind_he"></span> <span x-text="it.text"></span><div class="muted sm" x-show="it.reason" x-text="it.reason"></div><div class="muted sm" x-show="it.status!=='open'" x-text="it.status==='applied' ? '✓ '+(it.result||'') : it.status==='rejected' ? '✕ נדחתה' : '⚠ '+(it.result||'')"></div></div>
+                    <span class="prop-btns" x-show="it.status==='open'"><button class="icon-btn" @click="decideProposal(it,'approve')" title="אשר" aria-label="אשר">✓</button><button class="icon-btn" @click="decideProposal(it,'reject')" title="דחה" aria-label="דחה">✕</button></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="b-text" x-show="!m.import && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
-        <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button></template></div>
+        <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><span class="tchip-w"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button><button type="button" class="fbq" @click="fbQuick(t.id, 'up')" aria-label="מועיל" title="מועיל">👍</button><button type="button" class="fbq" @click="openTask(t.id)" aria-label="לא מועיל (פתיחת המשימה)" title="לא מועיל: פתיחת המשימה לתיקון">👎</button></span></template></div>
       </div>
     </template>
     <div class="bubble claude thinking-b" x-show="busy()"><span class="dots"><i></i><i></i><i></i></span> <span x-text="searching() ? 'אלכס מחפש באינטרנט…' : 'אלכס חושב…'"></span></div>
