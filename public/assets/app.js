@@ -716,6 +716,7 @@ function app() {
       MesimotLayout.setCollapsed(false);
     },
     setDensity(d) { this.density = d; MesimotLayout.setDensity(d); },
+    ownerId() { return (this.boot?.people || []).find((p) => p.role === 'owner')?.id; },
     ownerName() { return (this.boot?.people || []).find((p) => p.role === 'owner')?.name_he || 'אני'; },
     assistantName() { return (this.boot?.people || []).find((p) => p.role === 'assistant')?.name_he || 'אלכס'; },
     gateHe(g) { const L = { project: 'שיוך לפרויקט', requester: 'מאת', dates: 'תאריכים', people: 'אנשים שנזכרו', language: 'שפה', duplicate: 'כפילות', email_report: 'דיווח על מייל', attachments: 'קבצים מצורפים', facts: 'כרטיס הפרויקט', protocol: 'פרוטוקול', message: 'הודעה', summary: 'תקציר', memory: 'זיכרון' }; const O = { raised: 'נשאלה שאלה', resolved: 'תוקן', accepted: 'נשאר לבדיקה', autofixed: 'הושלם בקוד' }; return (L[g.code] || g.code) + ' · ' + O[g.outcome] + (g.round ? ' (סבב ' + g.round + ')' : '') + ':'; },

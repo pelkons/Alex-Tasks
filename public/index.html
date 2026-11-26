@@ -145,22 +145,22 @@
     <template x-if="sec.title"><div class="grp-h" :class="{unassigned: sec.def}" :style="'--pcol:'+sec.color"><i></i><span x-text="sec.title"></span><span class="n" x-text="sec.items.length"></span></div></template>
     <div class="rows" :class="{grouped: filters.group}">
       <template x-for="t in sec.items" :key="t.id">
-        <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, unassigned: t.project_default}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
+        <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, overdue: isLate(t), unassigned: t.project_default}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
           <button class="check" @click="toggleDone(t)" aria-label="סימון כהושלמה"><i>✓</i></button>
           <button class="body" @click="!t._bad && openTask(t.id)">
             <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
             <span class="title" x-text="t.title"></span>
             <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
             <span class="dates">
-              <span class="dt"><span class="k">התקבל</span> <b x-text="fmtReceived(t)"></b></span>
+              <span class="dt dt-recv"><span class="k">התקבל</span> <b x-text="fmtReceived(t)"></b></span>
               <span class="dt" :class="{late: isLate(t), none: !t.due_date}">
-                <template x-if="t.due_date"><span><span class="k">עד</span> <b x-text="fmtDate(t.due_date)"></b><em class="est" x-show="t.due_source==='estimated'">משוער</em></span></template>
+                <template x-if="t.due_date"><span><span class="k">עד</span> <em class="est" x-show="t.due_source==='estimated'" title="יעד משוער">~</em><b x-text="fmtDate(t.due_date)"></b></span></template>
                 <template x-if="!t.due_date"><span class="nodue">ללא יעד — אלכס יקבע</span></template>
               </span>
             </span>
             <span class="meta">
-              <span x-show="t.assignee" x-text="t.assignee"></span>
-              <span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span>
+              <span x-show="t.assignee && t.assignee_id !== ownerId()" x-text="t.assignee"></span>
+              <template x-if="t.status && t.status !== 'חדש'"><span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span></template>
             </span>
           </button>
         </div>

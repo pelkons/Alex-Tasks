@@ -1050,3 +1050,38 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 
 .reply-quote { border-inline-start: 3px solid var(--primary, #2563eb); padding: 2px 8px; margin-bottom: 4px; color: var(--muted, #6b7280); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .reply-chip { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: var(--surface-2, #f1f5f9); border-radius: 8px; margin-bottom: 4px; } .reply-chip .rc-t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; }
+
+/* ===== calm task rows: one strong signal per row =====
+   No project tint, no heavy borders. Colour is kept for: the project dot / pill, the due date when overdue (red), a thin start stripe for urgent-and-not-overdue. */
+body[data-density] .rows .row { background: var(--surface); border-color: var(--border); box-shadow: none; border-inline-start: 3px solid transparent; }
+body[data-density] .rows .row.urgent:not(.overdue) { border-inline-start-color: var(--danger); }
+body[data-density] .rows .row:hover { background: color-mix(in srgb, var(--text) 3.5%, var(--surface)); }
+body[data-density] .rows .row.sel { background: color-mix(in srgb, var(--primary) 8%, var(--surface)); outline: 0; }
+body[data-density] .rows .row .from, body[data-density] .rows .row .meta, body[data-density] .rows .row .dt, body[data-density] .rows .row .dt .k { color: var(--muted); }
+body[data-density] .rows .row .dt.late, body[data-density] .rows .row .dt.late .k { color: var(--danger); }
+body[data-density] .rows .row .dt b { font-weight: 500; } body[data-density] .rows .row .dt.late b { font-weight: 600; }
+body[data-density] .rows .row .sdot i { opacity: .75; }
+.est { border: 0; padding: 0; margin: 0 2px 0 0; color: var(--muted); font-weight: 400; font-size: inherit; cursor: help; }
+/* regular: the pill stays (variant B) but smaller and quieter; the title is lighter */
+body[data-density="regular"] .rows .row .title { font-weight: 600; font-size: 1.05rem; }
+body[data-density="regular"] .rows .row .plabel { font-size: .78rem; font-weight: 600; padding: 1px 9px; border-radius: 7px; }
+/* compact: hairline list, one-line title, a muted meta line "● project · from · due · assignee · status" */
+body[data-density="compact"] .rows { gap: 0; }
+body[data-density="compact"] .rows .row { background: transparent; border-width: 0 0 1px 0; border-style: solid; border-radius: 0; min-height: 0; border-inline-start: 3px solid transparent; }
+body[data-density="compact"] .rows .row.urgent:not(.overdue) { border-inline-start-color: var(--danger); }
+body[data-density="compact"] .rows .row:hover { background: color-mix(in srgb, var(--text) 3.5%, transparent); }
+body[data-density="compact"] .rows .row.sel { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+body[data-density="compact"] .rows .row:not(.closed) .body { display: flex; flex-wrap: wrap; align-items: center; gap: 0; padding-block: 8px; line-height: 1.4; }
+body[data-density="compact"] .rows .row .title { order: 0; flex: 1 1 100%; font-size: .95rem; font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-density="compact"] .rows .row .plabel { order: 1; background: none; color: var(--muted); font-size: 12.5px; font-weight: 400; padding: 0; border: 0; border-radius: 0; box-shadow: none; gap: 5px; }
+body[data-density="compact"] .rows .row .plabel i { display: inline-block; width: 8px; height: 8px; }
+body[data-density="compact"] .rows .row .plabel.unassigned { border: 0; }
+body[data-density="compact"] .rows .row .from { order: 2; } body[data-density="compact"] .rows .row .dates { order: 3; } body[data-density="compact"] .rows .row .meta { order: 4; } body[data-density="compact"] .rows .row .review-badge { order: 5; margin-inline-start: 6px; }
+body[data-density="compact"] .rows .row .from, body[data-density="compact"] .rows .row .dates, body[data-density="compact"] .rows .row .meta, body[data-density="compact"] .rows .row .dt { font-size: 12.5px; }
+body[data-density="compact"] .rows .row .dt-recv { display: none; }
+body[data-density="compact"] .rows .row:not(.closed) .body > .dates { display: inline-flex; flex-direction: row; gap: 0; min-width: 0; padding: 0; border: 0; margin: 0; grid-column: auto; grid-row: auto; }
+body[data-density="compact"] .rows .row .meta { display: inline-flex; margin: 0; }
+body[data-density="compact"] .rows .row .from::before, body[data-density="compact"] .rows .row .dates::before, body[data-density="compact"] .rows .row .meta::before { content: '·'; margin-inline: 6px; color: var(--muted); }
+body[data-density="compact"] .rows .row .meta > span:not(.sdot):has(+ .sdot)::after { content: '·'; margin-inline: 6px; color: var(--muted); }
+body[data-density="compact"] .rows .row .meta:not(:has(> span:not([style*="display: none"]))) { display: none; }
+body[data-density="compact"] .rows .row .check { height: 34px; margin-top: 4px; }
