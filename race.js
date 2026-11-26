@@ -1,0 +1,3 @@
+const { spawn } = require('child_process'); const os = require('os'); const path = require('path'); const file = path.join(os.tmpdir(), `race-${Date.now()}.db`);
+const run = () => new Promise((res) => { const p = spawn(process.execPath, ['-e', `const {open}=require('./lib/db');open(${JSON.stringify(file)});process.exit(0)`], { cwd: '/tmp/pq', stdio: ['ignore', 'ignore', 'pipe'] }); let err = ''; p.stderr.on('data', (d) => { err += d; }); p.on('exit', (code) => res({ code, err })); });
+(async () => { const out = await Promise.all([...Array(8)].map(run)); for (const o of out) if (o.code) console.log(o.err.split('\n').filter((l) => /Error|at /.test(l)).slice(0, 6).join('\n')); })();
