@@ -121,8 +121,16 @@ async function owner() {
   const order = { needs_task: 0, kind: 1, project: 2 }; cases.sort((a, b) => order[a.f] - order[b.f]); const pick = cases.slice(0, 20);
   const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createChat } = require('../lib/chat'); const { createKnowledge } = require('../lib/knowledge'); const db = open(process.env.BENCH_LIVE_DB || process.env.MESIMOT_DB); const store = createStore(db);
   const proposals = require('../lib/proposals').createProposals({ db, store, chat: createChat(db, store, createKnowledge(db, store)) });
-  const he = { noise: 'אוטומטי/ידיעון', fyi: 'לידיעה בלבד', action: 'דורש פעולה' };
-  const items = pick.map((c) => ({ kind: 'bench_question', target_id: c.e.id, text: `"${String(c.e.subject).slice(0, 60)}" (${c.e.sender.slice(0, 30)}, ${c.e.date}): ` + (c.f === 'needs_task' ? (c.g ? 'האם המייל דורש משימה לצוות שלך?' : 'האם המייל לא דורש שום משימה לצוות שלך?') : c.f === 'kind' ? `האם המייל הוא מסוג "${he[c.g]}"?` : `האם המייל שייך לפרויקט "${c.g}"?`), reason: 'כן = הדגם המדויק צודק, לא = המערכת צדקה', payload: JSON.stringify({ bench: 'jev1', email_id: c.e.id, field: c.f, gold: c.g, pipeline: c.p }) }));
+  const he = { noise: 'אוטומטי / ידיעון (לא רלוונטי)', fyi: 'לידיעה בלבד, בלי פעולה', action: 'דורש פעולה' };
+  // a suggested task title (haiku, one short call) for the cases where the model says a task is needed
+  const titles = {}; const { createAgent } = require('../lib/agents'); const agent = createAgent('claude-code');
+  for (const c of pick.filter((x) => x.f === 'needs_task' && x.g === true)) { try { const r = await agent.run({ prompt: `Write ONE short task title in Hebrew (at most 8 words, starts with a verb) for ${S.owner}'s team, for the task this email requires. Answer with the title only.\n\n${c.e.header}\n\n${c.e.text.slice(0, 3000)}`, workdir: DIR, allowedCommands: [], readPaths: [], writePaths: [], model: 'haiku', effort: 'low', maxTurns: 2, timeoutMs: 120000 }); titles[c.e.id] = String(r.text || '').trim().split('\n')[0].replace(/^["'״]|["'״]$/g, '').slice(0, 90); } catch { /* no title */ } }
+  const spec = (c) => {
+    if (c.f === 'needs_task') { const yes = 'כן, צריך משימה', no = 'לא, רק מידע (אין משימה)'; return { ask: 'האם נדרשת משימה עבורך או עבור הצוות שלך בעקבות המייל הזה?', left: c.p ? 'המערכת החליטה: נפתחה משימה' : 'המערכת החליטה: אין משימה', right: c.g ? 'המודל אומר: כן, נדרשת משימה' : 'המודל אומר: אין צורך במשימה, רק מידע', approve_label: c.g ? yes : no, reject_label: c.p ? yes : no, suggested_title: c.g ? (titles[c.e.id] || null) : null }; }
+    if (c.f === 'kind') return { ask: 'מה הסוג של המייל הזה?', left: `המערכת החליטה: ${he[c.p]}`, right: `המודל אומר: ${he[c.g]}`, approve_label: he[c.g], reject_label: he[c.p] };
+    return { ask: 'לאיזה פרויקט שייך המייל הזה?', left: `המערכת החליטה: ${c.p}`, right: `המודל אומר: ${c.g}`, approve_label: `הפרויקט: ${c.g}`, reject_label: `הפרויקט: ${c.p}` };
+  };
+  const items = pick.map((c) => ({ kind: 'bench_question', target_id: c.e.id, text: spec(c).ask, reason: null, payload: JSON.stringify({ bench: 'jev1', email_id: c.e.id, field: c.f, gold: c.g, pipeline: c.p, ...spec(c) }) }));
   const bid = proposals.createBatch('bench', 'כמה שאלות קצרות לבדיקת איכות סיווג המיילים', items); save('owner.json', { batch: bid, n: items.length, cases: pick.map((c) => ({ id: c.e.id, f: c.f })) }); console.log(`owner card: batch ${bid}, ${items.length} questions (of ${cases.length} disagreements)`);
 }
 // owner's answers override the gold (read from the live database)

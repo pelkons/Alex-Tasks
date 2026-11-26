@@ -1293,13 +1293,32 @@
           <template x-if="m.proposal_batch && proposalCards[m.proposal_batch]">
             <div>
               <div class="imp-t"><b x-text="proposalCards[m.proposal_batch].title"></b><span class="muted" x-text="proposalCards[m.proposal_batch].open+' ממתינות · '+proposalCards[m.proposal_batch].applied+' אושרו · '+proposalCards[m.proposal_batch].rejected+' נדחו'"></span></div>
-              <div class="prop-actions" x-show="proposalCards[m.proposal_batch].open>0"><button class="btn small primary" @click="approveProposals(m.proposal_batch)">אשר הכל</button><button class="btn small" @click="approveProposals(m.proposal_batch, true)">אשר נבחרים</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, true)">סמן הכל</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, false)">נקה</button></div>
+              <div class="prop-actions" x-show="proposalCards[m.proposal_batch].open>0 && proposalCards[m.proposal_batch].kind!=='bench'"><button class="btn small primary" @click="approveProposals(m.proposal_batch)">אשר הכל</button><button class="btn small" @click="approveProposals(m.proposal_batch, true)">אשר נבחרים</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, true)">סמן הכל</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, false)">נקה</button></div>
               <div class="prop-list">
                 <template x-for="it in proposalCards[m.proposal_batch].items" :key="it.id">
-                  <div class="prop-row" :class="it.status">
+                  <div class="prop-row" :class="[it.status, it.email ? 'pq' : '']">
+                    <template x-if="it.email">
+                      <div class="pq-card">
+                        <div class="pq-meta"><b x-text="it.email.sender"></b> · <span x-text="it.email.when"></span><span x-show="it.email.project"> · <span x-text="it.email.project"></span></span></div>
+                        <div class="pq-subj" x-text="it.email.subject"></div>
+                        <div class="pq-body" dir="auto" x-text="it.email.excerpt"></div>
+                        <div class="pq-att muted sm" x-show="it.email.attachments.length" x-text="'קבצים מצורפים: '+it.email.attachments.join(', ')"></div>
+                        <details class="pq-full"><summary>הצג את כל המייל</summary><pre dir="auto" x-text="it.email.full"></pre></details>
+                        <a class="sm" :href="it.email.link" target="_blank" rel="noopener">פתח את המייל באתר ↗</a>
+                        <div class="pq-ask" x-text="it.ask || it.text"></div>
+                        <div class="pq-opts" x-show="it.left"><div class="pq-opt" x-text="it.left"></div><div class="pq-opt" x-text="it.right"></div></div>
+                        <div class="muted sm" x-show="it.suggested_title" x-text="'כותרת משימה מוצעת: '+it.suggested_title"></div>
+                        <div class="btnrow" x-show="it.status==='open'"><button class="btn primary" @click="decideProposal(it,'approve')" x-text="it.approve_label || 'אשר'"></button><button class="btn" @click="decideProposal(it,'reject')" x-text="it.reject_label || 'דחה'"></button></div>
+                        <div class="muted sm" x-show="it.status!=='open'" x-text="'✓ נבחר: '+(it.status==='applied' ? (it.approve_label||'אושר') : (it.reject_label||'נדחה'))"></div>
+                      </div>
+                    </template>
+                    <template x-if="!it.email">
+                      <div class="prop-plain">
                     <input type="checkbox" x-show="it.status==='open'" :checked="!!propSel[it.id]" @change="propSel[it.id]=$event.target.checked" :aria-label="it.text">
                     <div class="prop-main"><span class="prop-k" x-text="it.kind_he"></span> <span x-text="it.text"></span><div class="muted sm" x-show="it.reason" x-text="it.reason"></div><div class="muted sm" x-show="it.status!=='open'" x-text="it.status==='applied' ? '✓ '+(it.result||'') : it.status==='rejected' ? '✕ נדחתה' : '⚠ '+(it.result||'')"></div></div>
                     <span class="prop-btns" x-show="it.status==='open'"><button class="icon-btn" @click="decideProposal(it,'approve')" title="אשר" aria-label="אשר">✓</button><button class="icon-btn" @click="decideProposal(it,'reject')" title="דחה" aria-label="דחה">✕</button></span>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>

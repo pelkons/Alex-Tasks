@@ -1037,3 +1037,13 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .hc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #16a34a; flex: none; align-self: center; }
 .hc-dot.warn { background: #eab308; } .hc-dot.red { background: #dc2626; }
 .hc-t { margin-inline-start: auto; font-size: .72rem; }
+
+.pq-card { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.pq-meta { font-size: .85rem; } .pq-subj { font-weight: 600; } .pq-body { white-space: pre-wrap; background: var(--surface-2, #f8fafc); border-radius: 8px; padding: 8px 10px; font-size: .9rem; }
+.pq-full pre { white-space: pre-wrap; max-height: 320px; overflow: auto; font: inherit; margin: 6px 0 0; } .pq-ask { font-weight: 600; margin-top: 4px; }
+.pq-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .pq-opt { border: 1px solid var(--border, #d1d5db); border-radius: 8px; padding: 6px 8px; font-size: .88rem; }
+.prop-row.pq { display: block; } .prop-plain { display: flex; gap: 8px; align-items: flex-start; width: 100%; }
+.prop-list:has(.pq) { max-height: none; overflow: visible; }
+.prop-row.pq.rejected, .prop-row.pq.applied { text-decoration: none; opacity: .7; }
+.pq-opts { grid-template-columns: 1fr; } @media (min-width: 700px) { .pq-opts { grid-template-columns: 1fr 1fr; } }
+.pq-card .btnrow { display: flex; flex-wrap: wrap; gap: 6px; }
