@@ -286,9 +286,8 @@
         </div>
 
         <div class="sect tchat">
-          <h3>שיחה על המשימה</h3>
-          <div class="tc-feed" x-ref="tcfeed" x-effect="detail && detail.thread && scrollTaskFeed()">
-            <p class="muted sm" x-show="taskConv().length===0">כתבו לאלכס על המשימה הזו: "תדחה בשבוע", "תשייך למיכל", "מה המצב?", "תרשום הערה: ..."</p>
+          <h3 x-show="taskConv().length>0">שיחה על המשימה</h3>
+          <div class="tc-feed" x-ref="tcfeed" x-show="taskConv().length>0" x-effect="detail && detail.thread && scrollTaskFeed()">
             <template x-for="it in taskConv()" :key="it.key">
               <div>
                 <div class="bubble tc-b" :class="it.m.author" x-show="it.type==='msg'"><template x-if="it.type==='msg'"><div>
@@ -322,15 +321,7 @@
 
         <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">מחק לצמיתות</button></div>
 
-        <details class="sect hist-d">
-          <summary>היסטוריית שינויים</summary>
-          <ul class="hist">
-            <template x-for="e in detail.history" :key="e.id">
-              <li><div class="h" x-text="fmtDateTime(e.created_at)"></div>
-                <span class="actor" :class="{claude: e.actor==='אלכס'}" x-text="e.actor"></span> <span x-text="describe(e)"></span></li>
-            </template>
-          </ul>
-        </details>
+        <p class="stamps muted" x-show="detail.created_at"><span x-text="'נוצרה: '+fmtDateTime(detail.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(detail.updated_at || detail.created_at)"></span></p>
       </div>
     </template>
   </section>
@@ -576,8 +567,7 @@
         </div>
 <div class="sect sc-chat" x-data x-init="scLoad('project:'+pp.project.id)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרויקט</h3>
-  <div class="tc-feed sc-feed" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
-    <p class="muted sm" x-show="scMsgs('project:'+pp.project.id).length===0">כתבו לאלכס על הפרויקט: "תשנה את השם ל…", "תעביר את המשימות ל…", "תמחק את הפרויקט", "תוסיף כינוי", "מה המצב?"</p>
+  <div class="tc-feed sc-feed" x-show="scMsgs('project:'+pp.project.id).length>0" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
     <template x-for="m in scMsgs('project:'+pp.project.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
@@ -697,6 +687,7 @@
             </template>
           </ul>
         </div>
+        <p class="stamps muted" x-show="pp.stamps && pp.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(pp.stamps && pp.stamps.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(pp.stamps.updated_at)"></span></p>
       </div>
     </template>
   </section>
@@ -745,8 +736,7 @@
         <p class="desc-text" x-show="proto.summary_he" x-text="proto.summary_he" style="margin:10px 0"></p>
 <div class="sect sc-chat" x-data x-init="scLoad('protocol:'+proto.id)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרוטוקול</h3>
-  <div class="tc-feed sc-feed" x-effect="scMsgs('protocol:'+proto.id).length && scScroll()">
-    <p class="muted sm" x-show="scMsgs('protocol:'+proto.id).length===0">כתבו לאלכס על הפרוטוקול: "תשייך לפרויקט…", "תמחק את הפרוטוקול", "תוסיף סעיף…"</p>
+  <div class="tc-feed sc-feed" x-show="scMsgs('protocol:'+proto.id).length>0" x-effect="scMsgs('protocol:'+proto.id).length && scScroll()">
     <template x-for="m in scMsgs('protocol:'+proto.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
@@ -801,6 +791,7 @@
             <button class="btn small ghost" x-show="proto.source_type==='email'" @click="go('/email/'+proto.source.id)">פתיחת המייל</button>
             <a class="btn small ghost" x-show="proto.source_type==='file'" :href="'/api/files/'+proto.source.id+'/download'">הורדת הקובץ</a></div></template>
         </details>
+        <p class="stamps muted" x-show="proto.stamps && proto.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(proto.stamps && proto.stamps.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(proto.stamps.updated_at)"></span></p>
       </div>
     </template>
   </section>
@@ -864,8 +855,7 @@
       </template>
 <div class="sect sc-chat" x-data x-effect="calSel && scLoad('day:'+calSel)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על על היום הזה</h3>
-  <div class="tc-feed sc-feed" x-effect="scMsgs('day:'+calSel).length && scScroll()">
-    <p class="muted sm" x-show="scMsgs('day:'+calSel).length===0">כתבו לאלכס על היום: "תעביר את הפגישה ליום חמישי", "תוסיף פגישה ב-10:00", "מה יש לי ביום הזה?"</p>
+  <div class="tc-feed sc-feed" x-show="scMsgs('day:'+calSel).length>0" x-effect="scMsgs('day:'+calSel).length && scScroll()">
     <template x-for="m in scMsgs('day:'+calSel)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
@@ -1123,8 +1113,7 @@
               <div class="pcard">
 <div class="sect sc-chat" x-data x-init="scLoad('person:'+p.id)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על על איש הקשר</h3>
-  <div class="tc-feed sc-feed" x-effect="scMsgs('person:'+p.id).length && scScroll()">
-    <p class="muted sm" x-show="scMsgs('person:'+p.id).length===0">כתבו לאלכס על האיש: "תמזג עם…", "תשנה את השם", "הוא עובד ב…", "תמחק אותו"</p>
+  <div class="tc-feed sc-feed" x-show="scMsgs('person:'+p.id).length>0" x-effect="scMsgs('person:'+p.id).length && scScroll()">
     <template x-for="m in scMsgs('person:'+p.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
@@ -1152,6 +1141,7 @@
                 <h4>אזכורים (<span x-text="personCard.mentions.length"></span>)</h4>
                 <template x-for="m in personCard.mentions" :key="'pm'+m.id"><div class="mention"><span class="muted" x-text="({task:'משימה',chat:'צ׳אט',note:'הערה',knowledge:'ידע',email:'מייל',protocol_item:'פרוטוקול'})[m.source_type]+' · '"></span><a href="#" x-show="m.task_id" @click.prevent="openTask(m.task_id)" x-text="m.text"></a><span x-show="!m.task_id" x-text="m.text"></span></div></template>
                 <p class="muted" x-show="!personCard.mentions.length">אין אזכורים</p>
+                <p class="stamps muted" x-show="personCard.stamps && personCard.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(personCard.stamps && personCard.stamps.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(personCard.stamps.updated_at)"></span></p>
               </div>
             </template>
             <div class="muted" style="direction:ltr;text-align:right;font-size:.85rem;margin-top:2px;overflow-wrap:anywhere" x-show="p.emails.length" x-text="p.emails.join(', ')"></div>

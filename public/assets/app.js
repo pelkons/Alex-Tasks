@@ -418,12 +418,10 @@ function app() {
     // ---- task-scoped chat (the "שיחה על המשימה" block of the card): the thread, the assistant's actions and the old notes in one chronological list
     taskConv() {
       const d = this.detail; if (!d) return [];
-      const me = this.assistantName();
       const items = [
         ...(d.thread || []).map((m) => ({ key: 'm' + m.id, type: 'msg', at: m.created_at, m })),
         ...(d.notes || []).map((n) => ({ key: 'n' + n.id, type: 'note', at: n.created_at, n })),
-        ...(d.history || []).filter((e) => e.actor === me && !['note', 'draft'].includes(e.action) && !(e.action === 'create' && false)).map((e) => ({ key: 'e' + e.id, type: 'ev', at: e.created_at, e })),
-      ];
+      ]; // ONLY the conversation: his messages, the assistant's replies, the notes. Field changes and system events live in the history at the bottom of the card.
       return items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
     },
     setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatTaskMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },

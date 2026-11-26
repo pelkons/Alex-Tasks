@@ -1085,3 +1085,9 @@ body[data-density="compact"] .rows .row .from::before, body[data-density="compac
 body[data-density="compact"] .rows .row .meta > span:not(.sdot):has(+ .sdot)::after { content: '·'; margin-inline: 6px; color: var(--muted); }
 body[data-density="compact"] .rows .row .meta:not(:has(> span:not([style*="display: none"]))) { display: none; }
 body[data-density="compact"] .rows .row .check { height: 34px; margin-top: 4px; }
+
+/* thread boxes grow with their content and scroll only when long */
+.tc-feed { max-height: min(60vh, 560px); } .sc-feed { max-height: min(50vh, 420px); }
+.hist .h { color: var(--muted); }
+
+.stamps { font-size: .78rem; line-height: 1.5; margin: 18px 0 4px; }
