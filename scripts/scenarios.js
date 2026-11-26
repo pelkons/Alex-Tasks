@@ -757,9 +757,9 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     const r = await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' }, body: JSON.stringify({ text: 'מי בחברת הדוגמה עובד על פרויקט מגדל הרצל?' }) }); expect(r.status === 201, 'post failed');
     await waitIdle('plain question', 5 * 60 * 1000);
     const runs = db.prepare("SELECT id, error, retries, required_tasks FROM claude_runs WHERE id > ? AND trigger='chat'").all(runsBefore); expect(runs.length >= 1, 'no chat run');
-    expect(runs.every((x) => !x.error), `a chat run failed: ${JSON.stringify(runs)}`); expect(runs.every((x) => !x.retries), `a gate retry happened: ${JSON.stringify(runs)}`); expect(runs.every((x) => x.required_tasks === '[]'), `decisions were required: ${runs[0].required_tasks}`);
-    const replies = db.prepare("SELECT text FROM chat_messages WHERE author='claude' AND id > ? AND scope IS NULL").all(before); expect(replies.length === 1, `${replies.length} replies`);
-    expect(!/אירעה שגיאה|לא הצלחתי לנסח/.test(replies[0].text) && /נועה/.test(replies[0].text), `the reply: ${replies[0].text}`);
+    expect(runs.every((x) => !x.error), `a chat run failed: ${JSON.stringify(runs)}`); expect(runs.every((x) => !x.retries), `a decisions retry happened: ${JSON.stringify(runs)}`); expect(runs.every((x) => x.required_tasks === '[]'), `decisions were required: ${runs[0].required_tasks}`);
+    const replies = db.prepare("SELECT text FROM chat_messages WHERE author='claude' AND id > ? AND scope IS NULL").all(before); expect(replies.length >= 1, 'no reply'); // (the separate "do not give up" ladder may add a second, more thorough answer when the first one says nothing was found)
+    expect(!replies.some((x) => /אירעה שגיאה|לא הצלחתי לנסח/.test(x.text)) && /נועה/.test(replies[0].text), `the reply: ${replies[0].text}`);
     return [`reply: ${replies[0].text.replace(/\n/g, ' / ').slice(0, 220)}`, `run ${runs[0].id}: retries ${runs[0].retries}, error ${runs[0].error}`];
   });
 
