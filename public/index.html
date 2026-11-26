@@ -168,6 +168,7 @@
     </div>
     </div>
     </template>
+    <p class="arc-foot"><a href="/archive" @click.prevent="go('/archive')" x-text="'📦 ארכיון ('+(boot.archive_total || 0)+' משימות שהושלמו)'"></a></p>
   </section>
 
   <!-- task card -->
@@ -1190,6 +1191,7 @@
 </nav>
 <div class="more-bg" x-show="moreOpen" @click="moreOpen=false">
   <div class="more-sheet" @click.stop>
+    <button @click="moreOpen=false; go('/archive')">📦 ארכיון</button>
     <button @click="moreOpen=false; go('/activity')">פעילות</button>
     <button @click="moreOpen=false; go('/people')">אנשים</button>
     <button @click="moreOpen=false; go('/settings')">הגדרות</button>

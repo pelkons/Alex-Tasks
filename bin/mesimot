@@ -101,7 +101,7 @@ const USAGE = `mesimot <command>
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete   (asks the owner with two buttons; only his answer deletes)
   filter list|add|preview|delete|enable|disable   (owner mail filters: --sender/--domain/--text/--regex --action skip|fyi|relevant [--project P])
   ask "<question>" [--project P]   (Q&A retrieval: synonyms + keyword + semantic, with file/page)
-  search "<query>" [--project --person --kind --from --to --limit --mode keyword|semantic|hybrid]
+  search "<query>" [--archive 1] [--project --person --kind --from --to --limit --mode keyword|semantic|hybrid]
   show task|email|knowledge|chunk|file <id>
   calendar list|add|update|delete  calendar-token [--rotate]
   knowledge list|add|update|supersede   fact set|list   file list|classify
@@ -137,8 +137,8 @@ async function main() {
     }
     case 'render-agent': { const dir = require('path').resolve(opt.dir || require('path').join(__dirname, '..', 'agent')); console.log('rendered', require('../lib/agentdoc').install(dir)); return; }
     case 'search': {
-      if (!sub) fail('usage: search "<query>"');
-      return out(await api('GET', '/api/search' + qs({ q: sub, ...opt }, ['q', 'project', 'person', 'kind', 'from', 'to', 'limit', 'mode'])));
+      if (!sub) fail('usage: search "<query>" [--archive 1]');
+      return out(await api('GET', '/api/search' + qs({ q: sub, ...opt }, ['q', 'project', 'person', 'kind', 'from', 'to', 'limit', 'mode', 'archive'])));
     }
     case 'show': {
       if (!['task', 'email', 'knowledge', 'chunk', 'file'].includes(sub) || !arg) fail('usage: show task|email|knowledge|chunk|file <id>');

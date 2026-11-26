@@ -1111,3 +1111,5 @@ body[data-density="compact"] .rows .row .check { height: 34px; margin-top: 4px; 
 .done-toast { background: none; } .done-toast .dt-msg, .done-toast .dt-undo { background: var(--text, #111); color: var(--surface, #fff); padding: 8px 14px; font-size: .95rem; }
 .done-toast { gap: 0; align-items: center; } .done-toast .dt-msg { border-radius: 10px 0 0 10px; } .done-toast .dt-undo { border: 0; border-radius: 0 10px 10px 0; font-weight: 600; cursor: pointer; text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .row.done-anim .check i, .row.done-anim .check i svg, .row.done-anim::after, .row.row-enter { animation: none !important; } .row.collapsing { transition: none !important; } }
+
+.arc-foot { text-align: center; margin: 14px 0 22px; font-size: .8rem; } .arc-foot a { color: var(--muted); text-decoration: none; } .arc-foot a:hover { text-decoration: underline; }
