@@ -48,3 +48,8 @@ Body: an array of events (send changes since the last sync, or the whole window;
 * Items are a read-only mirror shown in the calendar as "Outlook"; they are never written back to Outlook.
 
 Response `200`: `{ "received": 3, "created": 1, "updated": 1, "deleted": 0, "ignored": 1, "errors": [ { "entry_id": "...", "error": "..." } ] }`. A bad element is reported in `errors` and does not fail the rest.
+
+## Re-ingest (replacing mail that was stored damaged)
+`POST /ingest/mail` with `meta.reingest = true` and the same `entry_id` (or the same `internet_message_id`) REPLACES the stored mail in place: the raw file, headers, body and attachment names (matched by order and size; new attachments are added).
+The email id and everything linked to it (tasks, facts, links) stay. Response: `{ "status": "reingested", "email_id", "garbled_before": bool, "files_renamed", "files_added", "people_fixed", "queued_for_extraction" }`,
+or `{ "status": "reingested", "unchanged": true }` when the bytes are identical (idempotent). A mail the server has never seen is stored normally. The assistant is not re-run, except in the background for mail whose old text had more than 20% "?" characters.
