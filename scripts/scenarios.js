@@ -747,6 +747,22 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
     return [`draft #${d.id}: ${JSON.parse(rows()[0].to_json).map((x) => x.email)} | subject: ${rows()[0].subject}`, `body: ${rows()[0].body_text.replace(/\n/g, ' / ').slice(0, 200)}`, `confirmation: ${conf.text}`];
   });
 
+  await scenario('33. a plain question in chat with related tasks in its context is answered on the FIRST reply: no gate retry, no decisions demanded, no error message', async () => {
+    const owner = store.ownerId(), assistant = store.assistantId();
+    const proj = store.createProject(assistant, { name: 'מגדל הרצל' });
+    const noa = store.createPerson(assistant, { name: 'נועה שדה', role: 'contact', company: 'חברת הדוגמה', emails: ['noa@sample-co.example'] });
+    store.createTask(assistant, { title: 'לתאם סיור במגדל הרצל עם נועה שדה מחברת הדוגמה', project: proj.id, requester: owner, assignee: owner, due: '2026-12-08' });
+    store.createTask(assistant, { title: 'להעביר לחברת הדוגמה את תוכניות החשמל של מגדל הרצל', project: proj.id, requester: noa.id, assignee: owner, due: '2026-12-09' });
+    const before = db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m; const runsBefore = db.prepare('SELECT COALESCE(MAX(id),0) m FROM claude_runs').get().m;
+    const r = await fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' }, body: JSON.stringify({ text: 'מי בחברת הדוגמה עובד על פרויקט מגדל הרצל?' }) }); expect(r.status === 201, 'post failed');
+    await waitIdle('plain question', 5 * 60 * 1000);
+    const runs = db.prepare("SELECT id, error, retries, required_tasks FROM claude_runs WHERE id > ? AND trigger='chat'").all(runsBefore); expect(runs.length >= 1, 'no chat run');
+    expect(runs.every((x) => !x.error), `a chat run failed: ${JSON.stringify(runs)}`); expect(runs.every((x) => !x.retries), `a gate retry happened: ${JSON.stringify(runs)}`); expect(runs.every((x) => x.required_tasks === '[]'), `decisions were required: ${runs[0].required_tasks}`);
+    const replies = db.prepare("SELECT text FROM chat_messages WHERE author='claude' AND id > ? AND scope IS NULL").all(before); expect(replies.length === 1, `${replies.length} replies`);
+    expect(!/אירעה שגיאה|לא הצלחתי לנסח/.test(replies[0].text) && /נועה/.test(replies[0].text), `the reply: ${replies[0].text}`);
+    return [`reply: ${replies[0].text.replace(/\n/g, ' / ').slice(0, 220)}`, `run ${runs[0].id}: retries ${runs[0].retries}, error ${runs[0].error}`];
+  });
+
   const H2 = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
   const post = (body) => fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H2, body: JSON.stringify(body) });
   await scenario('29. project chat: "תשנה את שם הפרויקט ל..." renames it, keeps the old name as an alias and says what changed, in the project thread', async () => {

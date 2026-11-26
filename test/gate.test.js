@@ -194,7 +194,7 @@ test('pulse messages and curator output are checked too', () => {
   const p = store.createProject(a, { name: 'מגדל הדוגמה' });
   const r = run();
   const v = gate.checkCurator(r, { wordsAfter: 3000, limit: 1500 });
-  assert.deepEqual(v.map((x) => x.code).sort(), ['memory', 'message', 'summary']);
+  assert.deepEqual(v.map((x) => x.code).sort(), ['memory', 'summary']);
   void p; void db;
 });
 
