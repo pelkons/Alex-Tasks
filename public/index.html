@@ -265,10 +265,11 @@
           <details class="email-src" x-show="detail.email">
             <summary>המייל המקורי</summary>
             <template x-if="detail.email">
-              <div class="es-body">
+              <div class="es-body" x-data="{open: false}">
                 <div class="muted" x-show="detail.email.original_subject" x-text="'נושא: '+detail.email.original_subject"></div>
                 <div class="muted" x-show="detail.email.attachments.length" x-text="'קבצים מצורפים: '+detail.email.attachments.map(a=>a.filename).join(', ')"></div>
-                <pre class="mailtext" dir="auto" x-text="detail.email.body"></pre>
+                <pre class="mailtext" :class="{collapsed: !open}" dir="auto" x-text="open ? detail.email.body_clean : (detail.email.body_clean || '').split('\n').slice(0, 12).join('\n')"></pre>
+                <button class="btn small ghost" x-show="(detail.email.body_clean || '').split('\n').length > 12" @click="open = !open" x-text="open ? 'הצג פחות' : 'הצג הכל'"></button>
                 <button class="btn small ghost" @click="go('/email/'+detail.email.id)">פתיחה בדף מלא</button>
               </div>
             </template>

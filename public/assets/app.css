@@ -1113,3 +1113,11 @@ body[data-density="compact"] .rows .row .check { height: 34px; margin-top: 4px; 
 @media (prefers-reduced-motion: reduce) { .row.done-anim .check i, .row.done-anim .check i svg, .row.done-anim::after, .row.row-enter { animation: none !important; } .row.collapsing { transition: none !important; } }
 
 .arc-foot { text-align: center; margin: 14px 0 22px; font-size: .8rem; } .arc-foot a { color: var(--muted); text-decoration: none; } .arc-foot a:hover { text-decoration: underline; }
+
+/* scrollbars always on the LEFT (RTL): a scroll container with dir="auto" and Latin text would flip its own direction and put the bar on the right. The container stays rtl; each paragraph still finds its own direction. */
+pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-text { direction: rtl; unicode-bidi: plaintext; }
+.tc-feed, .sc-feed, .feed, .pane-list, .pane-card, .picker, .sheet, .prop-list, .cal-scroll, .cal-pop, .fpanel, main.page { direction: rtl; }
+.mailtext.collapsed { max-height: none; overflow: visible; }
+/* the card pane: the end of the content (and the composer) is always reachable, never under the viewport edge; the composer stays at the bottom of the pane */
+.pane-card { padding-bottom: 56px; scroll-padding-bottom: 80px; }
+.tchat .tc-form { position: sticky; bottom: 0; z-index: 4; background: var(--surface); padding: 8px 0 10px; box-shadow: 0 -8px 8px -8px rgba(0,0,0,.18); }
