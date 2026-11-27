@@ -1,7 +1,7 @@
 {
-  "name": "משימות",
-  "short_name": "משימות",
-  "description": "ניהול משימות",
+  "name": "Alex Tasks",
+  "short_name": "Alex Tasks",
+  "description": "Alex Tasks: ניהול משימות",
   "lang": "he",
   "dir": "rtl",
   "start_url": "/",

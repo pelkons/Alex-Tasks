@@ -1,4 +1,4 @@
-# Mesimot (משימות)
+# Mesimot (Alex Tasks)
 
 A Hebrew-only task board that an AI coding agent operates for its owner. This file is for any coding agent opened inside this repository
 (Claude Code reads it as CLAUDE.md, Gemini CLI as GEMINI.md: both are links to this file).

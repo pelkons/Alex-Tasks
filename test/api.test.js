@@ -263,7 +263,7 @@ test('the public landing page: bilingual, no personal data, static; robots.txt a
   assert.match(r.headers['content-type'], /text\/html/);
   assert.match(r.body, /<title>Mesimot — task and project management for construction engineering teams<\/title>/);
   assert.match(r.body, /<meta name="description"/);
-  assert.match(r.body, /משימות — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה/);
+  assert.match(r.body, /Alex Tasks — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה/);
   assert.match(r.body, /href="\/login"[^>]*>Sign in \/ כניסה/);
   assert.match(r.body, /Private business tool\. Access by invitation only\./);
   assert.ok(r.body.indexOf('Email to task') < r.body.indexOf('ממייל למשימה'), 'English first, then Hebrew');

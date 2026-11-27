@@ -6,11 +6,12 @@
 <meta name="theme-color" content="#1d4ed8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="משימות">
-<title>משימות</title>
+<meta name="apple-mobile-web-app-title" content="Alex Tasks">
+<title>Alex Tasks</title>
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=2">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png?v=2">
 <link rel="stylesheet" href="/assets/app.css">
 <script>try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <script src="/assets/sha256.js"></script>
@@ -22,7 +23,7 @@
 
 <header class="topbar">
   <div class="topbar-in">
-    <div class="brand"><span class="logo" aria-hidden="true">✓</span><span>משימות</span></div>
+    <div class="brand"><img class="logo" src="/assets/logo-64.png?v=2" width="34" height="34" alt="" aria-hidden="true"><span dir="ltr">Alex Tasks</span></div>
     <nav class="tabs" aria-label="ניווט ראשי">
       <button class="tab" :class="{on: route.name==='home'||route.name==='task'}" @click="go('/')">ראשי</button>
       <button class="tab" :class="{on: route.name==='search'}" @click="go('/search')">חיפוש</button>

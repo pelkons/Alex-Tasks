@@ -1,4 +1,4 @@
-# Mesimot (משימות)
+# Mesimot (Alex Tasks)
 
 A **Hebrew-first task board that an AI coding agent runs for you.** Forward emails, write or speak to a chat (web or Telegram), drag a day of Outlook mail
 into the chat, and the assistant (named **Alex** by default) turns it all into tasks, keeps a card of dated facts per project, links email threads to the
