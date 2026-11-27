@@ -109,6 +109,8 @@ const USAGE = `mesimot <command>
   protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6] [--task-scope ID|0]  chat list      email show|thread <id>
   apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
   run-summary --text "..."
+  rekey [--dry]   (rotate the encryption key: database, stored files and backups; see docs/ENCRYPTION.md)
+  vault cat <file> | status   (read a stored encrypted file, e.g. a run log; count encrypted and plain files)
   sql "<query>" [--write] [--db FILE] [--format json|tsv]   (direct database access for the owner/developer: the database is encrypted, so the sqlite3 tool cannot open it)
   web-password [--generate]`;
 
@@ -280,6 +282,16 @@ async function main() {
         } else { if (!write) fail('this statement changes data: add --write'); out(st.run()); }
       } catch (e) { fail(e.message); } finally { try { db.close(); } catch { /* ignore */ } }
       return; }
+    case 'rekey': { // rotate the encryption key: database, stored files, backups (scripts/rekey.js)
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, '..', 'scripts', 'rekey.js'), ...process.argv.slice(3)], { stdio: 'inherit' });
+      process.exit(r.status ?? 2); }
+    case 'vault': { // `vault cat <file>` prints a stored (encrypted) file, e.g. a run log; `vault status` counts encrypted and plain files
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      const vault = require('../lib/vault');
+      if (sub === 'cat' && arg) { try { process.stdout.write(vault.readFile(require('path').resolve(arg))); } catch (e) { fail(e.message); } return; }
+      if (sub === 'status') { const roots = [process.env.MESIMOT_FILES || require('path').join(root, 'files'), process.env.MESIMOT_RUN_LOG || require('path').join(root, 'data', 'runs')]; let enc = 0, plain = 0; const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = require('path').join(d, e.name); if (e.isDirectory()) walk(p); else if (e.isFile()) { if (vault.isEncrypted(p)) enc++; else plain++; } } }; for (const r of roots) if (fs.existsSync(r)) walk(r); return out({ encrypted: enc, plain }); }
+      fail('usage: vault cat <file> | vault status'); return; }
     case 'connector': { // the Windows connector installer: `connector publish <AlexLink-Setup-1.0.0.exe>`
       if (sub !== 'publish' || !arg) fail('usage: connector publish <AlexLink-Setup-<version>.exe>');
       try { return out(require('../lib/connector').publish(path.resolve(arg))); } catch (e) { fail(e.message); } }

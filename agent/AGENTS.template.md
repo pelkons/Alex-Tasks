@@ -268,7 +268,7 @@ EVERY non-signature attachment must end with all three, in your `mesimot apply` 
 plus `facts` with `source: "file:N"`): a summary, a project link and the facts extracted from its contents (contract values with VAT status, dates and
 deadlines, plot / plan / permit numbers, parties and roles, payment terms; quote numbers exactly, with the section or page). The gate re-prompts
 when one of the three is missing. A big file is read section by section (`mesimot show file N`, then `show chunk` for the parts that matter);
-a scanned image or photo with no text is looked at directly (the file path is in `show file`).
+a scanned image or photo with no text is looked at directly (`show file` gives `view_path`: a temporary readable copy; the files under `files/` are encrypted on disk, so never open those paths directly).
 
 # Structured answer: `mesimot apply` (mandatory when the prompt lists related tasks)
 

@@ -59,7 +59,7 @@ test('a file bigger than one chunk uploads in parts, is verified, joined, archiv
   assert.equal(f.size, data.length); assert.equal(f.text_status, 'pending'); assert.equal(f.background, true);
   const row = db.prepare('SELECT * FROM files WHERE id=?').get(f.id);
   assert.equal(row.sha256, sha(data));
-  assert.equal(sha(fs.readFileSync(row.path)), sha(data));
+  assert.ok(require('../lib/vault').isEncrypted(row.path), 'stored encrypted'); assert.equal(sha(require('../lib/vault').readFile(row.path)), sha(data));
   assert.equal(fs.existsSync(path.join(process.env.MESIMOT_UPLOADS, up2.id)), false, 'the parts are removed');
   // no upload event until the text is ready, then the assistant is told
   assert.equal(db.prepare("SELECT COUNT(*) c FROM events WHERE entity='file'").get().c, 0);

@@ -110,7 +110,7 @@ test('web run: answered in the chat as a web message (with sources), isolated co
   // what the run was given: the question, the last chat messages, the date; nothing else; and no tool but the two web tools
   const a1 = args(1);
   assert.ok(a1.includes('WebSearch,WebFetch') && !/--tools [^ ]*(Bash|Read|Edit|Write)/.test(a1));
-  const prompt = fs.readFileSync(path.join(process.env.MESIMOT_RUN_LOG, `${run.id || 1}.prompt.txt`), 'utf8');
+  const prompt = require('../lib/vault').readFile(path.join(process.env.MESIMOT_RUN_LOG, `${run.id || 1}.prompt.txt`)).toString('utf8');
   assert.match(prompt, /מה המחיר שלו\?/); assert.match(prompt, /מה המחיר של האייפון/); assert.match(prompt, /TODAY \(Asia\/Jerusalem\)/);
   for (const secret of ['PERMANENT MEMORY', 'OPEN TASKS', 'PROJECTS', 'mesimot apply']) assert.ok(!prompt.includes(secret), `the prompt has no ${secret}`);
 });

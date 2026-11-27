@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 const { build, readEnvFile } = require('../lib/server.js');
+require('../lib/vault').sweepTmp(); // plaintext leftovers of a crashed run (in /dev/shm)
 const port = +(process.env.MESIMOT_PORT || 8110);
 const app = build({ dbPath: process.env.MESIMOT_DB });
 if (!process.env.MESIMOT_TOKEN && !readEnvFile().MESIMOT_TOKEN) console.warn('warning: no API token configured');

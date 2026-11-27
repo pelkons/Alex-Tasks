@@ -55,7 +55,7 @@ test('local Bot API: a 1.5 GB document is taken straight from the volume path (n
   assert.ok(calls.some((c) => c.method === 'getFile' && c.local));
   const f = db.prepare('SELECT * FROM files').get();
   assert.equal(f.source, 'telegram'); assert.equal(f.original_name, 'דוח ענק.txt');
-  assert.equal(fs.readFileSync(f.path, 'utf8'), 'תוכן של קובץ גדול מאוד');
+  assert.ok(require('../lib/vault').isEncrypted(f.path), 'stored encrypted'); assert.equal(require('../lib/vault').readFile(f.path).toString('utf8'), 'תוכן של קובץ גדול מאוד');
   assert.equal(db.prepare('SELECT COUNT(*) c FROM chunks WHERE file_id=?').get(f.id).c, 1);
 });
 
