@@ -232,7 +232,7 @@
         </div>
 
         <button class="btn small ghost" x-show="detail.protocol" @click="openProtocol(detail.protocol.protocol_id)" x-text="'מתוך פרוטוקול: '+(detail.protocol ? clipText(detail.protocol.title, 50) : '')"></button>
-        <div class="fb-bar" x-show="detail.source_email_id" x-init="fbReset()">
+        <div class="fb-bar" x-show="detail.source_email_id && (!detail.feedback_given || fb.fixes) && !fb.done" x-transition.opacity.duration.400ms x-init="fbReset()">
           <span class="muted sm">האם אלכס צדק כשפתח את המשימה הזו?</span>
           <button type="button" class="icon-btn" :class="{on: fb.sent==='up'}" @click="fbVote('task', detail.id, 'up')" aria-label="מועיל" title="מועיל">👍</button>
           <button type="button" class="icon-btn" :class="{on: fb.sent==='down' || fb.open}" @click="fb.open=true" aria-label="לא מועיל" title="לא מועיל">👎</button>

@@ -1300,11 +1300,11 @@ function app() {
     // ---------- settings
     fmtGB(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' ג״ב' : Math.max(1, Math.round(n / 1048576)) + ' מ״ב'; },
     // ---- feedback on what the assistant produced from mail
-    fbReset() { this.fb = { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }; },
+    fbReset() { this.fb = { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null, done: false }; },
     async fbVote(type, id, verdict) {
       try {
         const r = await this.api('POST', '/api/feedback', { item_type: type, item_id: id, verdict, reason: verdict === 'down' ? this.fb.reason || null : null, reason_text: verdict === 'down' ? this.fb.text || null : null });
-        this.fb.sent = verdict; this.fb.id = r.id; this.fb.open = false; this.fb.fixes = verdict === 'down' && !!this.fb.reason;
+        this.fb.sent = verdict; this.fb.id = r.id; this.fb.open = false; this.fb.fixes = verdict === 'down' && !!this.fb.reason; if (!this.fb.fixes) { const fid = this.detail && this.detail.id; setTimeout(() => { if (this.detail && this.detail.id === fid) this.fb.done = true; }, 1500); } // answered: thank, then hide the question
         if (r.suggestion) this.toast('יש הצעה חדשה לכלל סינון בצ׳אט');
       } catch (e) { this.fail(e); }
     },
