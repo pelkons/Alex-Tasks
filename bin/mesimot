@@ -110,6 +110,7 @@ const USAGE = `mesimot <command>
   apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
   run-summary --text "..."
   rekey [--dry]   (rotate the encryption key: database, stored files and backups; see docs/ENCRYPTION.md)
+  backup offsite [--dry-run] | restore-test | status   (nightly encrypted off-site backup to Proton Drive; see docs/BACKUP.md)
   vault cat <file> | status   (read a stored encrypted file, e.g. a run log; count encrypted and plain files)
   sql "<query>" [--write] [--db FILE] [--format json|tsv]   (direct database access for the owner/developer: the database is encrypted, so the sqlite3 tool cannot open it)
   web-password [--generate]`;
@@ -285,6 +286,12 @@ async function main() {
     case 'rekey': { // rotate the encryption key: database, stored files, backups (scripts/rekey.js)
       if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
       const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, '..', 'scripts', 'rekey.js'), ...process.argv.slice(3)], { stdio: 'inherit' });
+      process.exit(r.status ?? 2); }
+    case 'backup': { // `backup offsite [--dry-run]`, `backup restore-test`, `backup status`: the encrypted off-site copy on Proton Drive (scripts/offsite-backup.js)
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      const flagFor = { offsite: [], 'restore-test': ['--restore-test'], status: ['--status'] }[sub];
+      if (!flagFor) fail('usage: backup offsite [--dry-run] | backup restore-test | backup status');
+      const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, '..', 'scripts', 'offsite-backup.js'), ...flagFor, ...(opt['dry-run'] ? ['--dry-run'] : [])], { stdio: 'inherit' });
       process.exit(r.status ?? 2); }
     case 'vault': { // `vault cat <file>` prints a stored (encrypted) file, e.g. a run log; `vault status` counts encrypted and plain files
       if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');

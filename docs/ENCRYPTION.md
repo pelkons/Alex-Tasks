@@ -43,6 +43,8 @@ which returns `view_path`, a temporary readable copy that is removed after the r
 * Settings, "מצב המערכת" has a check "הצפנת בסיס הנתונים בדיסק" that turns red if the database file is ever found unencrypted.
 * The test instance (`scripts/testenv.sh`) uses its own throw-away key in `/tmp/mesimot-test/db.key`; `npm test` uses `/tmp/mesimot-test-db.key`.
 
+Off-site copies on Proton Drive (nightly, encrypted with this same key): docs/BACKUP.md.
+
 ## Restoring a backup on a new server
 
 1. Install the system (`deploy/install.sh`) and stop the services.

@@ -1190,3 +1190,10 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 .cn-tag { font-size: .75rem; padding: 1px 6px; border-radius: 6px; background: var(--border, #e5e7eb); }
 .cn-card .btnrow { margin-top: 8px; }
 .cn-card a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+/* backup and encryption card (settings) */
+.bk-card .bk-key-area { margin-top: 12px; display: grid; gap: 8px; }
+.bk-card .bk-form { display: grid; gap: 8px; max-width: 420px; }
+.bk-card .bk-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; background: var(--bg-soft, rgba(127,127,127,.08)); word-break: break-all; overflow-wrap: anywhere; user-select: all; direction: ltr; text-align: left; }
+.bk-card .bk-stat b { text-align: end; overflow-wrap: anywhere; }
+.bk-card .bk-bad { color: var(--danger, #b91c1c); }

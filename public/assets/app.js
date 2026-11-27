@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
@@ -129,7 +129,7 @@ function app() {
       const r = this.parseRoute();
       const prev = this.route;
       this.route = r;
-      this.editing = null; this.menuOpen = false;
+      this.editing = null; this.menuOpen = false; this.bkHide(); // the encryption key is never kept when the page changes
       if (r.name === 'task') {
         if (!prev || prev.id !== r.id) this.detail = null;
         this.detailError = '';
@@ -1202,6 +1202,14 @@ function app() {
     async obSaveEdit(o) { try { await this.api('PATCH', `/api/outbox/${o.id}`, { to: this.obEdit.to, cc: this.obEdit.cc, bcc: this.obEdit.bcc, subject: this.obEdit.subject, body: this.obEdit.body }); this.obEdit = null; this.toast('נוצר כרטיס חדש לאישור'); } catch (e) { this.fail(e); } await this.obRefresh(); },
     async loadSysHealth() { try { this.sysHealth = await this.api('GET', '/api/system-health'); } catch (e) { /* optional */ } },
     async loadConnector() { try { this.cn.devices = await this.api('GET', '/api/connector/devices'); this.cn.latest = await this.api('GET', '/api/connector/latest'); } catch (e) { /* optional */ } },
+    async loadBackup() { try { this.bk.st = await this.api('GET', '/api/backup/status'); } catch (e) { /* optional */ } },
+    bkHide() { this.bk.key = null; this.bk.pw = ''; this.bk.ask = false; this.bk.err = ''; },
+    async bkShow() {
+      if (this.bk.busy || !this.bk.pw) return; this.bk.busy = true; this.bk.err = '';
+      try { const r = await this.api('POST', '/api/backup/key', { password: this.bk.pw }); this.bk.pw = ''; this.bk.key = r.key; }
+      catch (e) { this.bk.err = (e && e.message) || 'שגיאה'; this.bk.pw = ''; }
+      finally { this.bk.busy = false; }
+    },
     async cnNewCode() { try { this.cn.code = await this.api('POST', '/api/connector/pair-code', {}); } catch (e) { this.fail(e); } },
     async cnRevoke(d) { if (!window.confirm('לנתק את "' + (d.name || 'המחשב') + '"? התוכנה שם תפסיק לעבוד עד חיבור מחדש.')) return; try { await this.api('POST', `/api/connector/devices/${d.id}/revoke`, {}); this.toast('המחשב נותק'); await this.loadConnector(); } catch (e) { this.fail(e); } },
     async loadIngest() { try { this.ingest = await this.api('GET', '/api/ingest/status'); } catch (e) { /* optional */ } },

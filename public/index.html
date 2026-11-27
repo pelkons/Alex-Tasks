@@ -435,6 +435,10 @@
         </ul>
       </div>
     </template>
+    <template x-if="act.security && act.security.length">
+      <div class="card run"><div class="run-h"><b>פעולות אבטחה</b></div>
+        <ul class="acts"><template x-for="(a, i) in act.security" :key="'sec'+i"><li><div class="a-main"><span x-text="a.new_value"></span> <span class="muted sm" x-text="fmtDateTime(a.created_at)"></span></div></li></template></ul></div>
+    </template>
     <template x-if="act.loose.length">
       <div class="card run"><div class="run-h"><b>פעולות ללא הרצה</b></div>
         <ul class="acts"><template x-for="a in act.loose" :key="a.id"><li :class="{undone: a.undone_at}"><div class="a-main"><span x-text="describeAction(a)"></span> <a href="#" class="a-label" x-show="a.label" @click.prevent="openAction(a)" x-text="clipText(a.label, 70)"></a></div>
@@ -1004,6 +1008,34 @@
         </div>
       </template>
       <p class="muted sm" x-show="!cn.devices.length">אין מחשבים מחוברים בשיטה החדשה.</p>
+    </section>
+
+    <section class="card bk-card" x-init="loadBackup()">
+      <h3>גיבוי והצפנה</h3>
+      <p class="muted sm">כל המידע במערכת מוצפן בדיסק. כל לילה נשמר גיבוי מוצפן נוסף ב-Proton Drive. בלי מפתח ההצפנה אי אפשר לשחזר את הנתונים מאף גיבוי.</p>
+      <template x-if="bk.st">
+        <div class="stor bk-stat">
+          <div><span>גיבוי מקומי אחרון</span><b x-text="bk.st.local.last_at ? fmtDateTime(bk.st.local.last_at) : 'אין'"></b></div>
+          <div><span>גיבוי אחרון ל-Proton Drive</span><b x-text="bk.st.offsite.last_success_at ? fmtDateTime(bk.st.offsite.last_success_at) : (bk.st.offsite.configured ? 'עדיין לא הצליח' : 'עדיין לא הופעל')"></b></div>
+          <div><span>תוצאה אחרונה</span><b :class="{'bk-bad': bk.st.offsite.last_ok === false}" x-text="bk.st.offsite.configured ? (bk.st.offsite.last_ok ? 'הצליח' + (bk.st.offsite.last_run_at ? ' · ' + fmtDateTime(bk.st.offsite.last_run_at) : '') : 'נכשל: ' + (bk.st.offsite.last_error || '')) : 'לא רץ עדיין'"></b></div>
+          <div><span>מקום בתיקיית Proton</span><b x-text="bk.st.offsite.remote_bytes != null ? fmtGB(bk.st.offsite.remote_bytes) : 'לא ידוע'"></b></div>
+          <div><span>עותקי מסד נתונים ב-Proton</span><b x-text="bk.st.offsite.copies != null ? bk.st.offsite.copies : 'לא ידוע'"></b></div>
+        </div>
+      </template>
+      <div class="bk-key-area">
+        <div class="btnrow" x-show="!bk.key && !bk.ask"><button class="btn" @click="bk.ask = true; bk.err = ''; $nextTick(() => $refs.bkpw && $refs.bkpw.focus())">הצג מפתח הצפנה</button></div>
+        <form x-show="bk.ask && !bk.key" @submit.prevent="bkShow()" class="bk-form">
+          <label class="field"><span>הקלידו שוב את סיסמת האתר</span>
+            <input type="password" x-ref="bkpw" x-model="bk.pw" autocomplete="current-password" aria-label="סיסמת האתר"></label>
+          <p class="sm cn-err" x-show="bk.err" x-text="bk.err"></p>
+          <div class="btnrow"><button class="btn primary" type="submit" :disabled="bk.busy || !bk.pw">הצג</button><button class="btn" type="button" @click="bkHide()">ביטול</button></div>
+        </form>
+        <div x-show="bk.key" class="bk-shown">
+          <div class="bk-key" dir="ltr" x-text="bk.key" @focus="$event.target.select()" tabindex="0"></div>
+          <div class="btnrow"><button class="btn" @click="copyText(bk.key)">העתק</button><button class="btn" @click="bkHide()">הסתר</button></div>
+          <p class="sm">שמרו את המפתח ב-Bitwarden. בלי המפתח אי אפשר לשחזר את הנתונים.</p>
+        </div>
+      </div>
     </section>
 
     <section class="card filters-card">
