@@ -35,3 +35,10 @@ test('the mail view never writes to the emails table (an UPDATE there re-indexes
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'lib', 'mailview.js'), 'utf8');
   assert.ok(!/UPDATE\s+emails/i.test(src) && !/INSERT\s+INTO\s+emails/i.test(src));
 });
+
+test('Hebrew in an RTF-encapsulated body: \\ansicpg1252 with a \\fcharset177 font decodes as windows-1255, never as Latin text', () => {
+  const { htmlFromRtf, looksMojibake, redecode } = require('../lib/mailview');
+  const rtf = "{\\rtf1\\ansi\\ansicpg1252\\fromhtml1 {\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}{\\f5\\fswiss\\fcharset177 Arial;}}{\\*\\htmltag64 <p>}\\htmlrtf {\\f5\\fs24\\htmlrtf0 \\'f9\\'ec\\'e5\\'ed \\'ec\\'eb\\'e5\\'ec\\'ed\\htmlrtf\\f0}\\htmlrtf0 \\u1513?{\\*\\htmltag72 </p>}}";
+  assert.equal(htmlFromRtf(rtf), '<p>שלום לכולםש</p>');
+  const moji = 'ùìåí ìëåìí îöåøó ñéëåí éùéáú úëðåï éåòöéí ' .repeat(4); assert.ok(looksMojibake(moji)); assert.ok(/^שלום/.test(redecode(moji))); assert.ok(!looksMojibake(redecode(moji)));
+});
