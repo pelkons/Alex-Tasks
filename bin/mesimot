@@ -214,7 +214,7 @@ async function main() {
       if (sub === 'classify') { if (!arg) fail('missing file id'); return out(await api('PATCH', `/api/files/${arg}`, pick(opt, ['project', 'task', 'summary', 'facts_checked']))); }
       break;
     case 'chat':
-      if (sub === 'send') return out(await api('POST', '/api/chat', { ...pick(opt, ['text', 'task', 'file']), ...(opt['task-scope'] !== undefined && opt['task-scope'] !== true ? { task_scope: opt['task-scope'] } : {}) }));
+      if (sub === 'send') return out(await api('POST', '/api/chat', { ...pick(opt, ['text', 'task', 'file']), ...(opt['task-scope'] !== undefined && opt['task-scope'] !== true ? { task_scope: opt['task-scope'] } : {}), ...(opt['entity-scope'] !== undefined && opt['entity-scope'] !== true ? { entity_scope: opt['entity-scope'] } : {}), ...(opt.main ? { main: true } : {}) }));
       if (sub === 'list') return out(await api('GET', '/api/chat' + qs({ limit: opt.limit || 20 }, ['limit'])));
       break;
     case 'email':

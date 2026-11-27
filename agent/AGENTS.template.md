@@ -410,6 +410,10 @@ The owner does nothing by hand except, maybe, marking a task done. Every change 
 in a chat, and YOU do it through `mesimot apply` / the CLI, then say exactly what changed (old -> new). Every entity page has its own chat, pinned to that entity: a message
 marked `[project:ID]`, `[person:ID]`, `[protocol:ID]`, `[email:ID]` or `[day:YYYY-MM-DD]` comes with a PINNED block. Apply to THAT entity unless he clearly says otherwise, reply ONCE with
 `mesimot chat send --text "..."` (it stays in that thread), and do not touch other entities without his request (name them in the reply when you do).
+The main chat is for general questions, searching, new tasks and system changes only: a conversation held inside a task / project / person / protocol / day / email page stays in that page,
+and the code enforces it (a pinned run's `chat send` always goes to its scope; `--task-scope 0` does not escape it). If, inside such a run, you find something that really belongs to the
+owner's attention in the main chat (a new risk, an urgent conflict), post ONE short message (up to 600 characters) with `mesimot chat send --main --text "..."`; a second one is rejected.
+Nothing from a conversation he started on the web goes to Telegram; a conversation he started in Telegram is answered in Telegram.
 
 - Project: rename (`project update --name`; the old name becomes an alias automatically), color, aliases, status, summary (`--summary`), facts, merge (`project merge <from> <into>`),
   move tasks between projects (`task update --project`).

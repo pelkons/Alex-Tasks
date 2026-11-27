@@ -59,7 +59,7 @@ function app() {
       this.$nextTick(() => this.watchFeed());
       document.addEventListener('visibilitychange', () => { if (!document.hidden) { this.refresh(); this.scrollFeed(); } });
       setInterval(() => { if (!document.hidden) this.refresh(); }, 30000);
-      try { this.seenId = +localStorage.getItem('seenChatId') || 0; this.chatTaskMsgs = localStorage.getItem('chatTaskMsgs') !== '0'; } catch (e) {}
+      try { this.seenId = +localStorage.getItem('seenChatId') || 0; this.chatTaskMsgs = localStorage.getItem('chatScopedMsgs') === '1'; } catch (e) {}
       await this.loadBoot();
       try { await this.loadChat(); } catch (e) { /* the chat retries on the next poll; the app still starts */ }
       this.ready = true;
@@ -462,10 +462,12 @@ function app() {
       ]; // ONLY the conversation: his messages, the assistant's replies, the notes. Field changes and system events live in the history at the bottom of the card.
       return items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
     },
-    setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatTaskMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },
+    setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatScopedMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },
     // a message that arrives with a missing field must never break the whole list: every message is normalised once, and the view never throws
     normMsg(m) { if (!m || typeof m !== 'object') return null; m.files = Array.isArray(m.files) ? m.files : []; m.tasks = Array.isArray(m.tasks) ? m.tasks : []; m.refs = m.refs && typeof m.refs === 'object' ? m.refs : { task: {}, projects: {}, email: {} }; m.text = m.text == null ? '' : String(m.text); return m; },
-    chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return all.filter((m) => m && m.scope !== 'entity' && (this.chatTaskMsgs || m.scope !== 'task')); } catch (e) { return []; } },
+    // the MAIN chat: unscoped messages (plus answers to a conversation the owner started in Telegram); scoped conversations only when the toggle is on
+    isMainMsg(m) { return !!m && (!m.scope || !!m.in_main); },
+    chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return all.filter((m) => m && (this.chatTaskMsgs || this.isMainMsg(m))); } catch (e) { return []; } },
     scrollTaskFeed() { this.$nextTick(() => { const f = this.$refs.tcfeed || document.querySelector('.tc-feed'); if (f) f.scrollTop = f.scrollHeight; }); },
     // ENTITY-SCOPED chat (project / person / protocol / calendar day): the same thread component as the task chat; the ref is e.g. 'project:5'
     scMsgs(ref) { return (this.chatMsgs || []).filter((m) => m && m.scope === 'entity' && m.scope_ref === ref); },
@@ -833,7 +835,7 @@ function app() {
           const stick = this._stick !== false || add.every((m) => m.author !== 'claude');
           add.forEach((m) => this.normMsg(m)); this.chatMsgs.push(...add); this.lastMsgId = Math.max(this.lastMsgId, ...add.map((m) => m.id));
           this.chatMsgs.sort((a, b) => (a.pos || a.id) - (b.pos || b.id)); // a reply to an edited message sits right after it
-          const fromClaude = add.filter((m) => m.author === 'claude');
+          const fromClaude = add.filter((m) => m.author === 'claude' && this.isMainMsg(m));
           if (fromClaude.length && !this.chatVisible()) { const m = fromClaude[fromClaude.length - 1]; this.toast('אלכס: ' + this.clipText(m.text.replace(/https?:\/\/\S+/g, '').trim(), 90)); }
           this.markSeen();
           if (this.route.name === 'task' && add.some((m) => m.scope === 'task' && m.task_id === this.route.id)) { await this.loadDetail(true); this.scrollTaskFeed(); }
@@ -849,7 +851,7 @@ function app() {
     },
     wide() { return window.matchMedia('(min-width: 1024px)').matches; },
     chatVisible() { return this.wide() || this.chatOpen; },
-    unread() { return this.chatMsgs.filter((m) => m.author === 'claude' && m.id > this.seenId).length; },
+    unread() { return this.chatMsgs.filter((m) => m.author === 'claude' && m.id > this.seenId && this.isMainMsg(m)).length; },
     markSeen() { if (!this.chatVisible()) return; const last = this.chatMsgs.length ? this.chatMsgs[this.chatMsgs.length - 1].id : 0; if (last > this.seenId) { this.seenId = last; try { localStorage.setItem('seenChatId', String(last)); } catch (e) {} } },
     openChat(focus) {
       this.chatOpen = true; this.markSeen(); this._stick = true; this.scrollFeed();

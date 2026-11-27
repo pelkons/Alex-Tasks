@@ -1431,15 +1431,16 @@
     <b>צ׳אט עם אלכס</b>
     <span class="muted cp-status" x-text="searching() ? 'מחפש באינטרנט…' : busy() ? 'חושב…' : ''"></span>
     <span class="spacer"></span>
-    <label class="cp-tog" title="הצג הודעות ממשימות"><input type="checkbox" :checked="chatTaskMsgs" @change="setChatTaskMsgs($event.target.checked)"><span class="cp-tog-long">הצג הודעות ממשימות</span><span class="cp-tog-short">משימות</span></label>
+    <label class="cp-tog" title="הצג גם שיחות מפרויקטים ומשימות"><input type="checkbox" :checked="chatTaskMsgs" @change="setChatTaskMsgs($event.target.checked)"><span class="cp-tog-long">הצג גם שיחות מפרויקטים ומשימות</span><span class="cp-tog-short">גם שיחות</span></label>
     <button class="icon-btn cp-collapse" @click="MesimotLayout.setCollapsed(true)" aria-label="כיווץ הצ׳אט" title="כיווץ הצ׳אט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
     <button class="icon-btn cp-close" @click="closeChat()" aria-label="סגירת הצ׳אט" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="feed" x-ref="feed" @click="chatClick($event)">
     <template x-if="chatMsgs.length===0"><div class="empty"><b>עדיין אין הודעות</b>כתבו לאלכס מה צריך לעשות, והוא ידאג למשימות</div></template>
     <template x-for="m in chatView()" :key="m.id">
-      <div class="bubble" :class="[m.author, {scoped: m.scope==='task'}]">
+      <div class="bubble" :class="[m.author, {scoped: !!m.scope}]">
         <a class="tchip-top" x-show="m.scope==='task' && m.task_title" @click.prevent="openTask(m.task_id)" href="#" x-text="'📌 '+(m.task_title||'')"></a>
+        <a class="tchip-top" data-test="scope-chip" x-show="m.scope==='entity' && m.scope_path" @click.prevent="go(m.scope_path)" href="#" x-text="'📌 '+(m.scope_label||'')"></a>
         <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="web-mark" x-show="m.web" title="תשובה מחיפוש באינטרנט" aria-label="תשובה מחיפוש באינטרנט">🌐</span> <span x-text="fmtDateTime(m.created_at)"></span><span class="tg-tag" x-show="m.channel==='telegram'">טלגרם</span></div>
         <span class="msg-act" x-show="!m.import_id" @click.outside="if(msgMenu===m.id) msgMenu=null"><button type="button" class="icon-btn msg-dots" @click.stop="msgMenu = (msgMenu===m.id ? null : m.id)" aria-label="פעולות להודעה" title="פעולות להודעה">⋯</button>
                     <span class="msg-menu" x-show="msgMenu===m.id" x-cloak><button type="button" @click="startReply(m)">השב</button><button type="button" x-show="m.author==='owner'" @click="startEdit(m)">ערוך</button><button type="button" @click="askDelete(m)">מחק</button></span></span>

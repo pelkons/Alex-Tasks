@@ -32,22 +32,20 @@ test('a task-card message is an ordinary chat message with task_id and scope tas
   const r = db.prepare("INSERT INTO claude_runs (started_at, trigger, pinned_task_id) VALUES (?, 'chat', ?)").run(new Date().toISOString(), t1.id);
   const reply = chat.sendChat(a, { text: 'הזזתי את היעד ל-08/12' }); // inside a pinned run: scoped automatically
   assert.equal(reply.scope, 'task'); assert.equal(reply.task_id, t1.id);
-  const plain = chat.sendChat(a, { text: 'הודעה כללית', task_scope: 0 });
-  assert.equal(plain.scope, null, 'task_scope 0 writes to the main chat');
-  const th = chat.taskThread(t1.id); assert.deepEqual(th.map((x) => x.author), ['owner', 'claude']);
-  assert.equal(chat.listChat({ limit: 10 }).length, 3, 'the main chat shows them all (the UI can hide the task ones)');
+  const plain = chat.sendChat(a, { text: 'הודעה כללית', main: true });
+  assert.equal(plain.scope, null, 'an explicit main post writes to the main chat');
+  assert.equal(chat.sendChat(a, { text: 'עדיין ממוקד', task_scope: 0 }).scope, 'task', 'task_scope 0 no longer escapes a pinned run');
+  const th = chat.taskThread(t1.id); assert.deepEqual(th.map((x) => x.author), ['owner', 'claude', 'claude']);
+  assert.equal(chat.listChat({ limit: 10 }).length, 4, 'the main chat shows them all (the UI can hide the task ones)');
   void r;
 });
 
-test('Telegram: the assistant\'s task replies stay on the site unless they ask or matter; then they carry the link to the card', () => {
+test('Telegram: the assistant\'s task replies never go to Telegram when the conversation was not started there (see mainchat.test.js for the Telegram-started case)', () => {
   const { db, chat, a, t1 } = setup();
   db.prepare("INSERT INTO settings (key,value) VALUES ('telegram_chat_id','1')").run();
   db.prepare("INSERT INTO claude_runs (started_at, trigger, pinned_task_id) VALUES (?, 'chat', ?)").run(new Date().toISOString(), t1.id);
-  const quiet = chat.sendChat(a, { text: 'עדכנתי את היעד ל-08/12.' });
-  assert.equal(db.prepare('SELECT tg_sent FROM chat_messages WHERE id=?').get(quiet.id).tg_sent, 1, 'not sent to Telegram');
   const ask = chat.sendChat(a, { text: 'לדחות גם את המשימה הקשורה?' });
-  const row = db.prepare('SELECT tg_sent, text FROM chat_messages WHERE id=?').get(ask.id);
-  assert.equal(row.tg_sent, 0, 'a question goes to Telegram'); assert.match(row.text, new RegExp(`/task/${t1.id}`));
+  assert.equal(db.prepare('SELECT tg_sent FROM chat_messages WHERE id=?').get(ask.id).tg_sent, 1, 'even a question stays in the task card');
   db.prepare('UPDATE claude_runs SET finished_at=?').run(new Date().toISOString());
   assert.equal(db.prepare('SELECT tg_sent FROM chat_messages WHERE id=?').get(chat.sendChat(a, { text: 'הודעה רגילה' }).id).tg_sent, 0, 'main chat messages are mirrored as before');
 });
