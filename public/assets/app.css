@@ -1125,3 +1125,6 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 .rich-digest .rd-sec { margin: 10px 0 0; } .rich-digest h4 { margin: 0 0 4px; font-size: .95rem; } .rich-digest ul { list-style: none; margin: 0; padding: 0; }
 .rich-digest li { padding: 2px 0; font-size: .9rem; line-height: 1.5; } .rich-digest a { text-decoration: none; } .rich-digest li a:hover { text-decoration: underline; }
 .rich-digest .rd-intro { margin: 0 0 6px; } .rich-digest .rd-prefix { margin: 0 0 6px; } .rd-bg { margin-top: 10px; }
+
+/* desktop: the header is as wide as the panes below it (logo and nav at the right edge, the icon group and the status at the LEFT edge), with the same side padding at every width */
+@media (min-width: 900px) { .topbar-in { max-width: none; margin: 0; padding-inline: 16px; } }
