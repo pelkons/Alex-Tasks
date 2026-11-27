@@ -5,7 +5,26 @@ Tray app that connects Outlook on a Windows computer to an Alex Tasks server.
 - Mail and calendar go to the server every 10 minutes, or right away with "סנכרן עכשיו". Outlook is only read.
 - Every 60 s it checks the outbox and sends approved replies through Outlook.
 - A heartbeat goes out every 5 minutes.
-- Tray icon colour: green = OK; yellow = Outlook closed or paused; red = server rejected the token or has not answered for 30+ min; grey = not connected.
+- Tray icon colour: green = OK; yellow = Outlook closed or paused; blue = standby (another computer does the work); red = server rejected the token or has not answered for 30+ min; grey = not connected.
+
+## One active computer
+
+Only one connected computer works at a time. The server gives each one a role, `active` or `standby`:
+
+- in the answer to pairing (`POST /ingest/pair`), with `active_device` (`name`, `last_contact_at`);
+- in the answer to every heartbeat;
+- after `POST /ingest/activate` ("העבר לכאן" in the tray menu), which makes this computer the active one.
+
+In standby the app does not read Outlook, does not check the outbox and does not push mail. It only sends the heartbeat and checks for updates. The icon is blue and the status reads "במצב המתנה — פעיל ב-<name>".
+
+If pairing returns standby, the app asks whether to move the work to this computer.
+
+When the role changes, the app shows one notification:
+
+- When the computer goes to standby, the app stops at the next safe point and never in the middle of a send.
+- When it becomes active, it starts right away from where the server says (`/ingest/status`).
+
+A server that sends no role is treated as `active`.
 
 ## Install
 

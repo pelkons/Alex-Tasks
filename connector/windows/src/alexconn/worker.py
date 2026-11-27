@@ -13,7 +13,7 @@ import time
 from . import api, settings
 from . import outbox_sender as ob
 from . import outlook_connector as oc
-from .version import VERSION
+from .version import APP_NAME, VERSION
 
 log = logging.getLogger("connector")
 
@@ -21,9 +21,33 @@ OFFLINE_RED_SEC = 30 * 60
 UPDATE_EVERY_SEC = 24 * 3600
 
 
+STANDBY = "standby"
+ACTIVE = "active"
+
+
+def fmt_seen(iso):
+    """'2026-11-27T10:05:00Z' -> '27.11 12:05' in local time; '' if missing or unreadable."""
+    if not iso:
+        return ""
+    try:
+        t = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=dt.timezone.utc)
+        return t.astimezone(oc.LOCAL_TZ).strftime("%d.%m %H:%M")  # no line break inside
+    except (ValueError, TypeError, OverflowError):
+        return ""
+
+
+def norm_role(role):
+    """The server's role; a missing one (older server) means this computer works."""
+    return STANDBY if role == STANDBY else ACTIVE
+
+
 class Engine:
     def __init__(self, on_change=None):
-        self.on_change = on_change or (lambda: None)
+        self.on_change = on_change or (lambda **kw: None)
+        self.toasts = []                         # (title, text) for the UI thread to show
+        self.role = ""                           # "" until the server has said
         self.stop = threading.Event()
         self.mail_wake = threading.Event()
         self.outbox_wake = threading.Event()
@@ -53,6 +77,88 @@ class Engine:
             self.token = secret.get("token")
             self.sign_key = secret.get("outbox_sign_key")
             self.token_rejected = False
+            self.role = cfg.get("role") or ""
+
+    def standby(self):
+        return self.role == STANDBY
+
+    def active_name(self):
+        return self.cfg.get("active_device_name") or ""
+
+    def active_seen(self):
+        return fmt_seen(self.cfg.get("active_device_seen"))
+
+    # ---------------------------------------------------------------- role
+
+    def toast(self, text, title=None):
+        with self.lock:
+            self.toasts.append((title or APP_NAME, text))
+        self.on_change()
+
+    def take_toasts(self):
+        with self.lock:
+            out, self.toasts = self.toasts, []
+        return out
+
+    def apply_role(self, role, active_device=None, announce=True):
+        """Takes the role the server reported (pair / heartbeat / activate answer)."""
+        role = norm_role(role)
+        dev = active_device if isinstance(active_device, dict) else {}
+        with self.lock:
+            old = self.role
+            self.role = role
+            cfg = self.cfg
+            changed = old != role
+            new_name = str(dev.get("name") or "") if dev else cfg.get("active_device_name", "")
+            new_seen = str(dev.get("last_contact_at") or "") if dev else cfg.get("active_device_seen", "")
+            if role == ACTIVE:
+                new_name, new_seen = "", ""
+            dirty = changed or (new_name, new_seen) != (cfg.get("active_device_name"),
+                                                        cfg.get("active_device_seen"))
+            cfg["role"] = role
+            cfg["active_device_name"] = new_name
+            cfg["active_device_seen"] = new_seen
+        if dirty:
+            oc.safe(lambda: settings.save_config(cfg))
+        if changed:
+            log.info("role: %s -> %s%s", old or "unknown", role,
+                     f" (active computer: {new_name})" if role == STANDBY and new_name else "")
+            if role == STANDBY:
+                # the mail/outbox loops check the role before each run and between
+                # outbox items, so nothing stops in the middle of a send
+                if announce:
+                    self.toast(f"Alex Link עבר למחשב {new_name}" if new_name
+                               else "Alex Link עבר למחשב אחר")
+            else:
+                if announce and old == STANDBY:
+                    self.toast("Alex Link פעיל עכשיו במחשב הזה")
+                self.sync_now()  # start right away; the server's /ingest/status says where to resume
+        self.on_change()
+
+    def activate(self):
+        """Make this computer the active one. Blocking: call from a worker thread."""
+        try:
+            body = api.activate(api.make_session(self.token), self.cfg["server_url"])
+        except PermissionError:
+            self.token_rejected = True
+            self.toast("החיבור בוטל בשרת — יש לחבר מחדש")
+            return False
+        except Exception as e:
+            log.warning("activate failed: %s", str(e)[:200])
+            self.toast("לא הצלחתי להעביר את העבודה למחשב הזה. נסה שוב מאוחר יותר.")
+            return False
+        log.info("activated this computer")
+        self.apply_role(body.get("role") or ACTIVE, body.get("active_device"))
+        self.heartbeat_wake.set()
+        return self.role == ACTIVE
+
+    def activate_async(self):
+        threading.Thread(target=self.activate, name="activate", daemon=True).start()
+
+    def _on_standby_seen(self):
+        """The server answered "standby" to a mail push or the outbox: ask it for the role now."""
+        if not self.standby():
+            self.heartbeat_wake.set()
 
     def paired(self):
         return bool(self.cfg.get("server_url") and self.token)
@@ -75,6 +181,8 @@ class Engine:
             "http_timeout_sec": c["http_timeout_sec"],
             "retries": c["retries"],
             "mail_overlap_minutes": c["mail_overlap_minutes"],
+            "should_stop": lambda: self.standby() or self.stop.is_set(),
+            "on_standby": self._on_standby_seen,
         }
 
     # ---------------------------------------------------------------- status
@@ -86,13 +194,16 @@ class Engine:
         self.on_change()
 
     def status(self):
-        """(colour, Hebrew status line) — colour is green / yellow / red / grey."""
+        """(colour, Hebrew status line) — colour is green / yellow / red / grey / blue (standby)."""
         if not self.paired():
             return "grey", "לא מחובר לשרת"
         if self.token_rejected:
             return "red", "החיבור בוטל בשרת — יש לחבר מחדש"
         if api.CONTACT.offline_for() > OFFLINE_RED_SEC:
             return "red", "אין חיבור לשרת"
+        if self.standby():
+            name = self.active_name()
+            return "blue", f"במצב המתנה — פעיל ב-{name}" if name else "במצב המתנה"
         if self.outlook_ok is False:
             return "yellow", "Outlook סגור"
         p_in, p_out = settings.pause_state()
@@ -135,8 +246,8 @@ class Engine:
     def _mail_loop(self):
         time.sleep(5)  # let the tray come up first
         while not self.stop.is_set():
-            if self.paired() and not self.token_rejected and not settings.pause_state()[0] \
-                    and self._check_outlook():
+            if self.paired() and not self.token_rejected and not self.standby() \
+                    and not settings.pause_state()[0] and self._check_outlook():
                 self.syncing = True
                 self.on_change()
                 try:
@@ -144,9 +255,13 @@ class Engine:
                     with self.lock:
                         self.last_sync_at = dt.datetime.now(oc.LOCAL_TZ)
                 except Exception as e:
-                    log.exception("mail sync failed")
-                    self._note_auth(e)
-                    self.error(f"סנכרון מיילים: {e}")
+                    if is_standby_error(e):
+                        log.info("mail sync: the server says this computer is in standby")
+                        self._on_standby_seen()
+                    else:
+                        log.exception("mail sync failed")
+                        self._note_auth(e)
+                        self.error(f"סנכרון מיילים: {e}")
                 finally:
                     self.syncing = False
                     self.on_change()
@@ -156,8 +271,8 @@ class Engine:
     def _outbox_loop(self):
         time.sleep(10)
         while not self.stop.is_set():
-            if self.paired() and not self.token_rejected and not settings.pause_state()[1] \
-                    and self.update_pending is None:
+            if self.paired() and not self.token_rejected and not self.standby() \
+                    and not settings.pause_state()[1] and self.update_pending is None:
                 with self.send_guard:
                     try:
                         ob.run(self.run_cfg(), no_send=False)
@@ -202,12 +317,15 @@ class Engine:
             "last_error": f"{oc.iso(err[0])} {err[1]}" if err else None,
         }
         try:
-            api.heartbeat(api.make_session(self.token), self.cfg["server_url"], payload)
+            body = api.heartbeat(api.make_session(self.token), self.cfg["server_url"], payload)
         except PermissionError:
             log.error("heartbeat: the server rejected the device token")
             self.token_rejected = True
         except Exception as e:
             log.warning("heartbeat failed: %s", str(e)[:200])
+        else:
+            if isinstance(body, dict):
+                self.apply_role(body.get("role"), body.get("active_device"))
         self.on_change()
 
     # ---------------------------------------------------------------- update
@@ -227,6 +345,12 @@ class Engine:
             updater.run_installer(path)
             self.stop.set()
             self.on_change(quit_app=True)
+
+
+def is_standby_error(e):
+    """A mail/calendar push the server refused with 409 {"error": "standby"}."""
+    text = str(e)
+    return "409" in text and "standby" in text
 
 
 def default_mail_since():

@@ -1,10 +1,10 @@
-"""Draws the tray/app icons (run once; the .ico files are kept in the repo)."""
+﻿"""Draws the tray/app icons (run once; the .ico files are kept in the repo)."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
-COLOURS = {"green": "#2e9e44", "yellow": "#e0a800", "red": "#d93025", "grey": "#8a8a8a", "app": "#2563eb"}
+COLOURS = {"green": "#2e9e44", "yellow": "#e0a800", "red": "#d93025", "grey": "#8a8a8a", "blue": "#5b7fa6", "app": "#2563eb"}
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
 
 

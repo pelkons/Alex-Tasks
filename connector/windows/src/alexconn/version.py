@@ -1,4 +1,4 @@
-﻿VERSION = "1.0.1"
+﻿VERSION = "1.1.0"
 APP_NAME = "Alex Link"
 EXE_NAME = "AlexLink.exe"
 MUTEX_NAME = "AlexLink"

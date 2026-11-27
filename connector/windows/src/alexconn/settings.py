@@ -41,6 +41,10 @@ DEFAULTS = {
     "outbox_interval_sec": 60,
     "heartbeat_interval_min": 5,
     "auto_update": True,
+    # single active computer: "active" / "standby" / "" (not known yet = active)
+    "role": "",
+    "active_device_name": "",
+    "active_device_seen": "",
 }
 
 DPAPI_DESCRIPTION = "Alex Link"

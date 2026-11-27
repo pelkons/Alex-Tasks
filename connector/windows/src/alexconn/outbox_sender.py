@@ -441,6 +441,11 @@ def run(cfg, no_send):
             report(srv, ost, item_id, result, save)
 
         listing = srv.approved()
+        if listing.get("standby"):
+            log.info("outbox: this computer is in standby; another one does the work")
+            if cfg.get("on_standby"):
+                cfg["on_standby"]()
+            return 0
         if not listing.get("enabled"):
             return 0
         items = listing.get("items") or []
@@ -456,6 +461,11 @@ def run(cfg, no_send):
         try:
             ns = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
             for item in items:
+                # a safe point between items (never inside a send): stop if this
+                # computer was switched to standby meanwhile
+                if cfg.get("should_stop") and cfg["should_stop"]():
+                    log.info("outbox: stopping before the next item (standby)")
+                    break
                 process(item, ns, srv, key, ost, cfg, no_send, save)
         finally:
             pythoncom.CoUninitialize()

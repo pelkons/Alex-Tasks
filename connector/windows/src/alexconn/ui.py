@@ -22,10 +22,12 @@ WM_TRAY = win32con.WM_USER + 20
 WM_APP_REFRESH = win32con.WM_APP + 1
 WM_APP_QUIT = win32con.WM_APP + 2
 WM_APP_PAIRED = win32con.WM_APP + 3
+WM_APP_ASK_ACTIVATE = win32con.WM_APP + 4
 TPM_LAYOUTRTL = 0x8000
 WS_EX_LAYOUTRTL = 0x00400000
 
-ID_SYNC, ID_PAUSE_IN, ID_PAUSE_OUT, ID_SITE, ID_LOG, ID_PAIR, ID_EXIT = range(1001, 1008)
+ID_SYNC, ID_PAUSE_IN, ID_PAUSE_OUT, ID_SITE, ID_LOG, ID_PAIR, ID_EXIT, ID_ACTIVATE = range(1001, 1009)
+BTN_MOVE, BTN_STAY = 101, 102
 ID_CODE, ID_CONNECT, ID_MSG = 2001, 2002, 2003
 
 
@@ -62,6 +64,69 @@ def dpi_scale():
         return 1.0
 
 
+class TASKDIALOG_BUTTON(ctypes.Structure):
+    _pack_ = 1
+    _fields_ = [("nButtonID", ctypes.c_int), ("pszButtonText", ctypes.c_wchar_p)]
+
+
+class TASKDIALOGCONFIG(ctypes.Structure):
+    _pack_ = 1  # commctrl.h declares the task dialog structures with pshpack1
+    _fields_ = [
+        ("cbSize", ctypes.c_uint), ("hwndParent", ctypes.c_void_p), ("hInstance", ctypes.c_void_p),
+        ("dwFlags", ctypes.c_int), ("dwCommonButtons", ctypes.c_int),
+        ("pszWindowTitle", ctypes.c_wchar_p), ("pszMainIcon", ctypes.c_void_p),
+        ("pszMainInstruction", ctypes.c_wchar_p), ("pszContent", ctypes.c_wchar_p),
+        ("cButtons", ctypes.c_uint), ("pButtons", ctypes.POINTER(TASKDIALOG_BUTTON)),
+        ("nDefaultButton", ctypes.c_int),
+        ("cRadioButtons", ctypes.c_uint), ("pRadioButtons", ctypes.c_void_p),
+        ("nDefaultRadioButton", ctypes.c_int),
+        ("pszVerificationText", ctypes.c_wchar_p), ("pszExpandedInformation", ctypes.c_wchar_p),
+        ("pszExpandedControlText", ctypes.c_wchar_p), ("pszCollapsedControlText", ctypes.c_wchar_p),
+        ("pszFooterIcon", ctypes.c_void_p), ("pszFooter", ctypes.c_wchar_p),
+        ("pfCallback", ctypes.c_void_p), ("lpCallbackData", ctypes.c_void_p),
+        ("cxWidth", ctypes.c_uint),
+    ]
+
+
+TDF_ALLOW_DIALOG_CANCELLATION = 0x0008
+TDF_RTL_LAYOUT = 0x2000
+TD_INFORMATION_ICON = 0xFFFD  # MAKEINTRESOURCE(-3)
+
+
+def choose(hwnd, title, text, buttons, default):
+    """A Hebrew (RTL) question with own button labels; returns the chosen id, or None on cancel.
+    buttons: [(id, label), ...]. Falls back to a Yes/No MessageBox without comctl32 v6."""
+    try:
+        fn = ctypes.windll.comctl32.TaskDialogIndirect
+        arr = (TASKDIALOG_BUTTON * len(buttons))(*[TASKDIALOG_BUTTON(i, t) for i, t in buttons])
+        cfg = TASKDIALOGCONFIG()
+        cfg.cbSize = ctypes.sizeof(TASKDIALOGCONFIG)
+        cfg.hwndParent = hwnd or None
+        cfg.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_RTL_LAYOUT
+        cfg.pszWindowTitle = APP_NAME
+        cfg.pszMainIcon = TD_INFORMATION_ICON
+        cfg.pszMainInstruction = title
+        cfg.pszContent = text
+        cfg.cButtons = len(buttons)
+        cfg.pButtons = arr
+        cfg.nDefaultButton = default
+        chosen = ctypes.c_int(0)
+        hr = fn(ctypes.byref(cfg), ctypes.byref(chosen), None, None)
+        if hr != 0:
+            raise OSError(f"TaskDialogIndirect 0x{hr & 0xFFFFFFFF:08x}")
+        ids = [i for i, _ in buttons]
+        return chosen.value if chosen.value in ids else None
+    except (AttributeError, OSError) as e:
+        log.info("task dialog unavailable (%s); using a message box", e)
+    labels = " / ".join(f"{t}" for _, t in buttons[:2])
+    flags = (win32con.MB_YESNO | win32con.MB_ICONQUESTION | win32con.MB_RTLREADING | win32con.MB_RIGHT
+             | win32con.MB_SETFOREGROUND)
+    if default == buttons[1][0]:
+        flags |= win32con.MB_DEFBUTTON2
+    ans = win32api.MessageBox(hwnd or 0, f"{title}\n\n{text}\n\n(כן / לא = {labels})", APP_NAME, flags)
+    return buttons[0][0] if ans == win32con.IDYES else buttons[1][0]
+
+
 def ui_font(scale, bold=False):
     lf = win32gui.LOGFONT()
     lf.lfFaceName = "Segoe UI"
@@ -74,7 +139,7 @@ class TrayApp:
     def __init__(self, engine):
         self.engine = engine
         self.hinst = win32api.GetModuleHandle(None)
-        self.icons = {c: load_icon(c) for c in ("green", "yellow", "red", "grey")}
+        self.icons = {c: load_icon(c) for c in ("green", "yellow", "red", "grey", "blue")}
         self.pair_window = None
         self.taskbar_created = win32gui.RegisterWindowMessage("TaskbarCreated")
         wc = win32gui.WNDCLASS()
@@ -85,6 +150,7 @@ class TrayApp:
             win32con.WM_COMMAND: logged(self.on_command),
             WM_APP_REFRESH: logged(self.on_refresh),
             WM_APP_QUIT: logged(self.on_quit),
+            WM_APP_ASK_ACTIVATE: logged(self.on_ask_activate),
             win32con.WM_DESTROY: logged(self.on_destroy),
             self.taskbar_created: logged(self.on_taskbar_created),
         }
@@ -150,7 +216,10 @@ class TrayApp:
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
         paired = e.paired()
         on = win32con.MF_STRING if paired else grey
-        win32gui.AppendMenu(menu, on, ID_SYNC, "סנכרן עכשיו")
+        if paired and e.standby():
+            win32gui.AppendMenu(menu, win32con.MF_STRING, ID_ACTIVATE, "העבר לכאן")
+        else:
+            win32gui.AppendMenu(menu, on, ID_SYNC, "סנכרן עכשיו")
         win32gui.AppendMenu(menu, on | (win32con.MF_CHECKED if p_in else 0), ID_PAUSE_IN, "השהה קליטת מיילים")
         win32gui.AppendMenu(menu, on | (win32con.MF_CHECKED if p_out else 0), ID_PAUSE_OUT, "השהה שליחת מיילים")
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
@@ -183,9 +252,11 @@ class TrayApp:
     def on_command(self, hwnd, msg, wparam, lparam):
         cmd = win32api.LOWORD(wparam)
         e = self.engine
-        if cmd == ID_SYNC:
+        if cmd == ID_SYNC and not e.standby():
             e.sync_now()
             self.balloon(APP_NAME, "הסנכרון התחיל")
+        elif cmd == ID_ACTIVATE and e.standby():
+            self.confirm_activate()
         elif cmd == ID_PAUSE_IN:
             toggle_pause(ingest=True)
             e.sync_now()
@@ -205,6 +276,39 @@ class TrayApp:
         return 0
 
     def on_refresh(self, hwnd, msg, wparam, lparam):
+        self.refresh_icon()
+        for title, text in self.engine.take_toasts():
+            self.balloon(title, text)
+        return 0
+
+    # ---------------------------------------------------------------- active / standby
+
+    def where_text(self):
+        e = self.engine
+        name = e.active_name() or "אחר"
+        seen = e.active_seen()
+        return f"Alex Link פעיל כרגע במחשב {name}" + (f" (נראה לאחרונה {seen})" if seen else "") + "."
+
+    def confirm_activate(self):
+        """Tray menu "העבר לכאן"."""
+        ans = choose(self.hwnd, "להעביר את העבודה למחשב הזה?",
+                     self.where_text() + "\nאחרי ההעברה המחשב השני יעבור למצב המתנה.",
+                     [(BTN_MOVE, "העבר לכאן"), (BTN_STAY, "ביטול")], BTN_STAY)
+        if ans == BTN_MOVE:
+            log.info("owner moved the work to this computer (tray menu)")
+            self.engine.activate_async()
+
+    def on_ask_activate(self, hwnd, msg, wparam, lparam):
+        """Right after pairing as standby."""
+        if not self.engine.standby():
+            return 0
+        ans = choose(self.hwnd, self.where_text(), "להעביר את העבודה למחשב הזה?",
+                     [(BTN_MOVE, "העבר לכאן"), (BTN_STAY, "השאר במצב המתנה")], BTN_STAY)
+        if ans == BTN_MOVE:
+            log.info("owner moved the work to this computer (after pairing)")
+            self.engine.activate_async()
+        else:
+            log.info("owner kept this computer in standby")
         self.refresh_icon()
         return 0
 
@@ -240,7 +344,11 @@ class TrayApp:
         self.engine.reload()
         self.engine.sync_now(heartbeat=True)
         self.refresh_icon()
-        self.balloon(APP_NAME, f"מחובר לשרת {server_name}".strip())
+        if self.engine.standby():
+            self.balloon(APP_NAME, f"מחובר לשרת {server_name} — במצב המתנה".strip())
+            win32gui.PostMessage(self.hwnd, WM_APP_ASK_ACTIVATE, 0, 0)
+        else:
+            self.balloon(APP_NAME, f"מחובר לשרת {server_name}".strip())
 
     def loop(self):
         while True:
@@ -269,6 +377,15 @@ def toggle_pause(ingest):
     settings.set_pause(path, not path.exists())
     log.info("%s %s from the tray", "ingest" if ingest else "sending",
              "paused" if path.exists() else "resumed")
+
+
+def pair_role(body):
+    """(role, {'name', 'last_contact_at'}) from the /ingest/pair answer; no role = active."""
+    role = "standby" if body.get("role") == "standby" else "active"
+    dev = body.get("active_device") if isinstance(body.get("active_device"), dict) else {}
+    if role == "active":
+        return role, {}
+    return role, {"name": str(dev.get("name") or ""), "last_contact_at": str(dev.get("last_contact_at") or "")}
 
 
 class PairWindow:
@@ -392,8 +509,11 @@ class PairWindow:
             cfg["site_url"] = body["site_url"]
         if changed_server or not cfg.get("mail_since"):
             cfg["mail_since"] = (dt.datetime.now() - dt.timedelta(days=1)).replace(microsecond=0).isoformat()
+        role, dev = pair_role(body)
+        cfg.update({"role": role, "active_device_name": dev.get("name", ""),
+                    "active_device_seen": dev.get("last_contact_at", "")})
         settings.save_config(cfg)
-        log.info("paired with %s as device %s", body.get("server_name") or server_url,
-                 body.get("device_id"))
+        log.info("paired with %s as device %s, role %s", body.get("server_name") or server_url,
+                 body.get("device_id"), role)
         win32gui.DestroyWindow(self.hwnd)
         self.tray.paired_ok(body.get("server_name", ""))

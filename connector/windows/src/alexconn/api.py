@@ -103,6 +103,15 @@ def heartbeat(session, server_url, payload):
     return r.json() if r.content else {}
 
 
+def activate(session, server_url):
+    """POST /ingest/activate: make this computer the active one (the other goes to standby)."""
+    r = session.post(server_url.rstrip("/") + "/ingest/activate", json={}, timeout=30)
+    if r.status_code == 401:
+        raise PermissionError("device token rejected")
+    r.raise_for_status()
+    return r.json() if r.content else {}
+
+
 def version_tuple(v):
     parts = []
     for p in str(v).strip().lstrip("v").split("."):
