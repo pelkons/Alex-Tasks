@@ -1287,3 +1287,7 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
   .mail-pane .mv-frame { height: 56vh; }
 }
 @media (max-width: 1023.98px) { .mail-split .divider, .mail-split .mail-pane { display: none !important; } .mail-list { padding-bottom: 8px; } }
+
+/* rows never grow wider than the list: a long one-line title (compact density) must truncate, not widen the page on phones */
+.rows { grid-template-columns: minmax(0, 1fr); }
+.rows > .row, .row .body, .row .title { min-width: 0; }
