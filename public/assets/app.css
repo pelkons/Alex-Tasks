@@ -1178,4 +1178,6 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
   .tab { padding: 0 11px; flex: none; }
   .topbar .agent-status { display: none; }
   .brand { margin-inline-end: 4px; }
+  .topbar-in > .spacer { flex: 0 0 0; }
+  .topbar-in { gap: 4px; }
 }
