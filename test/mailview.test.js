@@ -30,3 +30,8 @@ test('classic Outlook: HTML encapsulated in RTF (\\fromhtml1) is recovered, the 
   const rtf = "{\\rtf1\\ansi\\ansicpg1255\\fromhtml1 {\\fonttbl{\\f0 Arial;}}{\\*\\htmltag19 <p>}\\htmlrtf {\\htmlrtf0 \\'f9\\'ec\\'e5\\'ed{\\*\\htmltag27 </p>}\\htmlrtf \\par }\\htmlrtf0 {\\*\\mhtmltag1 junk}}";
   assert.equal(htmlFromRtf(rtf), '<p>שלום</p>'); assert.equal(htmlFromRtf('{\\rtf1\\ansi plain}'), '');
 });
+
+test('the mail view never writes to the emails table (an UPDATE there re-indexes the search and re-embeds the mail)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'lib', 'mailview.js'), 'utf8');
+  assert.ok(!/UPDATE\s+emails/i.test(src) && !/INSERT\s+INTO\s+emails/i.test(src));
+});
