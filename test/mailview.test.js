@@ -24,3 +24,9 @@ test('an .eml with HTML and a cid picture: html extracted, the picture kept as i
   const x = await extract(Buffer.from(eml), 'a.eml'); assert.ok(x.html.includes('שלום')); assert.equal(x.inline.length, 1); assert.equal(x.inline[0].cid, 'logo1'); assert.equal(x.inline[0].name, 'image001.png');
   assert.equal(remoteCount('<img src="https://a.b/c.gif"><img src="cid:x">'), 1);
 });
+
+test('classic Outlook: HTML encapsulated in RTF (\\fromhtml1) is recovered, the RTF rendition is dropped', () => {
+  const { htmlFromRtf } = require('../lib/mailview');
+  const rtf = "{\\rtf1\\ansi\\ansicpg1255\\fromhtml1 {\\fonttbl{\\f0 Arial;}}{\\*\\htmltag19 <p>}\\htmlrtf {\\htmlrtf0 \\'f9\\'ec\\'e5\\'ed{\\*\\htmltag27 </p>}\\htmlrtf \\par }\\htmlrtf0 {\\*\\mhtmltag1 junk}}";
+  assert.equal(htmlFromRtf(rtf), '<p>שלום</p>'); assert.equal(htmlFromRtf('{\\rtf1\\ansi plain}'), '');
+});
