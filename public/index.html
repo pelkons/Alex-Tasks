@@ -1238,7 +1238,7 @@
     <b>צ׳אט עם אלכס</b>
     <span class="muted cp-status" x-text="searching() ? 'מחפש באינטרנט…' : busy() ? 'חושב…' : ''"></span>
     <span class="spacer"></span>
-    <label class="cp-tog" title="הצג הודעות ממשימות"><input type="checkbox" :checked="chatTaskMsgs" @change="setChatTaskMsgs($event.target.checked)"><span>הצג הודעות ממשימות</span></label>
+    <label class="cp-tog" title="הצג הודעות ממשימות"><input type="checkbox" :checked="chatTaskMsgs" @change="setChatTaskMsgs($event.target.checked)"><span class="cp-tog-long">הצג הודעות ממשימות</span><span class="cp-tog-short">משימות</span></label>
     <button class="icon-btn cp-collapse" @click="MesimotLayout.setCollapsed(true)" aria-label="כיווץ הצ׳אט" title="כיווץ הצ׳אט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
     <button class="icon-btn cp-close" @click="closeChat()" aria-label="סגירת הצ׳אט" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>

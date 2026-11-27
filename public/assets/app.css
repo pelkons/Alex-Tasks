@@ -974,7 +974,8 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 .tchip-top { display: inline-block; font-size: .72rem; padding: 1px 8px; margin-bottom: 4px; border-radius: 99px; background: var(--surface-2); color: var(--primary); text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .bubble.scoped { opacity: .92; font-size: .9rem; }
 .cp-tog { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
-@media (max-width: 899px) { .cp-tog span { display: none; } }
+.cp-tog-short { display: none; }
+@media (max-width: 899px) { .cp-tog .cp-tog-long { display: none; } .cp-tog .cp-tog-short { display: inline; } }
 
 /* edit / delete messages */
 .bubble { position: relative; }
@@ -1168,3 +1169,13 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 .mail-menu-item:hover { background: var(--bg-hover, rgba(127,127,127,.12)); }
 .btn.mail-btn { background: var(--surface); border: 1px solid var(--border); color: var(--primary); min-height: 36px; padding-inline: 12px; }
 .btn.mail-btn:hover { background: var(--primary-soft, rgba(29,78,216,.08)); }
+
+/* header between 900 and 1099 px (phone in landscape, tablet): the tabs never push the page wider than the screen */
+.tabs { min-width: 0; }
+@media (min-width: 900px) and (max-width: 1099px) {
+  .tabs { overflow-x: auto; scrollbar-width: none; gap: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 0 11px; flex: none; }
+  .topbar .agent-status { display: none; }
+  .brand { margin-inline-end: 4px; }
+}
