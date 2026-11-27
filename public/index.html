@@ -786,13 +786,9 @@
           <template x-for="i in itemsOf('decision')" :key="i.id"><div class="pitem plain"><span x-text="'• '+i.text"></span></div></template></div>
         <div class="sect" x-show="itemsOf('info').length"><h3>מידע</h3>
           <template x-for="i in itemsOf('info')" :key="i.id"><div class="pitem plain"><span x-text="'• '+i.text"></span></div></template></div>
-        <details class="email-src" x-show="proto.source">
-          <summary>המסמך המקורי</summary>
-          <template x-if="proto.source"><div class="es-body"><div class="muted" x-text="proto.source.subject"></div>
-            <pre class="mailtext" dir="auto" x-show="proto.source.body" x-text="proto.source.body"></pre>
-            <button class="btn small ghost" x-show="proto.source_type==='email'" @click="go('/email/'+proto.source.id)">פתיחת המייל</button>
-            <a class="btn small ghost" x-show="proto.source_type==='file'" :href="'/api/files/'+proto.source.id+'/download'">הורדת הקובץ</a></div></template>
-        </details>
+        <div class="src-actions" x-show="proto.source">
+          <button class="btn small ghost" x-show="proto.source_type==='email'" @click="go('/email/'+proto.source.id)">פתיחת המייל</button>
+          <a class="btn small ghost" x-show="proto.source_type==='file'" :href="'/api/files/'+proto.source.id+'/download'">פתיחת הקובץ</a></div>
         <p class="stamps muted" x-show="proto.stamps && proto.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(proto.stamps && proto.stamps.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(proto.stamps.updated_at)"></span></p>
       </div>
     </template>
@@ -1294,8 +1290,10 @@
                   <div class="prop-row" :class="[it.status, it.email ? 'pq' : '']">
                     <template x-if="it.email">
                       <div class="pq-card">
+                        <div class="pq-seq" x-show="it.of > 1"><b x-text="'שאלה '+it.seq+'/'+it.of"></b></div>
                         <div class="pq-meta"><b x-text="it.email.sender"></b> · <span x-text="it.email.when"></span><span x-show="it.email.project"> · <span x-text="it.email.project"></span></span></div>
                         <div class="pq-subj" x-text="it.email.subject"></div>
+                        <div class="pq-sum sm" x-show="it.summary" x-text="'בקצרה: '+it.summary"></div>
                         <div class="pq-body" dir="auto" x-text="it.email.excerpt"></div>
                         <div class="pq-att muted sm" x-show="it.email.attachments.length" x-text="'קבצים מצורפים: '+it.email.attachments.join(', ')"></div>
                         <details class="pq-full"><summary>הצג את כל המייל</summary><pre dir="auto" x-text="it.email.full"></pre></details>

@@ -1128,3 +1128,6 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 
 /* desktop: the header is as wide as the panes below it (logo and nav at the right edge, the icon group and the status at the LEFT edge), with the same side padding at every width */
 @media (min-width: 900px) { .topbar-in { max-width: none; margin: 0; padding-inline: 16px; } }
+
+.pq-seq { font-size: .85rem; } .pq-sum { color: var(--muted); }
+.src-actions { display: flex; gap: 8px; margin: 14px 0 6px; }
