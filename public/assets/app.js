@@ -595,7 +595,7 @@ function app() {
         this.pjEdit = null; this.toast('נשמר'); await this.loadProjectPage(pid, true);
       } catch (x) { this.fail(x); }
     },
-    pjFieldText(f) { if (!f.value) return ''; if (f.field === 'floors') { const a = String(f.value).split(/,\s*/); return a.length > 1 ? a.slice(0, -1).join(', ') + ' ו-' + a[a.length - 1] : a[0]; } return f.value; },
+    pjFieldText(f) { if (!f.value) return ''; if (f.field === 'floors' && /^\d+(, \d+)*$/.test(String(f.value))) { const a = String(f.value).split(', '); return a.length > 1 ? a.slice(0, -1).join(', ') + ' ו-' + a[a.length - 1] : a[0]; } return f.value; },
     pjStatuses() { const all = (this.pp && this.pp.profile ? this.pp.profile.statuses : []); return all.filter((s) => s.value || this.pjIsEditing('status', s.process)); },
     pjMissingProcesses() { const all = (this.pp && this.pp.profile ? this.pp.profile.statuses : []); return all.filter((s) => !s.value && !this.pjIsEditing('status', s.process)); },
     pjGroups() {
