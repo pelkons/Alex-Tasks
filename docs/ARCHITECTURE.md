@@ -43,6 +43,7 @@ a small CLI the agent works through, validation, scheduling, storage and the web
 | Gate | `lib/gate.js` | The invariants below. |
 | Entities | `lib/entities.js` | Partial people and vague projects, retroactive merge and re-linking. |
 | New projects | `lib/projectask.js` | The assistant cannot create a project (`store.createProject` refuses its actor, the API answers `pending_approval`, the gate reverts a project written around the API). It proposes with `mesimot project propose`; the owner answers one question (site card + attention list + Telegram via `proposals` kinds `project_new` / `project_pick`): yes creates it, "no, it is project Y" adds an alias and moves the waiting items, "not a project" stores the normalized name with variants as rejected, never proposed again. A pending name is asked once; its items stay unassigned, marked "ממתין לאישור פרויקט". |
+| Passport | `lib/profile.js` | The project PASSPORT (buildings, floors, new / existing units, track, commercial, contractor, architect) and the LATEST STATUS PER PROCESS (design, permit, construction, marketing). Dated rows with a source and history; an older value never replaces a newer one; the owner's edit on the site wins and is marked (the assistant never replaces his passport value, and his status only with a strictly newer one); the assistant must give a real `email:`/`file:`/`protocol:`/`chat:` source. CLI `mesimot project profile|status`, `apply` `profile` / `statuses` / `fact_topics` / `profile_checked`; the gate asks when a processed mail or a new protocol speaks about them. Facts carry a topic (design, permit, construction, finance, marketing, people, other) for the grouped list on the project page. One-off backfill: `bin/mesimot-runner --profile-backfill [ids]` (one run per project, background, no chat). |
 | Mail | `lib/mail/*`, `lib/email.js` | Providers (AgentMail HTTP, IMAP/SMTP for Proton Bridge), scoped folders, verified cleanup, sent copies. |
 | Import | `lib/importer.js` | The daily bulk email import (below). |
 | Usage | `lib/usage.js` | Tokens, cache tokens and API-equivalent cost per agent call, rate-limit back-off, weekly summary. |
@@ -92,7 +93,7 @@ final text after its own checks.
 ## Data model (SQLite)
 
 `tasks`, `projects` (aliases, summary, partial flag), `people` (roles, emails, status partial/full), `notes`, `events` (every change, with undo),
-`project_facts` (key, value, as-of date, source `email|chat|file`, superseded_by), `knowledge`, `emails` (thread, direction, import state), `files` +
+`project_facts` (key, value, as-of date, source `email|chat|file`, superseded_by, topic), `project_profile` / `project_status` (passport fields and per-process status lines: value, as-of date, source, by_owner, superseded_by), `knowledge`, `emails` (thread, direction, import state), `files` +
 `chunks`, `chat_messages`, `claude_runs` and `run_usage` (per call), `run_trace` (what the agent looked at), `gate_log`, `attention`, `calendar_items`,
 `protocols` and `protocol_items`, `imports`, `settings`. FTS and vector tables are maintained by triggers and a background indexer.
 

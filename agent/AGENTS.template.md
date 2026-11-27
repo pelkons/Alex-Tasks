@@ -47,6 +47,29 @@ of the source email/message, not today), and source (email/chat/file id). Use co
 keys of the project first (`mesimot project show ID`). Status keys always carry a date. Also keep
 `projects.summary_he` (3–6 lines: what the project is, where it stands now, what is open) current.
 
+# Project passport and latest status per process
+
+On top of the facts, every project has a small structured PASSPORT and ONE LATEST STATUS LINE PER PROCESS. The owner reads them first on the
+project page, so keep them current from every email, protocol, file and chat message:
+- Passport fields: `buildings` (number of buildings), `floors` (floors per building, e.g. "8, 12"), `units_new` (apartments being built),
+  `units_existing` (apartments existing today: urban renewal, פינוי-בינוי, תמ"א 38), `track` (e.g. "תמ\"א 38/2", "פינוי-בינוי", "בנייה חדשה"),
+  `commercial` (commercial / other areas), `contractor` (main contractor), `architect`. Only what a source states. Unknown stays empty: never guess.
+- Processes: `design` (תכנון), `permit` (רישוי / עירייה / היתר / ועדה), `construction` (ביצוע), `marketing` (שיווק / מכירות). Only the processes that
+  apply; a project is often in several at once (construction of the skeleton while a permit for changes is at the municipality and sales go on):
+  write the latest status of EACH. One short Hebrew line, the state and the next step ("ממתין להחלטת ועדה מקומית; דיון ב-15/12"), no history.
+- Every value needs `as_of` = the date of the SOURCE (the original email date, the meeting date), and a real `source`: `email:ID`, `file:ID`,
+  `protocol:ID` or `chat:ID` (the owner's own message). The code refuses a value without them.
+- The code keeps the history and decides what is current: a value dated OLDER than the current one is stored as history only, and the owner's own edit
+  on the site wins (a passport value he typed is never replaced by you; tell him in the chat if a source says otherwise).
+- How: in `mesimot apply`, `"profile": [{"project": P, "units_new": 58, "floors": "8, 12", "as_of": "2026-11-24", "source": "email:7"}]` and
+  `"statuses": [{"project": P, "process": "permit", "text": "...", "as_of": "...", "source": "protocol:3"}]`. If an email or protocol says nothing new for
+  them, add `"profile_checked": true` (the gate asks when a mail mentions floors, units, a permit, the skeleton, sales... and you did neither).
+  One by one: `mesimot project profile <project> --units-new 58 --as-of 2026-11-24 --source email:7`,
+  `mesimot project status <project> --process permit --text "..." --as-of ... --source ...`; `mesimot project profile <project>` shows them.
+- Facts on the card are grouped by TOPIC on the project page: pass `"topic"` with a new fact when the key is new: `design`, `permit`, `construction`,
+  `finance` (חשבונות, תשלומים, ערבויות, חוזים כספיים), `marketing`, `people` (people, consultants, contractors and their details), `other`.
+  A new value of an existing key keeps its topic. `mesimot fact topic --project P --key "..." --topic ...` changes it.
+
 # Meeting minutes (פרוטוקול / סיכום פגישה)
 
 A protocol is the richest source you get, but it must NOT flood the main task board. Protocols live in their own
@@ -59,7 +82,7 @@ tab "פרוטוקולים", and their action items stay there until the owner pr
    becomes an item. Do NOT create main-board tasks from a protocol.
 3. Mark `--recommended` only for the few items the owner should really see on the main board: actions assigned to
    the owner or his team (see memory/people.md) with a near deadline, or external items that block our work. Usually 0–3 per protocol.
-4. Facts and status from the protocol → project card facts dated by the meeting. Decisions are searchable as items.
+4. Facts and status from the protocol → project card facts dated by the meeting, AND the latest status of every process discussed (`statuses` with source `protocol:ID`, as_of = the meeting date) and passport values if stated. Decisions are searchable as items.
 5. Existing main-board tasks that the protocol answers or advances → update/close them as usual (CONNECT THE
    THREADS) and mention it.
 6. Next meeting date → fact "פגישה הבאה" (calendar item once the calendar exists).
@@ -296,7 +319,10 @@ who takes over, a contract that gets signed. Decide about every marked task, the
   ],
   "new_tasks": [{"title": "...", "project": "...", "assignee": "...", "requester": "...", "priority": "רגיל", "due": "DD/MM/YYYY", "due_source": "estimated", "source_date": "DD/MM/YYYY HH:mm", "description": "..."}],
   "knowledge": [{"project": "...", "kind": "fact", "title": "...", "body": "..."}],
-  "facts": [{"project": "מגדל הדוגמה", "key": "סטטוס שלד", "value": "ממתין לתוכניות קורות קומות 7-8", "unit": "", "as_of": "24/11/2026"}],  // project card: dated facts, ALSO for emails/chat/files with no task
+  "facts": [{"project": "מגדל הדוגמה", "key": "סטטוס שלד", "value": "ממתין לתוכניות קורות קומות 7-8", "unit": "", "as_of": "24/11/2026", "topic": "construction"}],  // project card: dated facts, ALSO for emails/chat/files with no task
+  "profile": [{"project": "מגדל הדוגמה", "buildings": 2, "floors": "8, 12", "units_new": 58, "as_of": "24/11/2026", "source": "email:7"}],   // passport (see "Project passport")
+  "statuses": [{"project": "מגדל הדוגמה", "process": "construction", "text": "שלד בקומה 7, ממתינים לתוכניות קורות 7-8", "as_of": "24/11/2026", "source": "email:7"}],
+  "profile_checked": true,          // when the source says nothing new for the passport / statuses
   "attention": [{"kind": "question", "text": "...", "task": 4}],
   "people": [{"id": 12, "name": "משה דיין", "name_en": "Moshe Dayan"}],   // Hebrew names for contacts that have only a Latin one
   "drafts": [{"task": 4, "text": "שלום נועה, ..."}],            // reply drafts for the owner to copy (never sent)

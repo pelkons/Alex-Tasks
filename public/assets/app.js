@@ -28,7 +28,7 @@ function app() {
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false, mailArchive: true }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '', mailThreadOpen: null, _emailTpl: null,
     mail: { f: { q: '', folder: 'all', project: '', person: '', personName: '', from: '', to: '', att: false, linked: '', archive: '1', noise: '', mode: 'threads' }, range: '', pq: '', sug: [], showF: false, items: [], next: null, total: null, newCount: 0, since: null, capped: false, loading: false, loaded: false, err: '', openId: null, open: {}, sub: {}, seq: 0, urlKey: null, visited: false, scroll: 0 },
-    pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
+    pp: null, ppErr: '', ppSearch: { q: '', results: [] }, pjSumOpen: false, pjEdit: null, pjAddProc: false, pjFq: '', pjHist: false, pjMore: {}, pjClosedMap: (() => { try { return JSON.parse(localStorage.getItem('pjClosed') || '{}'); } catch (e) { return {}; } })(), projQ: '', showNewProj: false, kNote: '', menuOpen: false,
 
     async init() {
       // one malformed row or value must never blank a screen: the pure render helpers return a harmless default instead of throwing
@@ -582,7 +582,52 @@ function app() {
         if (this.route.name === 'projects' && this.route.id === id) { this.pp = d; this.ppErr = ''; try { localStorage.setItem('lastProject', String(id)); } catch (e) {} }
       } catch (e) { if (!quiet) { this.pp = null; this.ppErr = 'הפרויקט לא נמצא'; } }
     },
-    openProject(id) { this.ppSearch = { q: '', results: [] }; this.go('/projects/' + id); },
+    openProject(id) { this.ppSearch = { q: '', results: [] }; this.pjFq = ''; this.pjEdit = null; this.pjMore = {}; this.pjHist = false; this.pjSumOpen = false; this.go('/projects/' + id); },
+    // ---------- project page: passport, latest status per process, facts by topic
+    pjIsEditing(kind, key) { return !!this.pjEdit && this.pjEdit.kind === kind && this.pjEdit.key === key; },
+    pjStartEdit(kind, key, value) { this.pjEdit = { kind, key, value: value || '' }; },
+    async pjSave() {
+      const e = this.pjEdit; if (!e || !this.pp) return;
+      const pid = this.pp.project.id;
+      try {
+        if (e.kind === 'field') await this.api('POST', `/api/projects/${pid}/profile`, { [e.key]: e.value.trim() });
+        else await this.api('POST', `/api/projects/${pid}/status`, { process: e.key, text: e.value.trim() });
+        this.pjEdit = null; this.toast('נשמר'); await this.loadProjectPage(pid, true);
+      } catch (x) { this.fail(x); }
+    },
+    pjFieldText(f) { if (!f.value) return ''; if (f.field === 'floors') { const a = String(f.value).split(/,\s*/); return a.length > 1 ? a.slice(0, -1).join(', ') + ' ו-' + a[a.length - 1] : a[0]; } return f.value; },
+    pjStatuses() { const all = (this.pp && this.pp.profile ? this.pp.profile.statuses : []); return all.filter((s) => s.value || this.pjIsEditing('status', s.process)); },
+    pjMissingProcesses() { const all = (this.pp && this.pp.profile ? this.pp.profile.statuses : []); return all.filter((s) => !s.value && !this.pjIsEditing('status', s.process)); },
+    pjGroups() {
+      if (!this.pp) return [];
+      const q = this.pjFq.trim().toLowerCase();
+      const hit = (f) => !q || `${f.key} ${f.value}`.toLowerCase().includes(q);
+      const rows = [...(this.pp.facts || []), ...(this.pjHist ? (this.pp.facts_history || []) : [])].filter(hit);
+      const T = this.pp.topics || {};
+      return Object.keys(T).map((t) => ({ topic: t, label: T[t], items: rows.filter((f) => (f.topic || 'other') === t).sort((a, b) => String(b.as_of_date).localeCompare(String(a.as_of_date)) || (a.superseded_by ? 1 : 0) - (b.superseded_by ? 1 : 0)) })).filter((g) => g.items.length);
+    },
+    pjLimit(t) { return this.pjFq.trim() ? 1000 : (this.pjMore[t] || 8); },
+    pjShown(g) { return g.items.slice(0, this.pjLimit(g.topic)); },
+    pjClosed(t) { return !this.pjFq.trim() && !!this.pjClosedMap[t]; },
+    pjToggleGroup(t) { this.pjClosedMap = { ...this.pjClosedMap, [t]: !this.pjClosedMap[t] }; try { localStorage.setItem('pjClosed', JSON.stringify(this.pjClosedMap)); } catch (e) { /* private mode */ } },
+    pjSender(v) { return String(v || '').replace(/<[^>]*>/g, '').replace(/["']/g, '').trim(); },
+    pjLate(t) { return !!t.due_date && t.due_date < todayISO(); },
+    pjTopTasks() {
+      const today = todayISO();
+      const score = (t) => [t.due_date && t.due_date < today ? 0 : 1, t.priority_sort || 9, t.due_date || '9999-99-99', -t.id];
+      return [...(this.pp ? this.pp.tasks : [])].sort((a, b) => { const x = score(a), y = score(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }).slice(0, 5);
+    },
+    srcIcon(type) {
+      const P = { email: '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>', file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+        protocol: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 11h7M8.5 15h5"/>', chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/>',
+        owner: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>', manual: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>' };
+      return `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[type] || P.manual}</svg>`;
+    },
+    srcClick(ev, s) {
+      if (!s || !s.link) { if (s && s.type === 'chat') { ev.preventDefault(); this.openChat(); } else ev.preventDefault(); return; }
+      if (s.type === 'file') { ev.preventDefault(); window.open(s.link, '_blank', 'noopener'); return; }
+      ev.preventDefault(); this.go(s.link);
+    },
     filteredProjects() {
       const q = this.projQ.trim().toLowerCase();
       return this.boot.projects.filter((p) => !q || p.name_he.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q)));
@@ -1416,7 +1461,7 @@ function app() {
       } catch (e) { this.fail(e); }
     },
     factSourceLabel(h) { return { email: 'מייל', chat: 'צ׳אט', file: 'מסמך', manual: 'ידני' }[h.source_type] + (h.source && h.source.subject ? ': ' + this.clipText(h.source.subject, 30) : ''); },
-    openFactSource(h) { this.picker = null; if (h.source_type === 'email' && h.source_id) this.go('/email/' + h.source_id); else if (h.source_type === 'chat') this.openChat(); else if (h.source_type === 'file') this.go('/projects/' + h.project_id); },
+    openFactSource(h) { this.picker = null; if (h.source_type === 'email' && h.source_id) this.go('/email/' + h.source_id); else if (h.source_type === 'chat') this.openChat(); else if (h.source_type === 'file' && h.source_id) window.open('/api/files/' + h.source_id + '/download?inline=1', '_blank', 'noopener'); },
 
     // ---------- misc
     toggleTheme() {

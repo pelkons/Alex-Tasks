@@ -712,24 +712,225 @@
     <template x-if="!route.id"><div class="empty"><b>לא נבחר פרויקט</b>בחרו פרויקט מהרשימה</div></template>
     <template x-if="route.id && !pp"><div class="empty" x-text="ppErr || 'טוען…'"></div></template>
     <template x-if="route.id && pp">
-      <div>
+      <div class="pj" :style="'--pcol:'+pc({project_color:pp.project.color, project_default:pp.project.is_default})">
         <div class="tc-top">
           <button class="btn ghost back-btn" @click="go('/projects')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
             חזרה לרשימה
           </button>
         </div>
-        <div class="ph">
-          <span class="plabel big" :class="{unassigned: pp.project.is_default}" :style="'--pcol:'+pc({project_color:pp.project.color, project_default:pp.project.is_default})" style="margin:0"><i></i><span x-text="pp.project.name_he"></span></span>
-          <span class="muted" x-text="pp.project.open_count+' משימות פתוחות'"></span>
+
+        <!-- header: name, state, open tasks, actions -->
+        <header class="pj-head">
+          <span class="plabel big" :class="{unassigned: pp.project.is_default}" :style="'--pcol:'+pc({project_color:pp.project.color, project_default:pp.project.is_default})"><i></i><span x-text="pp.project.name_he"></span></span>
+          <span class="pj-state" :class="'st-'+({'פעיל':'on','מושהה':'hold','סגור':'off'}[pp.project.status]||'on')" x-text="pp.project.status || 'פעיל'"></span>
+          <span class="pj-open" x-text="pp.project.open_count+' משימות פתוחות'"></span>
           <span class="spacer"></span>
-          <button class="btn small" @click="filterByProject(pp.project.id)">למשימות</button>
+          <button class="btn small" @click="filterByProject(pp.project.id)">משימות</button>
           <div class="menu-wrap">
             <button class="icon-btn" @click="toggleMenu($event)" aria-haspopup="dialog" :aria-expanded="menuOpen" aria-label="תפריט פרויקט" title="תפריט פרויקט"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
           </div>
+        </header>
+
+        <div class="pj-cols">
+          <div class="pj-main">
+
+            <!-- A. passport -->
+            <section class="pj-card pj-pass" aria-labelledby="pj-pass-h">
+              <div class="pj-ch"><h2 id="pj-pass-h">דרכון הפרויקט</h2><span class="pj-headline" x-show="pp.profile && pp.profile.headline" x-text="pp.profile && pp.profile.headline"></span></div>
+              <template x-if="ed!=='summary'">
+                <div class="pj-sum" :class="{open: pjSumOpen}">
+                  <p x-show="pp.project.summary_he" x-text="pp.project.summary_he" @click="pjSumOpen=!pjSumOpen" :title="pjSumOpen ? '' : 'לחצו להצגה מלאה'"></p>
+                  <p class="muted" x-show="!pp.project.summary_he">אין תקציר עדיין.</p>
+                  <button class="ed-btn" @click="ed='summary'" aria-label="עריכת תקציר" title="עריכת תקציר">✎</button>
+                </div>
+              </template>
+              <template x-if="ed==='summary'">
+                <div class="pj-sum-edit"><textarea class="desc-edit" :value="pp.project.summary_he" x-init="$nextTick(()=>{$el.focus(); $el.style.height='auto'; $el.style.height=($el.scrollHeight+4)+'px'})" @input="$el.style.height='auto';$el.style.height=($el.scrollHeight+4)+'px'" @keydown.escape.stop="ed=null" x-ref="sumEdit" placeholder="מהות הפרויקט, מזמין, שלב, אנשי מפתח"></textarea>
+                  <div class="btnrow"><button class="btn small primary" @click="saveSummary($refs.sumEdit.value); ed=null">שמירה</button><button class="btn small" @click="ed=null">ביטול</button></div></div>
+              </template>
+              <dl class="pj-kv">
+                <template x-for="f in (pp.profile ? pp.profile.fields : [])" :key="f.field">
+                  <div class="kv" :class="{unknown: !f.value, owner: f.by_owner, editing: pjIsEditing('field', f.field)}">
+                    <dt x-text="f.label"></dt>
+                    <template x-if="!pjIsEditing('field', f.field)">
+                      <dd>
+                        <button type="button" class="kv-val" @click="pjStartEdit('field', f.field, f.value)" :title="'עריכה: '+f.label" x-text="f.value ? pjFieldText(f) : 'לא ידוע'"></button>
+                        <template x-if="f.value">
+                          <span class="kv-meta">
+                            <span x-text="fmtDate(f.as_of)"></span>
+                            <a class="src" :class="'s-'+(f.by_owner ? 'owner' : f.source.type)" :href="f.by_owner ? null : (f.source.link || null)" :title="f.by_owner ? 'עודכן על ידי '+ownerName() : f.source.label" :aria-label="f.by_owner ? 'עודכן על ידי '+ownerName() : 'מקור: '+f.source.label" @click="srcClick($event, f.by_owner ? null : f.source)" x-html="srcIcon(f.by_owner ? 'owner' : f.source.type)"></a>
+                            <span class="own" x-show="f.by_owner">תוקן ידנית</span>
+                          </span>
+                        </template>
+                      </dd>
+                    </template>
+                    <template x-if="pjIsEditing('field', f.field)">
+                      <dd>
+                        <form class="kv-edit" @submit.prevent="pjSave()" @keydown.escape.stop="pjEdit=null">
+                          <input type="text" x-model="pjEdit.value" :inputmode="f.kind==='int' ? 'numeric' : 'text'" :placeholder="f.hint" :aria-label="f.label" x-init="$nextTick(()=>$el.focus())">
+                          <button class="btn small primary" type="submit">שמירה</button>
+                          <button class="btn small" type="button" @click="pjEdit=null">ביטול</button>
+                          <button class="btn small ghost danger" type="button" x-show="f.value" @click="pjEdit.value=''; pjSave()">ניקוי</button>
+                        </form>
+                      </dd>
+                    </template>
+                  </div>
+                </template>
+              </dl>
+              <p class="pj-note muted">לחיצה על ערך פותחת תיקון. תיקון שלך מסומן, ואלכס לא דורס אותו.</p>
+            </section>
+
+            <!-- B. latest status per process -->
+            <section class="pj-card pj-status" aria-labelledby="pj-st-h">
+              <div class="pj-ch"><h2 id="pj-st-h">סטטוס אחרון</h2>
+                <div class="menu-wrap pj-addproc" x-show="pjMissingProcesses().length">
+                  <button class="btn small ghost" @click="pjAddProc = !pjAddProc" :aria-expanded="pjAddProc">+ תהליך</button>
+                  <div class="pj-pop" x-show="pjAddProc" x-cloak @click.outside="pjAddProc=false">
+                    <template x-for="s in pjMissingProcesses()" :key="s.process"><button type="button" @click="pjAddProc=false; pjStartEdit('status', s.process, '')" x-text="s.label"></button></template>
+                  </div>
+                </div>
+              </div>
+              <template x-if="!pjStatuses().length && !pjEdit">
+                <p class="muted pj-empty">עוד אין סטטוס מתועד. אלכס יעדכן אותו מהמיילים ומהפרוטוקולים, ואפשר להוסיף כאן.</p>
+              </template>
+              <ul class="pj-procs">
+                <template x-for="s in pjStatuses()" :key="s.process">
+                  <li class="proc" :class="['p-'+s.process, {owner: s.by_owner}]">
+                    <span class="proc-l" x-text="s.label"></span>
+                    <template x-if="!pjIsEditing('status', s.process)">
+                      <div class="proc-b">
+                        <button type="button" class="proc-t" @click="pjStartEdit('status', s.process, s.value)" :title="'עריכה: '+s.label" x-text="s.value || '…'"></button>
+                        <template x-if="s.value">
+                          <span class="kv-meta">
+                            <span x-text="fmtDate(s.as_of)"></span>
+                            <a class="src" :class="'s-'+(s.by_owner ? 'owner' : s.source.type)" :href="s.by_owner ? null : (s.source.link || null)" :title="s.by_owner ? 'עודכן על ידי '+ownerName() : s.source.label" :aria-label="s.by_owner ? 'עודכן על ידי '+ownerName() : 'מקור: '+s.source.label" @click="srcClick($event, s.by_owner ? null : s.source)" x-html="srcIcon(s.by_owner ? 'owner' : s.source.type)"></a>
+                          </span>
+                        </template>
+                      </div>
+                    </template>
+                    <template x-if="pjIsEditing('status', s.process)">
+                      <form class="kv-edit" @submit.prevent="pjSave()" @keydown.escape.stop="pjEdit=null">
+                        <input type="text" x-model="pjEdit.value" placeholder="שורה אחת: איפה זה עומד ומה הצעד הבא" :aria-label="s.label" x-init="$nextTick(()=>$el.focus())">
+                        <button class="btn small primary" type="submit" :disabled="!pjEdit.value.trim()">שמירה</button>
+                        <button class="btn small" type="button" @click="pjEdit=null">ביטול</button>
+                        <button class="btn small ghost danger" type="button" x-show="s.value" @click="pjEdit.value=''; pjSave()" title="התהליך לא רלוונטי לפרויקט">הסרה</button>
+                      </form>
+                    </template>
+                  </li>
+                </template>
+              </ul>
+            </section>
+
+            <!-- facts grouped by topic -->
+            <section class="pj-card pj-facts" aria-labelledby="pj-f-h">
+              <div class="pj-ch"><h2 id="pj-f-h">מידע על הפרויקט</h2><span class="pj-count" x-text="(pp.facts||[]).length"></span><span class="spacer"></span>
+                <button class="btn small ghost" @click="openFactAdd()">+ נתון</button></div>
+              <div class="pj-ftools">
+                <input type="search" x-model="pjFq" @input.debounce.400ms="ppSearch.q=pjFq; searchInProject()" placeholder="חיפוש במידע ובפרויקט" aria-label="חיפוש במידע על הפרויקט">
+                <button type="button" class="chip" :class="{on: pjHist}" x-show="(pp.facts_history||[]).length" @click="pjHist=!pjHist" :aria-pressed="pjHist" x-text="'היסטוריה ('+(pp.facts_history||[]).length+')'"></button>
+              </div>
+              <template x-if="!(pp.facts||[]).length"><p class="muted pj-empty">המידע מתמלא מהמיילים, מהקבצים ומהפרוטוקולים, ואפשר להוסיף נתון גם ידנית.</p></template>
+              <template x-for="g in pjGroups()" :key="g.topic">
+                <div class="fg" :class="{closed: pjClosed(g.topic)}">
+                  <button type="button" class="fg-h" @click="pjToggleGroup(g.topic)" :aria-expanded="!pjClosed(g.topic)">
+                    <svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    <b x-text="g.label"></b><span class="pj-count" x-text="g.items.length"></span>
+                  </button>
+                  <ul class="fl" x-show="!pjClosed(g.topic)">
+                    <template x-for="f in pjShown(g)" :key="(f.superseded_by ? 'h' : 'c')+f.id">
+                      <li class="fr" :class="{old: f.superseded_by}">
+                        <button type="button" class="fr-main" @click="openFact(f)" :title="'היסטוריה ועדכון: '+f.key">
+                          <span class="fr-k" x-text="f.key"></span>
+                          <span class="fr-v" x-text="f.value + (f.unit ? ' ' + f.unit : '') + (f.superseded_by ? ' (הוחלף)' : '')"></span>
+                        </button>
+                        <span class="kv-meta">
+                          <span x-text="fmtDate(f.as_of_date)"></span>
+                          <a class="src" :class="'s-'+f.source.type" :href="f.source.link || null" :title="f.source.label" :aria-label="'מקור: '+f.source.label" @click="srcClick($event, f.source)" x-html="srcIcon(f.source.type)"></a>
+                        </span>
+                      </li>
+                    </template>
+                    <li class="fr-more" x-show="g.items.length > pjLimit(g.topic)"><button type="button" class="btn small ghost" @click="pjMore[g.topic]=1000" x-text="'עוד '+(g.items.length - pjLimit(g.topic))"></button></li>
+                  </ul>
+                </div>
+              </template>
+              <template x-if="pp.knowledge && pp.knowledge.length && !pjFq.trim()">
+                <div class="fg" :class="{closed: pjClosed('_notes')}">
+                  <button type="button" class="fg-h" @click="pjToggleGroup('_notes')" :aria-expanded="!pjClosed('_notes')">
+                    <svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    <b>הערות ומסמכים שסוכמו</b><span class="pj-count" x-text="pp.knowledge.length"></span>
+                  </button>
+                  <ul class="fl" x-show="!pjClosed('_notes')">
+                    <template x-for="k in pp.knowledge.slice(0, pjLimit('_notes'))" :key="'k'+k.id">
+                      <li class="fr"><div class="fr-main"><span class="fr-k" x-text="kindHe(k.kind)"></span><span class="fr-v" x-text="k.title + (k.body && k.body!==k.title ? ' · ' + clipText(k.body, 160) : '')"></span></div>
+                        <span class="kv-meta"><span x-text="dayOf(k.updated_at)"></span></span></li>
+                    </template>
+                    <li class="fr-more" x-show="pp.knowledge.length > pjLimit('_notes')"><button type="button" class="btn small ghost" @click="pjMore._notes=1000" x-text="'עוד '+(pp.knowledge.length - pjLimit('_notes'))"></button></li>
+                  </ul>
+                </div>
+              </template>
+              <div class="pj-sres" x-show="pjFq.trim().length>=3 && ppSearch.results.length">
+                <h3>בכל הפרויקט</h3>
+                <template x-for="r in ppSearch.results.slice(0, 8)" :key="r.key"><button class="sres" @click="openResult(r)"><span class="s-title" x-show="r.title" x-text="r.title"></span><span class="s-snip" x-html="r.html"></span><span class="s-meta muted" x-text="kindLabel2(r.kind)+' · '+dayOf(r.date)"></span></button></template>
+              </div>
+            </section>
+          </div>
+
+          <aside class="pj-side">
+            <section class="pj-card pj-tasks" aria-labelledby="pj-t-h">
+              <div class="pj-ch"><h2 id="pj-t-h">משימות פתוחות</h2><span class="pj-count" x-text="pp.tasks.length"></span></div>
+              <template x-if="!pp.tasks.length"><p class="muted pj-empty">אין משימות פתוחות</p></template>
+              <ul class="sl">
+                <template x-for="t in pjTopTasks()" :key="t.id">
+                  <li><button type="button" class="sl-row" @click="openTask(t.id)">
+                    <span class="sl-t" x-text="t.title"></span>
+                    <span class="sl-m"><span class="pri" :class="{urgent: t.priority_sort===1}" x-show="t.priority_sort===1">דחוף</span><span :class="{late: pjLate(t)}" x-text="t.due_date ? 'עד '+fmtDate(t.due_date)+(t.due_source==='estimated' ? ' (משוער)' : '') : 'ללא יעד'"></span><span x-show="t.assignee" x-text="'· '+t.assignee"></span></span>
+                  </button></li>
+                </template>
+              </ul>
+              <button class="btn small ghost pj-all" x-show="pp.tasks.length" @click="filterByProject(pp.project.id)" x-text="'כל המשימות ('+pp.tasks.length+')'"></button>
+            </section>
+
+            <section class="pj-card pj-prots" aria-labelledby="pj-p-h">
+              <div class="pj-ch"><h2 id="pj-p-h">פרוטוקולים</h2><span class="pj-count" x-text="(pp.protocols||[]).length"></span></div>
+              <template x-if="!(pp.protocols||[]).length"><p class="muted pj-empty">אין פרוטוקולים</p></template>
+              <ul class="sl">
+                <template x-for="p in (pp.protocols || []).slice(0, 5)" :key="p.id">
+                  <li><button type="button" class="sl-row" @click="openProtocol(p.id)"><span class="sl-t" x-text="p.title"></span><span class="sl-m" x-text="[dayOf(p.meeting_at), p.open_actions ? p.open_actions+' פתוחים' : ''].filter(Boolean).join(' · ')"></span></button></li>
+                </template>
+              </ul>
+            </section>
+
+            <section class="pj-card pj-people" aria-labelledby="pj-pe-h">
+              <div class="pj-ch"><h2 id="pj-pe-h">אנשי קשר בפרויקט</h2></div>
+              <template x-if="!(pp.people||[]).length"><p class="muted pj-empty">עוד לא ידוע מי מעורב</p></template>
+              <ul class="sl">
+                <template x-for="pe in (pp.people || [])" :key="pe.id">
+                  <li><button type="button" class="sl-row pe" @click="go('/people')"><span class="av" x-text="(pe.name_he||'?').trim().charAt(0)"></span><span class="sl-t" x-text="pe.name_he"></span><span class="sl-m" x-text="[pe.role_text, pe.company].filter(Boolean).join(' · ') || ' '"></span></button></li>
+                </template>
+              </ul>
+            </section>
+
+            <section class="pj-card pj-docs" aria-labelledby="pj-d-h" @dragover.prevent @drop.prevent="uploadToProject($event.dataTransfer.files)">
+              <div class="pj-ch"><h2 id="pj-d-h">מסמכים ומיילים</h2><span class="spacer"></span>
+                <button class="icon-btn pj-up" @click="$refs.pfile.click()" title="העלאת מסמך לפרויקט (אפשר גם לגרור לכאן)" aria-label="העלאת מסמך לפרויקט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/></svg></button>
+                <input type="file" multiple class="sr" x-ref="pfile" @change="uploadToProject($event.target.files); $event.target.value=''" tabindex="-1"></div>
+              <ul class="sl">
+                <template x-for="f in pp.files.slice(0, 4)" :key="'f'+f.id">
+                  <li><a class="sl-row" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener"><span class="sl-t" x-text="f.original_name"></span><span class="sl-m" x-text="dayOf(f.created_at)"></span></a></li>
+                </template>
+                <template x-for="e in pp.emails.slice(0, 4)" :key="'e'+e.id">
+                  <li><button type="button" class="sl-row" @click="go('/email/'+e.id)"><span class="sl-t" x-text="e.subject || '(ללא נושא)'"></span><span class="sl-m" x-text="[pjSender(e.from_sender), dayOf(e.date)].filter(Boolean).join(' · ')"></span></button></li>
+                </template>
+              </ul>
+              <p class="muted pj-empty" x-show="!pp.files.length && !pp.emails.length">אין עדיין מסמכים או מיילים</p>
+            </section>
+          </aside>
         </div>
-<div class="sect sc-chat" x-data x-init="scLoad('project:'+pp.project.id)">
-  <h3>שיחה עם <span x-text="assistantName()"></span> על הפרויקט</h3>
+
+        <!-- the project-scoped chat, at the bottom -->
+<section class="pj-card sc-chat pj-chat" x-data x-init="scLoad('project:'+pp.project.id)" aria-labelledby="pj-c-h">
+  <div class="pj-ch"><h2 id="pj-c-h">שיחה עם <span x-text="assistantName()"></span> על הפרויקט</h2></div>
   <div class="tc-feed sc-feed" x-show="scMsgs('project:'+pp.project.id).length>0" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
     <template x-for="m in scMsgs('project:'+pp.project.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
@@ -751,106 +952,8 @@
       @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('project:'+pp.project.id); }"></textarea>
     <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
   </form>
-</div>
-
-        <div class="pcard">
-          <div class="pc-h"><h3>כרטיס פרויקט</h3><button class="btn small ghost" @click="openFactAdd()">+ נתון</button></div>
-          <div class="pc-grid" x-show="pp.facts && pp.facts.length">
-            <template x-for="f in sortedFacts()" :key="f.id">
-              <button class="fact" :class="{status: isStatusKey(f.key)}" @click="openFact(f)">
-                <span class="fk" x-text="f.key"></span>
-                <span class="fv" x-text="f.value + (f.unit ? ' ' + f.unit : '')"></span>
-                <span class="fd" x-text="'נכון ל־' + dayOf(f.as_of_date)"></span>
-              </button>
-            </template>
-          </div>
-          <p class="muted" style="margin:6px 0 0;font-size:.88rem" x-show="!pp.facts || !pp.facts.length">הכרטיס מתמלא מהמיילים וההודעות שמתקבלים, ואפשר להוסיף נתון גם ידנית.</p>
-        </div>
-
-        <div class="tc-desc" style="margin-top:12px">
-          <template x-if="ed!=='summary'">
-            <div class="desc-view"><p class="desc-text" x-show="pp.project.summary_he" x-text="pp.project.summary_he"></p><p class="desc-empty" x-show="!pp.project.summary_he">אין תקציר עדיין. אלכס ימלא אותו מהמיילים והמסמכים, או לחצו על העיפרון.</p>
-              <button class="ed-btn" @click="ed='summary'" aria-label="עריכת תקציר" title="עריכת תקציר">✎</button></div>
-          </template>
-          <template x-if="ed==='summary'">
-            <div><textarea class="desc-edit" :value="pp.project.summary_he" x-init="$nextTick(()=>{$el.focus(); $el.style.height='auto'; $el.style.height=($el.scrollHeight+4)+'px'})" @input="$el.style.height='auto';$el.style.height=($el.scrollHeight+4)+'px'" @keydown.escape.stop="ed=null" x-ref="sumEdit" placeholder="מהות הפרויקט, מזמין, שלב, אנשי מפתח, תאריכים וסיכונים"></textarea>
-              <div class="btnrow" style="margin-top:6px"><button class="btn small primary" @click="saveSummary($refs.sumEdit.value); ed=null">שמירה</button><button class="btn small" @click="ed=null">ביטול</button></div></div>
-          </template>
-        </div>
-
-        <div class="sect">
-          <h3>חיפוש בפרויקט</h3>
-          <input type="search" x-model="ppSearch.q" @input.debounce.400ms="searchInProject()" placeholder="חיפוש בתוך הפרויקט">
-          <div class="sres-list" style="margin-top:8px">
-            <template x-for="r in ppSearch.results" :key="r.key"><button class="sres" @click="openResult(r)"><span class="s-title" x-show="r.title" x-text="r.title"></span><span class="s-snip" x-html="r.html"></span><span class="s-meta muted" x-text="kindLabel2(r.kind)+' · '+dayOf(r.date)"></span></button></template>
-          </div>
-        </div>
-
-        <div class="sect" x-show="pp.protocols && pp.protocols.length">
-          <h3>פרוטוקולים</h3>
-          <template x-for="p in (pp.protocols || [])" :key="p.id">
-            <button class="mini-row" @click="openProtocol(p.id)"><b x-text="p.title"></b><span class="muted" x-text="[fmtDateTime(p.meeting_at), p.open_actions+' משימות פתוחות'].join(' · ')"></span></button>
-          </template>
-        </div>
-
-        <div class="sect">
-          <h3>מידע</h3>
-          <form @submit.prevent="addKnowledge()">
-            <textarea x-model="kNote" placeholder="הוספת הערה או עובדה על הפרויקט…" style="min-height:72px" aria-label="הערה חדשה"></textarea>
-            <div class="btnrow" style="margin-top:8px"><button class="btn primary" type="submit" :disabled="!kNote.trim()">הוספת הערה</button></div>
-          </form>
-          <template x-if="pp.knowledge.length===0"><p class="muted">עדיין אין מידע בפרויקט</p></template>
-          <template x-for="k in pp.knowledge" :key="k.id">
-            <div class="kitem"><div class="k-h"><span class="kind" x-text="kindHe(k.kind)"></span><b x-text="k.title"></b></div>
-              <div class="k-b" x-show="k.body && k.body!==k.title" x-text="k.body"></div>
-              <div class="muted k-m" x-text="[k.author, dayOf(k.updated_at)].filter(Boolean).join(' · ')"></div></div>
-          </template>
-        </div>
-
-        <div class="sect" @dragover.prevent @drop.prevent="uploadToProject($event.dataTransfer.files)">
-          <h3>מסמכים</h3>
-          <div class="dropzone"><button class="btn" @click="$refs.pfile.click()">📎 העלאת מסמך</button><span class="muted">או גררו קובץ לכאן</span>
-            <input type="file" multiple class="sr" x-ref="pfile" @change="uploadToProject($event.target.files); $event.target.value=''" tabindex="-1"></div>
-          <template x-if="pp.files.length===0"><p class="muted">אין מסמכים</p></template>
-          <template x-for="f in pp.files" :key="f.id">
-            <div class="kitem filecard">
-              <a class="thumb" x-show="isImage(f)" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank"><img :src="'/api/files/'+f.id+'/download?inline=1'" alt="" loading="lazy"></a>
-              <div class="fc-main">
-                <div class="k-h"><a :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.original_name"></a></div>
-                <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
-                <div class="k-b muted" x-show="!f.summary">אלכס עדיין לא סיכם את המסמך</div>
-                <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status), f.index_note, f.chunk_count ? f.chunk_count+' קטעים' : '', dayOf(f.created_at)].filter(Boolean).join(' · ')"></div>
-                <a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a>
-                <button class="btn small ghost" x-show="f.email_id" @click="go('/email/'+f.email_id)">פתיחת המייל</button>
-              </div></div>
-          </template>
-        </div>
-
-        <div class="sect">
-          <h3>משימות פתוחות</h3>
-          <template x-if="pp.tasks.length===0"><p class="muted">אין משימות פתוחות</p></template>
-          <template x-for="t in pp.tasks" :key="t.id">
-            <button class="mini-row" @click="openTask(t.id)"><b x-text="t.title"></b><span class="muted" x-text="[t.requester ? 'מאת '+t.requester : '', t.due_date ? 'עד '+fmtDate(t.due_date)+(t.due_source==='estimated' ? ' (משוער)' : '') : 'ללא יעד'].filter(Boolean).join(' · ')"></span></button>
-          </template>
-        </div>
-
-        <div class="sect">
-          <h3>מיילים אחרונים</h3>
-          <template x-if="pp.emails.length===0"><p class="muted">אין מיילים</p></template>
-          <template x-for="e in pp.emails" :key="e.id">
-            <button class="mini-row" @click="go('/email/'+e.id)"><b x-text="e.subject"></b><span class="muted" x-text="[e.from_sender, dayOf(e.date)].filter(Boolean).join(' · ')"></span></button>
-          </template>
-        </div>
-
-        <div class="sect">
-          <h3>ציר זמן</h3>
-          <ul class="hist">
-            <template x-for="t in pp.timeline" :key="t.kind+t.id">
-              <li><div class="h" x-text="dayOf(t.date)+' · '+kindLabel2(t.kind)"></div><a href="#" @click.prevent="go(t.link)" x-text="clipText(t.text, 140)"></a></li>
-            </template>
-          </ul>
-        </div>
-        <p class="stamps muted" x-show="pp.stamps && pp.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(pp.stamps && pp.stamps.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(pp.stamps.updated_at)"></span></p>
+</section>
+        <p class="stamps muted" x-show="pp.stamps && pp.stamps.created_at"><span x-text="'נוצר: '+fmtDateTime(pp.stamps && pp.stamps.created_at)"></span> · <span x-text="'עדכון אחרון: '+fmtDateTime(pp.stamps.updated_at)"></span></p>
       </div>
     </template>
   </section>

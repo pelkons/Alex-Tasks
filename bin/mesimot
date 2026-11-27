@@ -106,7 +106,9 @@ const USAGE = `mesimot <command>
   archive status | failed | retry | estimate   (the Outlook mail archive: queue, text-only counts, disk, speed)
   show task|email|knowledge|chunk|file <id>
   calendar list|add|update|delete  calendar-token [--rotate]
-  knowledge list|add|update|supersede   fact set|list   file list|classify
+  project profile <project> [--buildings N --floors "8, 12" --units-new N --units-existing N --track .. --commercial .. --contractor .. --architect ..] --as-of YYYY-MM-DD --source email:<id>   (the PASSPORT; no field = show)
+  project status <project> --process design|permit|construction|marketing --text "..." --as-of YYYY-MM-DD --source email:<id>|file:<id>|protocol:<id>|chat:<id>   (latest status per process; no --text = show)
+  knowledge list|add|update|supersede   fact set [--topic T]|list|topic   file list|classify
   protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6] [--task-scope ID|0]  chat list      email show|thread <id>
   apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
   run-summary --text "..."
@@ -206,8 +208,9 @@ async function main() {
       return;
     }
     case 'fact':
-      if (sub === 'set') { const body = pick(opt, ['project', 'key', 'value', 'unit', 'source']); if (opt['as-of']) body.as_of = opt['as-of']; return out(await api('POST', '/api/facts', body)); }
+      if (sub === 'set') { const body = pick(opt, ['project', 'key', 'value', 'unit', 'source', 'topic']); if (opt['as-of']) body.as_of = opt['as-of']; return out(await api('POST', '/api/facts', body)); }
       if (sub === 'list') return out(await api('GET', '/api/facts' + qs({ project: opt.project, history: opt.history ? '1' : undefined }, ['project', 'history'])));
+      if (sub === 'topic') { if (!opt.topic) fail('usage: fact topic <fact id> --topic design|permit|construction|finance|marketing|people|other   or   fact topic --project P --key "<key>" --topic ...'); return out(await api('POST', '/api/facts/topic', { id: arg, project: opt.project, key: opt.key, topic: opt.topic })); }
       break;
     case 'file':
       if (sub === 'list') return out(await api('GET', '/api/files' + qs(opt, ['project'])));
@@ -264,6 +267,18 @@ async function main() {
       if (sub === 'propose') { const name = opt.name || pos.slice(2).join(' '); if (!name) fail('usage: project propose "<name>" [--aliases a,b] [--from email:<id>|chat:<id>|protocol:<id>] [--context "<one line>"] [--attach task:12,email:5]'); return out(await api('POST', '/api/projects/propose', { name, ...pick(opt, ['aliases', 'from', 'context', 'description', 'attach']) })); }
       if (sub === 'pending') return out(await api('GET', '/api/project-proposals' + qs(opt, ['status'])));
       if (sub === 'show') { if (!arg) fail('missing project'); return out(await api('GET', `/api/projects/${encodeURIComponent(arg)}/show`)); }
+      if (sub === 'profile') { // the PASSPORT: no field = show it
+        if (!arg) fail('usage: project profile <project> [--buildings N] [--floors "8, 12"] [--units-new N] [--units-existing N] [--track "..."] [--commercial "..."] [--contractor "..."] [--architect "..."] --as-of YYYY-MM-DD --source email:<id>|file:<id>|protocol:<id>|chat:<id> | [--history]');
+        const fields = {}; for (const k of ['buildings', 'floors', 'units-new', 'units-existing', 'track', 'commercial', 'contractor', 'architect']) if (opt[k] !== undefined && opt[k] !== true) fields[k.replace('-', '_')] = opt[k];
+        if (!Object.keys(fields).length) return out(await api('GET', `/api/projects/${encodeURIComponent(arg)}/profile${opt.history ? '?history=1' : ''}`));
+        return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/profile`, { ...fields, as_of: opt['as-of'], source: opt.source }));
+      }
+      if (sub === 'status') { // the LATEST STATUS of one process: no --text = show all of them
+        if (!arg) fail('usage: project status <project> --process design|permit|construction|marketing --text "..." --as-of YYYY-MM-DD --source email:<id>|file:<id>|protocol:<id>|chat:<id> | [--history]');
+        if (opt.text === undefined || opt.text === true) { const pr = await api('GET', `/api/projects/${encodeURIComponent(arg)}/profile${opt.history ? '?history=1' : ''}`); return out(pr.statuses); }
+        if (!opt.process) fail('--process design|permit|construction|marketing required');
+        return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/status`, { process: opt.process, text: opt.text, as_of: opt['as-of'], source: opt.source }));
+      }
       if (sub === 'update') { if (!arg) fail('missing project'); return out(await api('PATCH', `/api/projects/${encodeURIComponent(arg)}`, pick(opt, ['name', 'aliases', 'description', 'status', 'color', 'summary', 'partial']))); }
       if (sub === 'resolve') { if (!arg) fail('usage: project resolve <vague> --into <project> | --name ... --aliases ...'); const b = pick(opt, ['into', 'name', 'aliases', 'description']); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/resolve`, b)); }
       if (sub === 'merge') { if (!arg || !pos[3]) fail('usage: project merge <from> <into>'); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/merge`, { into: pos[3] })); }
