@@ -26,7 +26,8 @@ function app() {
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
     showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false, mailArchive: true }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
-    emailView: null, emailErr: '',
+    emailView: null, emailErr: '', mailThreadOpen: null, _emailTpl: null,
+    mail: { f: { q: '', folder: 'all', project: '', person: '', personName: '', from: '', to: '', att: false, linked: '', archive: '1', noise: '', mode: 'threads' }, range: '', pq: '', sug: [], showF: false, items: [], next: null, total: null, newCount: 0, since: null, capped: false, loading: false, loaded: false, err: '', openId: null, open: {}, sub: {}, seq: 0, urlKey: null, visited: false, scroll: 0 },
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
 
     async init() {
@@ -45,6 +46,7 @@ function app() {
 
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
       window.addEventListener('popstate', () => this.onRoute());
+      window.addEventListener('scroll', () => this.mailNearEnd(), { passive: true });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (Date.now() - (this._escGuard || 0) < 200 || this.picker || this.menuOpen || this.dlg) return; if (this.route.name === 'task') this.closeTask(); else if (this.chatOpen) this.closeChat(); } });
       this.$nextTick(() => { // drag the sheet down by its header to close it
         const head = document.querySelector('.cp-head'), panel = document.querySelector('.chat-panel');
@@ -114,6 +116,7 @@ function app() {
       if (path === '/chat') return { name: 'home', id: null, chat: true };
       if (path === '/activity') return { name: 'activity', id: null };
       if (path === '/search') return { name: 'search', id: null };
+      if (path === '/mail') return { name: 'mail', id: null };
       if (path === '/archive') return { name: 'archive', id: null };
       return { name: 'home', id: null };
     },
@@ -144,7 +147,8 @@ function app() {
         else if (r.name === 'activity') { await this.loadBoot(); await this.loadActivity(); }
         else if (r.name === 'archive') { await this.loadBoot(); await this.loadArchive(); }
         else if (r.name === 'search') { const q = new URLSearchParams(location.search).get('q'); if (q) this.sq.q = q; await this.loadBoot(); if (this.sq.q) this.runSearch(); }
-        else if (r.name === 'email') await this.loadEmail(r.id);
+        else if (r.name === 'mail') await this.mailEnter(prev);
+        else if (r.name === 'email') { this.mailThreadOpen = null; await this.loadEmail(r.id); }
         else if (r.name === 'calendar') { await this.loadBoot(); await this.loadCalendar(); }
         else if (r.name === 'settings') { await this.loadBoot(); await this.loadSettings(); }
         else if (r.name === 'protocols') {
@@ -967,6 +971,124 @@ function app() {
       return esc.replace(/(?:https?:\/\/[^\/\s<]+)?\/(task|projects|email)\/(\d+)/g, (m, k, id) => `<a href="/${k}/${id}" data-go="/${k}/${id}">${name(k, id)}</a>`).replace(/\n/g, '<br>');
     },
     chatClick(ev) { const a = ev.target.closest && ev.target.closest('a[data-go]'); if (a) { ev.preventDefault(); this.go(a.dataset.go); } },
+
+    // ---------- the "דואר" tab: every email, newest first (lib/maillist.js). The list state lives here, so coming back from a mail keeps the list, the filters and the scroll position.
+    emailTpl() { if (!this._emailTpl) this._emailTpl = document.getElementById('tpl-email-view').innerHTML; return this._emailTpl; },
+    mailDesktop() { return window.innerWidth >= 1024; },
+    mailDirIcon(dir) {
+      return dir === 'sent'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="יוצא"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="נכנס"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg>';
+    },
+    mailWho(m) { return m.direction === 'sent' ? 'אל: ' + ((m.to || []).slice(0, 2).join(', ') || '—') + (m.to && m.to.length > 2 || m.to_more ? ' ועוד' : '') : (m.from || '—'); },
+    mailWhen(iso) {
+      if (!iso) return '';
+      const p = jerusalemParts(new Date(iso)), t = todayISO(), d = `${p.year}-${p.month}-${p.day}`;
+      if (d === t) return `${p.hour}:${p.minute}`;
+      const y = new Date(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10) - 1)).toISOString().slice(0, 10);
+      if (d === y) return 'אתמול';
+      return d.slice(0, 4) === t.slice(0, 4) ? `${p.day}/${p.month}` : `${p.day}/${p.month}/${p.year.slice(2)}`;
+    },
+    mailSummary() {
+      const m = this.mail; if (!m.loaded) return '';
+      if (this.mail.f.q && m.items.length >= 0 && m.search) return m.items.length + ' תוצאות';
+      return (m.total == null ? '' : m.total.toLocaleString('he-IL') + ' מיילים') + (m.newCount > 0 && !m.f.q ? ' · ' + m.newCount + ' חדשים' : '');
+    },
+    mailFilterCount() { const f = this.mail.f; return [f.project, f.person, (f.from || f.to), f.linked, f.att, f.archive !== '1', f.noise].filter(Boolean).length; },
+    mailParams(extra = {}) {
+      const f = this.mail.f, p = new URLSearchParams();
+      const q = String(f.q || '').trim(); if ([...q].length >= 3) p.set('q', q);
+      for (const k of ['project', 'person', 'from', 'to', 'linked', 'noise']) if (f[k]) p.set(k, f[k]);
+      if (f.folder !== 'all') p.set('folder', f.folder);
+      if (f.att) p.set('att', '1');
+      if (f.archive !== '1') p.set('archive', f.archive);
+      if (f.mode === 'all') p.set('mode', 'all');
+      for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v);
+      return p;
+    },
+    mailSync() { // the filters live in the address (a deep link, back/forward, a bookmark); no new history entry per keystroke
+      if (this.route.name !== 'mail') return;
+      const p = this.mailParams(); this.mail.urlKey = p.toString();
+      if (this.mail.openId) p.set('m', this.mail.openId);
+      history.replaceState({}, '', '/mail' + (p.toString() ? '?' + p : ''));
+    },
+    mailFromUrl(u) {
+      const f = this.mail.f, g = (k) => u.get(k) || '';
+      Object.assign(f, { q: g('q'), folder: ['in', 'out'].includes(g('folder')) ? g('folder') : 'all', project: g('project'), person: g('person'), personName: '', from: g('from'), to: g('to'), att: g('att') === '1', linked: ['0', '1'].includes(g('linked')) ? g('linked') : '', archive: ['0', 'only'].includes(g('archive')) ? g('archive') : '1', noise: g('noise') === '0' ? '0' : '', mode: g('mode') === 'all' ? 'all' : 'threads' });
+      const pr = (this.boot.projects || []).find((x) => String(x.id) === f.project || x.name_he === f.project); if (f.project) f.project = pr ? String(pr.id) : '';
+      if (/^\d+$/.test(f.person)) { const pe = (this.boot.people || []).find((x) => String(x.id) === f.person); f.personName = pe ? pe.name_he : f.person; } else f.personName = f.person;
+      this.mail.range = f.from || f.to ? 'custom' : ''; this.mail.showF = this.mailFilterCount() > 0;
+    },
+    async mailEnter(prev) {
+      const m = this.mail, u = new URLSearchParams(location.search);
+      if (!(this.boot.projects || []).length) await this.loadBoot();
+      const key = (() => { const c = new URLSearchParams(u); c.delete('m'); const t = [...c.entries()].sort(); return new URLSearchParams(t).toString(); })();
+      const same = m.loaded && m.urlKey !== null && new URLSearchParams([...new URLSearchParams(m.urlKey).entries()].sort()).toString() === key;
+      if (!same) this.mailFromUrl(u);
+      if (!m.visited || !prev || !['mail', 'email'].includes(prev.name)) { try { const v = await this.api('POST', '/api/mail/visit'); m.since = v.since || null; } catch (e) { /* the marker is optional */ } m.visited = true; }
+      const open = this.mailDesktop() ? +u.get('m') || null : null;
+      if (!same) { m.openId = open; await this.mailLoad(true); } else if (open !== m.openId) m.openId = open;
+      if (m.openId && (!this.emailView || this.emailView.id !== m.openId)) this.loadEmail(m.openId);
+      if (!m.openId) { this.emailView = null; }
+      this.mailSync();
+      if (same && !this.mailDesktop()) this.$nextTick(() => requestAnimationFrame(() => window.scrollTo(0, m.scroll || 0)));
+      this.$nextTick(() => this.mailNearEnd());
+    },
+    async mailLoad(reset) {
+      const m = this.mail; if (m.loading && !reset) return;
+      const seq = ++m.seq; m.loading = true; m.err = '';
+      try {
+        const r = await this.api('GET', '/api/mail?' + this.mailParams({ limit: '40', since: m.since, before: reset ? '' : m.next }));
+        if (seq !== m.seq) return;
+        if (reset) { m.items = r.items; m.open = {}; m.sub = {}; } else { const have = new Set(m.items.map((x) => x.id)); m.items = [...m.items, ...r.items.filter((x) => !have.has(x.id))]; }
+        m.next = r.next; m.capped = !!r.capped; m.search = r.mode === 'search';
+        if (reset) { m.total = r.total ?? null; m.newCount = r.new_count ?? (m.search ? 0 : m.newCount); }
+        m.loaded = true;
+      } catch (e) { if (seq === m.seq) { m.err = e.message || 'שגיאה בטעינת המיילים'; m.items = reset ? [] : m.items; m.loaded = true; } }
+      if (seq === m.seq) m.loading = false;
+      this.$nextTick(() => this.mailNearEnd());
+    },
+    async mailReload() { const m = this.mail; m.next = null; this.mailSync(); await this.mailLoad(true); const el = document.querySelector('.mail-list'); if (el && this.mailDesktop()) el.scrollTop = 0; else window.scrollTo(0, 0); },
+    mailSet(k, v) { this.mail.f[k] = v; this.mailReload(); },
+    mailMore() { if (this.mail.next && !this.mail.loading) return this.mailLoad(false); },
+    mailNearEnd() { if (this.route.name !== 'mail' || !this.mail.next || this.mail.loading) return; const s = document.querySelector('.mail-more .sentinel'); if (s && s.getBoundingClientRect().top < window.innerHeight + 700) this.mailMore(); },
+    mailScrolled() { this.mailNearEnd(); },
+    mailRange() {
+      const f = this.mail.f, r = this.mail.range, t = todayISO(), [y, mo, d] = t.split('-').map(Number);
+      if (r === 'week') { const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); f.from = new Date(Date.UTC(y, mo - 1, d - dow)).toISOString().slice(0, 10); f.to = ''; }
+      else if (r === 'month') { f.from = `${y}-${String(mo).padStart(2, '0')}-01`; f.to = ''; }
+      else if (r === 'year') { f.from = `${y}-01-01`; f.to = ''; }
+      else if (!r) { f.from = ''; f.to = ''; }
+      else return;
+      this.mailReload();
+    },
+    mailClearFilters() { Object.assign(this.mail.f, { project: '', person: '', personName: '', from: '', to: '', att: false, linked: '', archive: '1', noise: '' }); this.mail.range = ''; this.mail.pq = ''; this.mailReload(); },
+    async mailPeople() {
+      const q = this.mail.pq.trim(); if (q.length < 2) { this.mail.sug = []; return; }
+      try { const r = await this.api('GET', '/api/mail/people?q=' + encodeURIComponent(q)); if (q === this.mail.pq.trim()) this.mail.sug = r; } catch (e) { this.mail.sug = []; }
+    },
+    mailPick(p) { const f = this.mail.f; f.person = p ? String(p.id || p.email) : ''; f.personName = p ? p.name : ''; this.mail.pq = ''; this.mail.sug = []; this.mailReload(); },
+    async mailToggle(row) {
+      const m = this.mail; m.open = { ...m.open, [row.id]: !m.open[row.id] };
+      if (m.open[row.id] && !m.sub[row.id]) { try { const r = await this.api('GET', '/api/mail/thread/' + row.id + '?since=' + encodeURIComponent(m.since || '') + (m.f.archive === '0' ? '&archive=0' : '')); m.sub = { ...m.sub, [row.id]: r.items }; } catch (e) { this.fail(e); m.open = { ...m.open, [row.id]: false }; } }
+    },
+    mailOpen(row) { return this.mailOpenId(row.id); },
+    mailOpenId(id) {
+      const m = this.mail;
+      if (this.route.name === 'mail' && this.mailDesktop()) { m.openId = id; this.mailThreadOpen = null; this.mailSync(); this.loadEmail(id); return; }
+      if (this.route.name === 'mail') m.scroll = window.scrollY;
+      return this.go('/email/' + id);
+    },
+    async mailShowThread(e) {
+      if (this.mailThreadOpen && this.mailThreadOpen.id === e.id) { this.mailThreadOpen = null; return; }
+      this.mailThreadOpen = { id: e.id, items: [], loading: true };
+      try { const r = await this.api('GET', '/api/mail/thread/' + e.id); if (this.mailThreadOpen && this.mailThreadOpen.id === e.id) this.mailThreadOpen = { id: e.id, items: r.items, loading: false }; } catch (err) { this.fail(err); this.mailThreadOpen = null; }
+    },
+    // "create a task from the mail" / "ask about the mail": the chat pinned to THIS mail (ref email:ID); the assistant gets the mail as context and does the work
+    mailChatAct(kind) {
+      this.sc.text = kind === 'create' ? 'צור משימה מהמייל הזה' : '';
+      this.$nextTick(() => { const box = document.querySelector('.email-chat'), ta = box && box.querySelector('.tc-in'); if (!ta) return; box.scrollIntoView({ block: 'center', behavior: 'smooth' }); box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); ta.focus(); this.autosize(ta); });
+    },
     async loadEmail(id) {
       this.emailView = null; this.emailErr = '';
       try { this.emailView = await this.api('GET', '/api/emails/' + id); } catch (e) { this.emailErr = 'הדוא״ל לא נמצא'; }

@@ -2,10 +2,10 @@
    Widths live in CSS variables (--chat-w, --card-w, --page-w). Everything works with pointer events (mouse, touch, pen) and the keyboard. */
 (function () {
   // the task list keeps 360px (its rows carry a lot); the project list may go down to 180px and the protocols list to 220px
-  const LIMITS = { chat: [300, 640], card: [360, Infinity], listMin: 360, plist: 180, tlist: 220, pageMin: 360, div: 14, bar: 52, padding: 40 };
-  const KEYS = { chat: 'chat', card: 'card', page: 'page', plist: 'plist', tlist: 'tlist' };
+  const LIMITS = { chat: [300, 640], card: [360, Infinity], listMin: 360, plist: 180, tlist: 220, mlist: 340, pageMin: 360, div: 14, bar: 52, padding: 40 };
+  const KEYS = { chat: 'chat', card: 'card', page: 'page', plist: 'plist', tlist: 'tlist', mlist: 'mlist' };
   const root = document.documentElement;
-  let state = { chat: null, card: null, page: null, plist: null, tlist: null, collapsed: false };   // null = the default of this viewport
+  let state = { chat: null, card: null, page: null, plist: null, tlist: null, mlist: null, collapsed: false };   // null = the default of this viewport
   let tooNarrow = false;
 
   const vw = () => window.innerWidth;
@@ -17,12 +17,12 @@
   const desktop = () => vw() >= 1024;
   const cardOpen = () => !!document.querySelector('.split.has-task');
 
-  const defaults = () => ({ chat: clamp(Math.round(vw() * 0.24), 340, 420), card: clamp(Math.round(vw() * 0.32), 380, 560), page: clamp(Math.round(vw() * 0.46), 480, 900), plist: 260, tlist: 300 });
-  const kindOfSplit = () => (document.querySelector('.split .proj-list') ? 'proj' : document.querySelector('.split .proto-list') ? 'proto' : 'task');
-  const listMinOf = () => ({ proj: LIMITS.plist, proto: LIMITS.tlist, task: LIMITS.listMin })[kindOfSplit()];
+  const defaults = () => ({ chat: clamp(Math.round(vw() * 0.24), 340, 420), card: clamp(Math.round(vw() * 0.32), 380, 560), page: clamp(Math.round(vw() * 0.46), 480, 900), plist: 260, tlist: 300, mlist: clamp(Math.round(vw() * 0.3), 380, 520) });
+  const kindOfSplit = () => (document.querySelector('.split .proj-list') ? 'proj' : document.querySelector('.split .proto-list') ? 'proto' : document.querySelector('.split .mail-list') ? 'mail' : 'task');
+  const listMinOf = () => ({ proj: LIMITS.plist, proto: LIMITS.tlist, mail: LIMITS.mlist, task: LIMITS.listMin })[kindOfSplit()];
   function load() {
-    state = { chat: null, card: null, page: null, plist: null, tlist: null, collapsed: false };
-    try { const o = JSON.parse(read(storeKey()) || '{}'); for (const k of ['chat', 'card', 'page', 'plist', 'tlist']) if (Number.isFinite(o[k])) state[k] = o[k]; state.collapsed = !!o.collapsed; } catch (e) { /* ignore */ }
+    state = { chat: null, card: null, page: null, plist: null, tlist: null, mlist: null, collapsed: false };
+    try { const o = JSON.parse(read(storeKey()) || '{}'); for (const k of ['chat', 'card', 'page', 'plist', 'tlist', 'mlist']) if (Number.isFinite(o[k])) state[k] = o[k]; state.collapsed = !!o.collapsed; } catch (e) { /* ignore */ }
   }
   const save = () => write(storeKey(), JSON.stringify(state));
 
@@ -54,8 +54,8 @@
     const split = document.querySelector('.split');
     const sw = split ? split.getBoundingClientRect().width : avail + LIMITS.div;
     const maxList = Math.max(LIMITS.plist, Math.round(sw - LIMITS.pageMin - LIMITS.div));
-    const plist = clamp(state.plist ?? d.plist, LIMITS.plist, maxList), tlist = clamp(state.tlist ?? d.tlist, LIMITS.tlist, Math.max(LIMITS.tlist, maxList));
-    return { chat, card, page, plist, tlist, collapsed, maxCard, maxList };
+    const plist = clamp(state.plist ?? d.plist, LIMITS.plist, maxList), tlist = clamp(state.tlist ?? d.tlist, LIMITS.tlist, Math.max(LIMITS.tlist, maxList)), mlist = clamp(state.mlist ?? d.mlist, LIMITS.mlist, Math.max(LIMITS.mlist, maxList));
+    return { chat, card, page, plist, tlist, mlist, collapsed, maxCard, maxList };
   }
   function apply() {
     if (!desktop()) { document.body.classList.remove('chat-collapsed'); return; }
@@ -65,10 +65,11 @@
     root.style.setProperty('--page-w', e.page + 'px');
     root.style.setProperty('--plist-w', e.plist + 'px');
     root.style.setProperty('--tlist-w', e.tlist + 'px');
+    root.style.setProperty('--mlist-w', e.mlist + 'px');
     document.body.classList.toggle('chat-collapsed', e.collapsed);
     for (const d of document.querySelectorAll('.divider')) {
       const k = d.dataset.pane;
-      const [lo, hi] = k === 'chat' ? LIMITS.chat : k === 'plist' ? [LIMITS.plist, e.maxList] : k === 'tlist' ? [LIMITS.tlist, e.maxList] : [LIMITS.card[0], e.maxCard];
+      const [lo, hi] = k === 'chat' ? LIMITS.chat : k === 'plist' ? [LIMITS.plist, e.maxList] : k === 'tlist' ? [LIMITS.tlist, e.maxList] : k === 'mlist' ? [LIMITS.mlist, e.maxList] : [LIMITS.card[0], e.maxCard];
       d.setAttribute('aria-valuemin', String(lo)); d.setAttribute('aria-valuemax', String(Math.round(hi)));
       d.setAttribute('aria-valuenow', String(Math.round(e[k])));
     }
@@ -79,15 +80,15 @@
   function widthFromPointer(kind, x, el) {
     if (kind === 'chat') return x;                                   // the chat column starts at the left edge of the window
     const split = el.closest('.split');
-    if (kind === 'plist' || kind === 'tlist') return split.getBoundingClientRect().right - x;   // these lists sit at the start (right) edge
+    if (kind === 'plist' || kind === 'tlist' || kind === 'mlist') return split.getBoundingClientRect().right - x;   // these lists sit at the start (right) edge
     const left = split.getBoundingClientRect().left;                 // the card sits at the end side of the list, its far edge is the split's left edge
     return x - left;
   }
   function setWidth(kind, w) {
     const e = effective();
-    const lst = kind === 'plist' || kind === 'tlist';
+    const lst = kind === 'plist' || kind === 'tlist' || kind === 'mlist';
     const hi = kind === 'chat' ? LIMITS.chat[1] : lst ? e.maxList : e.maxCard;
-    const lo = kind === 'chat' ? LIMITS.chat[0] : kind === 'plist' ? LIMITS.plist : kind === 'tlist' ? LIMITS.tlist : LIMITS.card[0];
+    const lo = kind === 'chat' ? LIMITS.chat[0] : kind === 'plist' ? LIMITS.plist : kind === 'tlist' ? LIMITS.tlist : kind === 'mlist' ? LIMITS.mlist : LIMITS.card[0];
     state[KEYS[kind]] = Math.round(clamp(w, lo, hi));
     apply();
   }
@@ -115,9 +116,9 @@
     const step = ev.shiftKey ? 64 : 16;
     // the divider sits at the end (left) edge of its pane's neighbour: moving it right widens the pane on its left
     if (ev.key === 'Home') { state[KEYS[kind]] = null; save(); apply(); return; }
-    if (ev.key === 'End') { setWidth(kind, kind === 'chat' ? LIMITS.chat[1] : (kind === 'plist' || kind === 'tlist') ? e.maxList : e.maxCard); save(); return; }
+    if (ev.key === 'End') { setWidth(kind, kind === 'chat' ? LIMITS.chat[1] : (kind === 'plist' || kind === 'tlist' || kind === 'mlist') ? e.maxList : e.maxCard); save(); return; }
     // the arrows move the divider: right widens the pane on its left (chat, card) and narrows the list on its right (project and protocol lists)
-    const lst = kind === 'plist' || kind === 'tlist';
+    const lst = kind === 'plist' || kind === 'tlist' || kind === 'mlist';
     setWidth(kind, e[kind] + ((ev.key === 'ArrowRight') !== lst ? step : -step));
     save();
   });

@@ -26,6 +26,7 @@
     <div class="brand"><img class="logo" src="/assets/logo-64.png?v=2" width="34" height="34" alt="" aria-hidden="true"><span dir="ltr">Alex Tasks</span></div>
     <nav class="tabs" aria-label="ניווט ראשי">
       <button class="tab" :class="{on: route.name==='home'||route.name==='task'}" @click="go('/')">ראשי</button>
+      <button class="tab" :class="{on: route.name==='mail'||route.name==='email'}" @click="go('/mail')" data-test="tab-mail">דואר</button>
       <button class="tab" :class="{on: route.name==='search'}" @click="go('/search')">חיפוש</button>
       <button class="tab" :class="{on: route.name==='projects'}" @click="go('/projects')">פרויקטים</button>
       <button class="tab" :class="{on: route.name==='protocols'}" @click="go('/protocols')">פרוטוקולים</button>
@@ -518,19 +519,135 @@
 </div>
 </template>
 
-<!-- ===== EMAIL ===== -->
+<!-- ===== MAIL: every email in one place (list + reading pane) ===== -->
+<template x-if="route.name==='mail'">
+<div class="split mail-split" :class="{'has-task': !!mail.openId}" data-test="mail-tab">
+  <section class="pane-list mail-list" aria-label="רשימת מיילים" @scroll.passive="mailScrolled($event)">
+    <div class="page-h" style="margin-bottom:8px"><h1>דואר</h1>
+      <span class="muted sm" data-test="mail-count" x-text="mailSummary()"></span></div>
+    <form class="mail-search" @submit.prevent="mailReload()">
+      <input type="search" x-model="mail.f.q" placeholder="חיפוש בכל המיילים: נושא, תוכן, קבצים מצורפים" aria-label="חיפוש במיילים" data-test="mail-q" @input.debounce.400ms="mailReload()">
+    </form>
+    <div class="mail-bar">
+      <span class="seg2" role="group" aria-label="תצוגה">
+        <button type="button" :class="{on: mail.f.mode!=='all'}" @click="mailSet('mode','threads')" data-test="mode-threads">לפי שיחות</button>
+        <button type="button" :class="{on: mail.f.mode==='all'}" @click="mailSet('mode','all')" data-test="mode-all">כל המיילים</button>
+      </span>
+      <span class="seg2" role="group" aria-label="תיקייה">
+        <button type="button" :class="{on: mail.f.folder==='all'}" @click="mailSet('folder','all')">הכל</button>
+        <button type="button" :class="{on: mail.f.folder==='in'}" @click="mailSet('folder','in')" data-test="folder-in">נכנס</button>
+        <button type="button" :class="{on: mail.f.folder==='out'}" @click="mailSet('folder','out')" data-test="folder-out">יוצא</button>
+      </span>
+      <button type="button" class="btn small ghost mail-fbtn" :class="{on: mail.showF}" @click="mail.showF=!mail.showF" data-test="mail-filters-btn">סינון<span class="fcount" x-show="mailFilterCount()>0" x-text="mailFilterCount()"></span></button>
+    </div>
+    <div class="mail-filters" x-show="mail.showF" data-test="mail-filters">
+      <label class="field"><span>פרויקט</span><select x-model="mail.f.project" @change="mailReload()" data-test="f-project">
+        <option value="">הכל</option><template x-for="p in boot.projects" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select></label>
+      <label class="field mf-person"><span>אדם (שולח או נמען)</span>
+        <input type="text" x-model="mail.pq" placeholder="שם או כתובת" autocomplete="off" data-test="f-person" @input.debounce.250ms="mailPeople()" @focus="mailPeople()" @keydown.escape="mail.sug=[]">
+        <span class="mf-chip" x-show="mail.f.person"><span x-text="mail.f.personName || mail.f.person"></span><button type="button" @click="mailPick(null)" aria-label="ניקוי">✕</button></span>
+        <div class="mf-sug" x-show="mail.sug.length"><template x-for="p in mail.sug" :key="(p.id||'')+p.email"><button type="button" @click="mailPick(p)"><b x-text="p.name"></b> <span class="muted" dir="ltr" x-text="p.email"></span></button></template></div></label>
+      <label class="field"><span>תקופה</span><select x-model="mail.range" @change="mailRange()" data-test="f-range">
+        <option value="">הכל</option><option value="week">השבוע</option><option value="month">החודש</option><option value="year">השנה</option><option value="custom">בחירת תאריכים</option></select></label>
+      <div class="mf-dates" x-show="mail.range==='custom' || mail.f.from || mail.f.to">
+        <label class="field"><span>מתאריך</span><input type="date" x-model="mail.f.from" @change="mail.range='custom'; mailReload()" data-test="f-from"></label>
+        <label class="field"><span>עד תאריך</span><input type="date" x-model="mail.f.to" @change="mail.range='custom'; mailReload()" data-test="f-to"></label>
+      </div>
+      <label class="field"><span>משימה</span><select x-model="mail.f.linked" @change="mailReload()" data-test="f-linked">
+        <option value="">הכל</option><option value="1">מקושר למשימה</option><option value="0">לא מקושר למשימה</option></select></label>
+      <div class="mf-checks">
+        <label class="switch-row sm"><input type="checkbox" x-model="mail.f.att" @change="mailReload()" data-test="f-att"><span>עם קבצים מצורפים</span></label>
+        <label class="switch-row sm"><input type="checkbox" :checked="mail.f.archive!=='0'" @change="mail.f.archive=$event.target.checked?'1':'0'; mailReload()" data-test="f-archive"><span>כולל ארכיון</span></label>
+        <label class="switch-row sm"><input type="checkbox" :checked="mail.f.noise==='0'" @change="mail.f.noise=$event.target.checked?'0':''; mailReload()"><span>בלי דואר אוטומטי</span></label>
+        <button type="button" class="btn small ghost" x-show="mailFilterCount()>0" @click="mailClearFilters()">נקה סינון</button>
+      </div>
+    </div>
+    <p class="error" x-show="mail.err" x-text="mail.err"></p>
+    <div class="mail-new" x-show="mail.newCount>0 && !mail.f.q" data-test="mail-new-note" x-text="mail.newCount+' מיילים חדשים מאז הביקור האחרון'"></div>
+    <div class="mail-rows" data-test="mail-rows">
+      <template x-for="m in mail.items" :key="m.id">
+        <div class="mrow-wrap">
+          <div class="mrow" :class="{sel: mail.openId===m.id, new: m.is_new, arch: m.archived}" tabindex="0" role="button" @click="mailOpen(m)" @keydown.enter="mailOpen(m)" :data-id="m.id">
+            <span class="mdir" :class="m.direction" :title="m.direction==='sent' ? 'יוצא' : 'נכנס'" x-html="mailDirIcon(m.direction)"></span>
+            <span class="mbody">
+              <span class="mtop"><b class="mwho" x-text="mailWho(m)"></b><span class="mnew" x-show="m.is_new">חדש</span><span class="mdate" x-text="mailWhen(m.date)"></span></span>
+              <span class="msubj" x-text="m.subject"></span>
+              <span class="msnip" x-show="!m.snippet_html" x-text="m.snippet"></span><span class="msnip" x-show="m.snippet_html" x-html="m.snippet_html"></span>
+              <span class="mchips">
+                <span class="plabel" :class="{unassigned: m.project_default}" x-show="m.project" :style="'--pcol:'+(m.project_default||!m.project_color ? '#6b7280' : m.project_color)"><i></i><span x-text="m.project"></span></span>
+                <span class="mclip" x-show="m.has_files" title="קבצים מצורפים" aria-label="קבצים מצורפים">📎</span>
+                <span class="arch-chip" x-show="m.archived" title="מייל מהארכיון (לא עובד על ידי העוזר)">ארכיון</span>
+                <span class="auto-chip" x-show="m.auto">אוטומטי</span>
+                <span class="mvia" x-show="m.via==='attachment'" x-text="'נמצא בקובץ: '+(m.via_name||'')"></span>
+                <button type="button" class="mtask" x-show="m.task" @click.stop="openTask(m.task.id)" :title="m.task ? m.task.title : ''" data-test="mail-task-badge">משימה</button>
+                <button type="button" class="mcount" x-show="m.count>1" @click.stop="mailToggle(m)" :aria-expanded="!!mail.open[m.id]" data-test="mail-count-btn"><span x-text="(mail.open[m.id] ? '▾ ' : '▸ ')+m.count+' מיילים'"></span></button>
+              </span>
+            </span>
+          </div>
+          <div class="msub" x-show="mail.open[m.id]">
+            <template x-for="t in (mail.sub[m.id] || [])" :key="t.id">
+              <div class="mrow sub" :class="{sel: mail.openId===t.id, new: t.is_new}" tabindex="0" role="button" @click="mailOpen(t)" @keydown.enter="mailOpen(t)" x-show="t.id!==m.id">
+                <span class="mdir" :class="t.direction" x-html="mailDirIcon(t.direction)"></span>
+                <span class="mbody"><span class="mtop"><b class="mwho" x-text="mailWho(t)"></b><span class="mdate" x-text="mailWhen(t.date)"></span></span>
+                  <span class="msnip" x-text="t.snippet"></span>
+                  <span class="mchips"><span class="mclip" x-show="t.has_files">📎</span><span class="arch-chip" x-show="t.archived">ארכיון</span><button type="button" class="mtask" x-show="t.task" @click.stop="openTask(t.task.id)">משימה</button></span></span>
+              </div>
+            </template>
+            <div class="muted sm msub-load" x-show="mail.open[m.id] && !mail.sub[m.id]">טוען…</div>
+          </div>
+        </div>
+      </template>
+    </div>
+    <template x-if="!mail.loading && mail.loaded && mail.items.length===0 && !mail.err"><div class="empty" data-test="mail-empty"><b>לא נמצאו מיילים</b>נסו מילים אחרות או הסירו חלק מהסינון</div></template>
+    <div class="mail-more" x-show="mail.next || mail.loading">
+      <button type="button" class="btn small" x-show="mail.next && !mail.loading" @click="mailMore()" data-test="mail-more">טען עוד</button>
+      <span class="muted sm" x-show="mail.loading">טוען…</span>
+      <span class="sentinel" x-ref="msentinel"></span>
+    </div>
+    <p class="muted sm mail-cap" x-show="mail.capped">מוצגות 100 התוצאות הרלוונטיות ביותר. צמצמו את החיפוש כדי לראות את השאר.</p>
+    <p class="muted sm mail-foot"><a href="/search" @click.prevent="go('/search'+(mail.f.q ? '?q='+encodeURIComponent(mail.f.q) : ''))">חיפוש בכל המידע (משימות, פרוטוקולים, מסמכים) ›</a></p>
+  </section>
+
+  <div class="divider divider-card" data-pane="mlist" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב רשימת המיילים" tabindex="0" title="גרירה לשינוי הרוחב, לחיצה כפולה לאיפוס"><span class="grip"><i></i><i></i><i></i></span></div>
+  <section class="pane-card card email-page mail-pane" aria-label="מייל" data-test="mail-pane">
+    <template x-if="!mail.openId"><div class="empty"><b>לא נבחר מייל</b>בחרו מייל מהרשימה</div></template>
+    <template x-if="mail.openId"><div x-html="emailTpl()"></div></template>
+  </section>
+</div>
+</template>
+
+<!-- ===== EMAIL (one markup, used by the full page /email/:id and by the reading pane of the mail tab) ===== -->
 <template x-if="route.name==='email'">
-<div class="email-page card">
+<div class="email-page card" x-html="emailTpl()"></div>
+</template>
+<template id="tpl-email-view">
   <template x-if="!emailView"><div class="empty" x-text="emailErr || 'טוען…'"></div></template>
   <template x-if="emailView">
     <div>
-      <button class="btn ghost" @click="history.length>1 ? history.back() : go('/')">‹ חזרה</button>
+      <button class="btn ghost" x-show="route.name==='email'" @click="history.length>1 ? history.back() : go('/mail')">‹ חזרה</button>
       <div class="em-grid"><div class="em-main">
       <h1 style="font-size:1.3rem;margin:8px 0" x-text="emailView.original_subject || emailView.subject"></h1>
       <div x-html="mailHeadHtml(emailView)"></div>
       <div class="arch-note" x-show="emailView.archive" data-test="arch-note"><span class="arch-chip">ארכיון</span> <span x-text="emailView.archive ? emailView.archive.note : ''"></span></div>
       <div class="muted" x-show="!emailView.archive" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
       <div class="b-tasks" style="margin:10px 0" x-show="emailView.tasks.length"><template x-for="t in emailView.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="'משימה '+t.id+': '+t.title"></button></template></div>
+      <div class="mail-actions" data-test="mail-actions">
+        <button class="btn small" x-show="emailView.tasks.length" @click="openTask(emailView.tasks[0].id)" data-test="act-open-task">פתח משימה</button>
+        <button class="btn small" @click="mailChatAct('create')" data-test="act-create-task">צור משימה מהמייל</button>
+        <button class="btn small" @click="mailChatAct('ask')" data-test="act-ask">שאל את אלכס על המייל</button>
+        <button class="btn small ghost" @click="mailShowThread(emailView)" data-test="act-thread" x-show="emailView.thread_key" x-text="mailThreadOpen && mailThreadOpen.id===emailView.id ? 'הסתר את השיחה' : 'הצג את כל השיחה'"></button>
+      </div>
+      <div class="mail-thread" x-show="mailThreadOpen && mailThreadOpen.id===emailView.id" data-test="mail-thread">
+        <div class="muted sm" x-show="mailThreadOpen && mailThreadOpen.loading">טוען…</div>
+        <template x-for="t in (mailThreadOpen ? mailThreadOpen.items : [])" :key="t.id">
+          <div class="mt-row" :class="{cur: t.id===emailView.id}" tabindex="0" role="button" @click="mailOpenId(t.id)" @keydown.enter="mailOpenId(t.id)">
+            <span class="mdir" :class="t.direction" aria-hidden="true" x-html="mailDirIcon(t.direction)"></span>
+            <b x-text="t.direction==='sent' ? 'אל: '+(t.to.join(', ')||'—') : t.from"></b>
+            <span class="muted" x-text="fmtDateTime(t.date)"></span>
+            <span class="arch-chip" x-show="t.archived">ארכיון</span>
+          </div>
+        </template>
+      </div>
       <div class="mailview" x-data="{mode: emailView.has_html ? 'html' : 'text', remote: false}">
         <div class="mv-bar" x-show="emailView.has_html">
           <span class="seg"><button class="btn small ghost" :class="{on: mode==='html'}" @click="mode='html'">תצוגה מקורית</button><button class="btn small ghost" :class="{on: mode==='text'}" @click="mode='text'">טקסט</button></span>
@@ -538,6 +655,23 @@
         </div>
         <iframe class="mv-frame" x-show="mode==='html' && emailView.has_html" :src="mode==='html' && emailView.has_html ? '/api/emails/'+emailView.id+'/view'+(remote?'?remote=1':'') : 'about:blank'" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="המייל המקורי"></iframe>
         <pre class="mailtext" dir="auto" x-show="mode==='text' || !emailView.has_html" x-text="emailView.body_text"></pre>
+      </div>
+      <div class="sect sc-chat email-chat" x-data x-init="scLoad('email:'+emailView.id)">
+        <h3>שיחה עם <span x-text="assistantName()"></span> על המייל</h3>
+        <div class="tc-feed sc-feed" x-show="scMsgs('email:'+emailView.id).length>0" x-effect="scMsgs('email:'+emailView.id).length && scScroll()">
+          <template x-for="m in scMsgs('email:'+emailView.id)" :key="m.id">
+            <div class="bubble tc-b" :class="m.author">
+              <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+              <div class="b-text" x-html="chatHtml(m.text, m.refs)" @click="chatClick($event)"></div>
+            </div>
+          </template>
+          <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('email:'+emailView.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
+        </div>
+        <form class="tc-form" @submit.prevent="scSend('email:'+emailView.id)">
+          <textarea x-model="sc.text" rows="1" class="tc-in comp-input" :placeholder="'כתוב ל'+assistantName()+' על המייל…'" :aria-label="'כתוב ל'+assistantName()+' על המייל'" enterkeyhint="send" @input="autosize($event.target)"
+            @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); scSend('email:'+emailView.id); }"></textarea>
+          <button type="submit" class="btn primary" :disabled="sc.sending || !sc.text.trim()">שליחה</button>
+        </form>
       </div>
       </div>
       <aside class="em-aside" x-show="emailView.files.length"><h3>קבצים מצורפים</h3>
@@ -551,7 +685,6 @@
       </aside></div>
     </div>
   </template>
-</div>
 </template>
 
 <!-- ===== PROJECTS (list + page side by side) ===== -->
@@ -1257,19 +1390,19 @@
 <nav class="bottomnav" aria-label="ניווט ראשי">
   <button :class="{on: route.name==='home'||route.name==='task'}" @click="go('/')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg>ראשי</button>
-  <button :class="{on: route.name==='search'}" @click="go('/search')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>חיפוש</button>
+  <button :class="{on: route.name==='mail'||route.name==='email'}" @click="go('/mail')" data-test="bar-mail">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>דואר</button>
   <button :class="{on: route.name==='projects'}" @click="go('/projects')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>פרויקטים</button>
-  <button :class="{on: route.name==='protocols'}" @click="go('/protocols')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l4 4v14H8z"/><path d="M8 8H4v13h4M12 12h4M12 16h4"/></svg>פרוטוקולים</button>
   <button :class="{on: route.name==='calendar'}" @click="go('/calendar')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>יומן</button>
-  <button :class="{on: ['activity','people','settings'].includes(route.name) || moreOpen}" @click="moreOpen=!moreOpen">
+  <button :class="{on: ['search','protocols','archive','activity','people','settings'].includes(route.name) || moreOpen}" @click="moreOpen=!moreOpen">
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>עוד</button>
 </nav>
 <div class="more-bg" x-show="moreOpen" @click="moreOpen=false">
   <div class="more-sheet" @click.stop>
+    <button @click="moreOpen=false; go('/search')">חיפוש</button>
+    <button @click="moreOpen=false; go('/protocols')">פרוטוקולים</button>
     <button @click="moreOpen=false; go('/archive')">📦 ארכיון</button>
     <button @click="moreOpen=false; go('/activity')">פעילות</button>
     <button @click="moreOpen=false; go('/people')">אנשים</button>
