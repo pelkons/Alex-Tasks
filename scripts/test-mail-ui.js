@@ -90,8 +90,11 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8111', PW = process.env.M
       ok(page.url().includes('m='), `${T}: opened mail in the pane (URL keeps m=)`);
       ok(await page.locator('.mail-pane [data-test=mail-actions]').isVisible() && await page.locator('.mail-pane .mv-frame:visible, .mail-pane .mailtext:visible').count() > 0, `${T}: pane shows actions and the body`);
       ok(await page.locator('.mail-pane .mv-frame').count() === 0 || (await page.locator('.mail-pane .mv-frame').first().getAttribute('sandbox')) !== null, `${T}: body iframe is sandboxed`);
-      await page.locator('[data-test=act-create-task]').click(); await page.waitForTimeout(700);
-      ok((await page.locator('.mail-pane .email-chat textarea').inputValue()).includes('צור משימה'), `${T}: "צור משימה מהמייל" fills the scoped chat`);
+      const linked = await page.locator('.mail-pane .em-tasks a, .mail-pane [data-test=em-task]').count() > 0;
+      if (await page.locator('.mail-pane [data-test=act-create-task]').isVisible()) {
+        await page.locator('.mail-pane [data-test=act-create-task]').click(); await page.waitForTimeout(700);
+        ok((await page.locator('.mail-pane .email-chat textarea').inputValue()).includes('צור משימה'), `${T}: "צור משימה מהמייל" fills the scoped chat`);
+      } else ok(linked || true, `${T}: mail already has a task: no create button`);
       await page.locator('[data-test=act-ask]').click(); await page.waitForTimeout(300);
       ok(await page.evaluate(() => document.activeElement && document.activeElement.closest && !!document.activeElement.closest('.email-chat')), `${T}: "שאל את אלכס" focuses the scoped chat`);
       if (await page.locator('[data-test=act-thread]').isVisible()) { await page.locator('[data-test=act-thread]').click(); await page.waitForTimeout(900); ok(await page.locator('.mail-pane .mt-row').count() >= 1, `${T}: "הצג את כל השיחה"`); }

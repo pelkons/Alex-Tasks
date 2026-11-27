@@ -632,8 +632,7 @@
       <div class="muted" x-show="!emailView.archive" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
       <div class="b-tasks" style="margin:10px 0" x-show="emailView.tasks.length"><template x-for="t in emailView.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="'משימה '+t.id+': '+t.title"></button></template></div>
       <div class="mail-actions" data-test="mail-actions">
-        <button class="btn small" x-show="emailView.tasks.length" @click="openTask(emailView.tasks[0].id)" data-test="act-open-task">פתח משימה</button>
-        <button class="btn small" @click="mailChatAct('create')" data-test="act-create-task">צור משימה מהמייל</button>
+        <button class="btn small" x-show="!emailView.tasks.length" @click="mailChatAct('create')" data-test="act-create-task">צור משימה מהמייל</button>
         <button class="btn small" @click="mailChatAct('ask')" data-test="act-ask">שאל את אלכס על המייל</button>
         <button class="btn small ghost" @click="mailShowThread(emailView)" data-test="act-thread" x-show="emailView.thread_key" x-text="mailThreadOpen && mailThreadOpen.id===emailView.id ? 'הסתר את השיחה' : 'הצג את כל השיחה'"></button>
       </div>
