@@ -724,7 +724,7 @@
         <header class="pj-head">
           <span class="plabel big" :class="{unassigned: pp.project.is_default}" :style="'--pcol:'+pc({project_color:pp.project.color, project_default:pp.project.is_default})"><i></i><span x-text="pp.project.name_he"></span></span>
           <span class="pj-state" :class="'st-'+({'פעיל':'on','מושהה':'hold','סגור':'off'}[pp.project.status]||'on')" x-text="pp.project.status || 'פעיל'"></span>
-          <span class="pj-open" x-text="pp.project.open_count+' משימות פתוחות'"></span>
+          <span class="pj-open"><span x-text="pp.project.open_count"></span> <span class="po-w">משימות</span> פתוחות</span>
           <span class="spacer"></span>
           <button class="btn small" @click="filterByProject(pp.project.id)">משימות</button>
           <div class="menu-wrap">

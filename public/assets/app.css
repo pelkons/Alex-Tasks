@@ -1432,3 +1432,4 @@ a.src[href] { cursor: pointer; } a.src[href]:hover { background: var(--surface-2
 }
 .proc-b { flex-direction: column; align-items: flex-start; gap: 2px; }
 .proc-t { flex: none; width: 100%; }
+@container pj (max-width: 480px) { .pj-head .po-w { display: none; } .pj-head { gap: 8px; } .pj-head .btn.small { padding: 0 12px; } }
