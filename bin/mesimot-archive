@@ -17,7 +17,8 @@ const docs = require('../lib/docs');
 process.env.OMP_THREAD_LIMIT = process.env.OMP_THREAD_LIMIT || '1'; // tesseract: one thread per OCR job (the concurrency is across mails)
 docs.LIMITS.pdf_pages = +(process.env.MESIMOT_ARCHIVE_PDF_PAGES || 120); // old mail: the first 120 pages of a PDF are plenty
 docs.LIMITS.ocr_pdf_max_pages = +(process.env.MESIMOT_ARCHIVE_OCR_PAGES || 10); // OCR of a scanned PDF only up to 10 pages
-docs.LIMITS.ocr_pages_read = +(process.env.MESIMOT_ARCHIVE_OCR_READ || 4); // a scanned PDF: OCR of its first 4 pages only
+docs.LIMITS.ocr_pages_read = +(process.env.MESIMOT_ARCHIVE_OCR_READ || 2); // a scanned PDF: OCR of its first 2 pages only (OCR is by far the most expensive step on this CPU)
+docs.LIMITS.ocr_dpi = +(process.env.MESIMOT_ARCHIVE_OCR_DPI || 150);
 docs.LIMITS.ocr_image_ms = 45000; docs.LIMITS.convert_ms = 20000; // one picture never holds a worker for minutes
 const argv = process.argv.slice(2);
 const CHILD = argv.includes('--child');
