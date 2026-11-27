@@ -1298,3 +1298,12 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 .cal-item .ci-main { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .cal-item .ci-main .muted { display: block; }
 .cal-item .ci-t, .cal-item .ci-k, .cal-item .ptag { flex: none; white-space: nowrap; }
+
+/* calendar day item: a small top line (time · project · kind) and the title + details on the full width below */
+.cal-item { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "t p k" "m m m"; gap: 4px 10px; align-items: center; }
+.cal-item .ci-t { grid-area: t; font-weight: 600; font-size: .85rem; }
+.cal-item .ptag { grid-area: p; justify-self: start; font-size: .8rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.cal-item .ptag:empty { display: none; }
+.cal-item .ci-k { grid-area: k; font-size: .75rem; color: var(--muted); }
+.cal-item .ci-main { grid-area: m; line-height: 1.35; }
+.cal-item .ci-main b { display: block; font-size: 1rem; }
