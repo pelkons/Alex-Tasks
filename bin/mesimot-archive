@@ -69,7 +69,7 @@ if (CHILD) {
         if (Date.now() - beat > 20000) { hb.beat(db, 'archive_worker', { pid: process.pid, kids: kids.size }); beat = Date.now(); archive.recover(); }
         if (archive.liveBusy()) { await sleep(3000); continue; }
         const queued = n("SELECT COUNT(*) n FROM archive_queue WHERE state='queued'"), stored = n("SELECT COUNT(*) n FROM archive_queue WHERE state='stored'");
-        for (let i = kids.size; i < Math.min(MAX_KIDS, queued); i++) spawnKid();
+        for (let i = kids.size; i < Math.min(archive.liveActive() ? 1 : MAX_KIDS, queued); i++) spawnKid(); // fewer workers while live mail is being handled
         if (stored >= 12 || (stored && !queued)) await archive.embedStep(12); else await sleep(queued ? 1000 : 2500);
       } catch (e) { log('supervisor error:', e.message); await sleep(3000); }
     }

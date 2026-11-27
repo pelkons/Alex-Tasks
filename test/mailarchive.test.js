@@ -141,10 +141,12 @@ test('live mail has priority: the worker yields while live mail is arriving or b
   // a live mail arrives: its batch is collecting
   const live = await post(L, { entry_id: 'LV2', folder: 'inbox', received_or_sent_at: '2026-11-26T08:01:00Z', internet_message_id: '<live2@s.example>' }, msg(31, { date: Date.parse('2026-11-26T08:01:00Z') }));
   assert.equal(live.json().status, 'stored');
-  assert.equal(L.archive.liveBusy(), true); assert.equal(await L.archive.step(), 'yield', 'the archive waits');
+  assert.equal(L.archive.liveActive(), true, 'a live mail just arrived: fewer workers');
+  assert.equal(L.archive.liveBusy(), false, 'a collecting live batch costs no CPU, the archive may go on (at the lowest priority)');
+  L.importer.releaseCollecting(); assert.equal(L.archive.liveBusy(), true, 'the live batch is being staged: the archive waits'); assert.equal(await L.archive.step(), 'yield', 'the archive waits');
   assert.equal(L.db.prepare("SELECT COUNT(*) c FROM archive_queue WHERE state='queued'").get().c, 1, 'nothing was taken from the queue');
   // the live batch is picked by the live pipeline first, never the archive import
-  L.importer.releaseCollecting(); const imp = L.importer.active(); assert.ok(JSON.parse(imp.stats).live, 'live import is the active one');
+  const imp = L.importer.active(); assert.ok(JSON.parse(imp.stats).live, 'live import is the active one');
   await L.importer.stage(imp.id); L.importer.dedupe(imp.id); L.importer.applyNoise(imp.id); L.importer.buildThreads(imp.id);
   assert.equal(L.db.prepare("SELECT COUNT(*) c FROM emails WHERE import_id=? AND import_state='parsed'").get(imp.id).c, 1, 'live mail went through the normal stages with archive mail waiting');
   L.importer.setStatus(imp.id, 'done');

@@ -77,7 +77,7 @@ meta = { "entry_id": "...", "store": "...", "folder": "inbox | sent | <path>", "
   * `507 {"error":..., "retry_after_s":600}`: less than `archive_min_free_gb` (default 20) free on the server's disk. Wait and retry; the owner is alerted by the health check.
   * Everything else as for live mail (`400`, `401`, `403`, `413`, `422`). A mail the worker finds unreadable is counted as failed on the server (`mesimot archive failed`); it does not fail the request.
 * **Pace.** Send one request at a time, newest or oldest first, any folder order. The worker handles about 20 to 40 mails a minute (see "Measured speed"), so a push at full network speed is slowed by the 429 rule; no need to throttle by hand. Live mail always goes first:
-  the worker does nothing while live mail is being received or processed, and live mail is never delayed by the archive.
+  the workers run at the lowest priority, stand still while a live batch is being staged or parsed or a chat message waits, and use fewer workers while live mail is arriving; live mail is never delayed by the archive.
 * **Resume.** `GET /ingest/status` has an `archive` object next to `mail`: `{ emails, text_only, full, queued, embedding, failed, ..., folders: [ { folder, oldest_item_at, newest_item_at, total, accepted, duplicates, failed } ] }`.
   Archive mail is NOT counted in `mail.folders`, so the live resume point (`last_item_at`) is never moved by old mail. Every request is idempotent: after an error just send it again.
 
