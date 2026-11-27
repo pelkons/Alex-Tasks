@@ -96,5 +96,6 @@ final text after its own checks.
 * Email and attachment text is wrapped as data in every prompt; the owner-only rule applies to anything the system sends by email.
 * Mail providers work in a scoped folder set (INBOX and the assistant's own folders); nothing else in the mailbox is opened, moved or deleted, and nothing
   is deleted without a verified local copy.
+* Everything stored is encrypted at rest (database and backups AES-256 via SQLCipher, stored files and run logs AES-256-GCM, one master key in `~/.config/mesimot/db.key`): `docs/ENCRYPTION.md`.
 * Secrets only in `~/.config/mesimot/env` (mode 600); the web password is stored hashed; the API token is for the local CLI.
 * Public exposure is optional (Cloudflare Tunnel); the site needs a login.
