@@ -82,7 +82,7 @@ test('latest / download: none, then published installer with sha256 and size', a
   const L = lib(); const j = (await pairWith(L, L.connector.newCode().code)).json();
   assert.deepEqual((await call(L, 'GET', '/ingest/connector/latest', { token: j.token })).json(), { version: null });
   assert.equal((await call(L, 'GET', '/ingest/connector/download', { token: j.token })).statusCode, 404);
-  const src = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'src-')), 'AlexTasksConnector-Setup-1.2.3.exe'); fs.writeFileSync(src, Buffer.from('MZ fake installer'));
+  const src = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'src-')), 'AlexLink-Setup-1.2.3.exe'); fs.writeFileSync(src, Buffer.from('MZ fake installer'));
   const info = publish(src, L.dir);
   assert.equal(info.version, '1.2.3'); assert.throws(() => publish(path.join(os.tmpdir(), 'x.exe'), L.dir), /file name/);
   const l = (await call(L, 'GET', '/ingest/connector/latest', { token: j.token })).json();

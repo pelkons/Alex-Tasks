@@ -1,12 +1,12 @@
-# Alex Tasks Connector: the Windows program
+# Alex Link: the Windows program
 
 Goal: the Outlook connector on the owner's PC becomes a normal program that anyone can install on a new computer in a few minutes,
 with no Python, no copying of token/key files and no Task Scheduler setup by hand. It keeps doing exactly what the current script does
 (see `OUTLOOK-INGEST.md` and `OUTBOX-CONNECTOR.md`); only packaging, pairing, status and updates are new.
 
 ## What the owner does on a new computer
-1. On the site: Settings → "מחשב Outlook" → "הורדת התוכנה" (downloads `AlexTasksConnector-Setup-<version>.exe`).
-2. Runs it. No admin rights needed (per-user install into `%LOCALAPPDATA%\Programs\AlexTasksConnector`).
+1. On the site: Settings → "מחשב Outlook" → "הורדת התוכנה" (downloads `AlexLink-Setup-<version>.exe`).
+2. Runs it. No admin rights needed (per-user install into `%LOCALAPPDATA%\Programs\AlexLink`).
 3. The program opens a small window "חיבור לשרת" and asks for the connection code.
 4. On the site: "חבר מחשב חדש" shows a one-line code, for example `alex://<server-tailscale-ip>:8130/K7Q2-M9XD` with a copy button.
 5. He pastes it, presses "חיבור". Done: a green icon appears next to the clock.
@@ -47,7 +47,7 @@ All on the existing Tailscale-only listener `http://<server-tailscale-ip>:8130` 
 * `GET /ingest/connector/latest` → `{ "version": "1.0.0", "sha256": "hex", "size": 123, "download": "/ingest/connector/download" }` or `{ "version": null }`.
   `GET /ingest/connector/download` (Bearer) streams the installer.
 * **site** `GET /api/connector/download` (logged in) streams the same installer for a new computer.
-* Installer files live in `data/connector/` (`AlexTasksConnector-Setup-<version>.exe` + `latest.json`); `bin/mesimot connector publish <file>` copies a
+* Installer files live in `data/connector/` (`AlexLink-Setup-<version>.exe` + `latest.json`); `bin/mesimot connector publish <file>` copies a
   file there, computes sha256 and writes `latest.json`.
 * **site** Settings → section "מחשב Outlook": list of devices (name, version, last contact, Outlook ok, paused flags, last error), buttons
   "חבר מחשב חדש" (shows the connect string with a copy button and the expiry), "הורדת התוכנה", "ניתוק" per device (revoke, with confirm).

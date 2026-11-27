@@ -97,7 +97,7 @@ const USAGE = `mesimot <command>
   usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
   chat send --text "..." [--file FILEID[,FILEID]]   (--file sends the document(s) to the owner: web chip + Telegram document)
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
-  connector publish <AlexTasksConnector-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
+  connector publish <AlexLink-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete   (asks the owner with two buttons; only his answer deletes)
   filter list|add|preview|delete|enable|disable   (owner mail filters: --sender/--domain/--text/--regex --action skip|fyi|relevant [--project P])
@@ -258,8 +258,8 @@ async function main() {
       if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
       const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, 'mesimot-health'), ...process.argv.slice(3)], { stdio: 'inherit' });
       process.exit(r.status ?? 2); }
-    case 'connector': { // the Windows connector installer: `connector publish <AlexTasksConnector-Setup-1.0.0.exe>`
-      if (sub !== 'publish' || !arg) fail('usage: connector publish <AlexTasksConnector-Setup-<version>.exe>');
+    case 'connector': { // the Windows connector installer: `connector publish <AlexLink-Setup-1.0.0.exe>`
+      if (sub !== 'publish' || !arg) fail('usage: connector publish <AlexLink-Setup-<version>.exe>');
       try { return out(require('../lib/connector').publish(path.resolve(arg))); } catch (e) { fail(e.message); } }
     case 'outbox': { // outgoing mail: DRAFTS only. There is no approve and no send command: the owner approves the exact content with a button on the card.
       const flds = () => { const b = {}; if (opt.json) { try { Object.assign(b, JSON.parse(opt.json)); } catch { fail('--json is not valid JSON'); } }

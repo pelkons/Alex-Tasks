@@ -985,7 +985,7 @@
 
     <section class="card cn-card" x-init="loadConnector()">
       <h3>מחשב Outlook</h3>
-      <p class="muted sm">התוכנה Alex Tasks Connector במחשב Windows שולחת את המיילים והיומן ושולחת מיילים שאושרו. להתקנה במחשב חדש: הורידו את התוכנה, הריצו אותה, והדביקו בה את קוד החיבור.</p>
+      <p class="muted sm">התוכנה Alex Link במחשב Windows שולחת את המיילים והיומן ושולחת מיילים שאושרו. להתקנה במחשב חדש: הורידו את התוכנה, הריצו אותה, והדביקו בה את קוד החיבור.</p>
       <div class="btnrow"><button class="btn primary" @click="cnNewCode()">חבר מחשב חדש</button><a class="btn" href="/api/connector/download" x-show="cn.latest && cn.latest.version" download>הורדת התוכנה <span class="muted sm" dir="ltr" x-text="cn.latest && cn.latest.version"></span></a></div>
       <p class="muted sm" x-show="cn.latest && !cn.latest.version">עדיין לא הועלתה תוכנה להורדה.</p>
       <template x-if="cn.code">
