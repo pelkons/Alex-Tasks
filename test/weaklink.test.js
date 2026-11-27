@@ -17,7 +17,7 @@ function setup() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const apply = createApply(db, store, knowledge, chat, createProtocols(db, store, knowledge), createCalendar(db, store)).apply;
   const a = store.assistantId(), owner = store.ownerId();
-  const p = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const p = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const strong = store.createTask(owner, { title: 'משימה קשורה באמת 100.2000', project: p.id, due: '2026-12-01', requester: owner });
   const weak = store.createTask(owner, { title: 'משימה אחרת באותו פרויקט', project: p.id, due: '2026-12-02', requester: owner });
   return { db, store, knowledge, apply, a, owner, p, strong, weak };

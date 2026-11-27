@@ -25,7 +25,7 @@ const CHAT = { id: 1, text: 'גלעד מפרויקט דוגמית, מגרשים 
 
 test('1. project: a task in "לא משויך" is questioned, quoting the source and listing project candidates', async () => {
   const { store, gate, a, run, inRun } = setup();
-  store.createProject(a, { name: 'מגדל הדוגמה', aliases: ['100.2000'] });
+  store.createProject(store.ownerId(), { name: 'מגדל הדוגמה', aliases: ['100.2000'] });
   const r = run();
   const t = inRun(r, () => store.createTask(a, { title: 'לבדוק את השיש', requester: store.ownerId(), due: '2026-12-01' }));
   const v = await gate.check(r, { chats: [CHAT] });
@@ -39,8 +39,8 @@ test('1. project: a task in "לא משויך" is questioned, quoting the source 
 
 test('1. project: known aliases, plot and project numbers are offered as candidates; an explicit reason plus a question for the owner is accepted', async () => {
   const { store, gate, a, run, inRun, db } = setup();
-  const alt = store.createProject(a, { name: 'מגדל הדוגמה 2-4', aliases: ['מגדל הדוגמה', '100.2000'] });
-  const lod = store.createProject(a, { name: 'דוגמית', aliases: ['מגרש 212'], partial: true });
+  const alt = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה 2-4', aliases: ['מגדל הדוגמה', '100.2000'] });
+  const lod = store.createProject(store.ownerId(), { name: 'דוגמית', aliases: ['מגרש 212'], partial: true });
   const r = run();
   const t = inRun(r, () => store.createTask(a, { title: 'דבר', due: '2026-12-01', requester: store.ownerId(), unassigned_reason: 'לא ברור' }));
   const src = { chats: [{ id: 2, text: 'לבדוק את חוזה 100.2000 ובנוסף מגרש 212', created_at: new Date().toISOString() }] };
@@ -55,7 +55,7 @@ test('1. project: known aliases, plot and project numbers are offered as candida
 
 test('2. requester: missing; wrong for an email; wrong or unknown for a chat', async () => {
   const { store, gate, a, run, inRun, db } = setup();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const noa = store.createPerson(a, { name: 'נועה שרון', emails: 'noa@lawfirm.example' });
   const r = run();
   const miss = inRun(r, () => store.createTask(a, { title: 'א', project: p.id, due: '2026-12-01' }));
@@ -79,7 +79,7 @@ test('2. requester: missing; wrong for an email; wrong or unknown for a chat', a
 
 test('3. dates: source_date and due_source are filled by code (logged), a missing due date is questioned', async () => {
   const { store, gate, a, run, inRun, db } = setup();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const r = run();
   const t = inRun(r, () => store.createTask(a, { title: 'ד', project: p.id, requester: store.ownerId() }));
   const v = await gate.check(r, { chats: [CHAT] });
@@ -95,7 +95,7 @@ test('3. dates: source_date and due_source are filled by code (logged), a missin
 
 test('4. people: a named known person must be linked or dismissed; unknown "<name> מפרויקט ..." must be created as a partial person', async () => {
   const { store, gate, a, run, inRun, db } = setup();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const dani = store.createPerson(a, { name: 'דני רוזן' });
   const r = run();
   const src = { chats: [{ id: 5, text: 'דני צריך לראות את זה. גלעד מפרויקט דוגמית ביקש לבדוק את השיש', created_at: new Date().toISOString() }] };
@@ -115,7 +115,7 @@ test('4. people: a named known person must be linked or dismissed; unknown "<nam
 
 test('5. language: Cyrillic or a non-Hebrew title is questioned (also for updates)', async () => {
   const { store, gate, a, run, inRun } = setup();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const r = run();
   inRun(r, () => store.createTask(a, { title: 'Позвонить Гаю', project: p.id, due: '2026-12-01', requester: store.ownerId() }));
   inRun(r, () => store.createTask(a, { title: 'Check the marble series', project: p.id, due: '2026-12-01', requester: store.ownerId() }));
@@ -126,7 +126,7 @@ test('5. language: Cyrillic or a non-Hebrew title is questioned (also for update
 
 test('6. duplicates: a new task similar to an open one needs an explicit decision', async () => {
   const { store, gate, a, run, inRun, db } = setup();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const old = inRun(run(), () => store.createTask(a, { title: 'לבדוק את חוזה המכר בנושא השיש', project: p.id, due: '2026-12-01', requester: store.ownerId() }));
   const r = run();
   const nt = inRun(r, () => store.createTask(a, { title: 'לבדוק חוזה המכר בנושא השיש', project: p.id, due: '2026-12-01', requester: store.ownerId() }));
@@ -148,7 +148,7 @@ test('7. email source: chat report, attachments looked at, facts attempted', asy
   db.prepare("UPDATE files SET summary='חוזה מכר' WHERE email_id=?").run(e);
   v = await gate.check(r, src);
   assert.match(v.find((x) => x.code === 'attachments').question, /שיוך לפרויקט.*בדיקת נתונים/); // summary alone is not enough: project link and facts check are required too
-  const pj = store.createProject(a, { name: 'דוגמית' });
+  const pj = store.createProject(store.ownerId(), { name: 'דוגמית' });
   db.prepare('UPDATE files SET project_id=?, facts_checked=1 WHERE email_id=?').run(pj.id, e);
   db.prepare('UPDATE claude_runs SET facts_checked=1 WHERE id=?').run(r);
   store.createPerson(a, { name: 'x' }); // noise
@@ -160,7 +160,7 @@ test('7. email source: chat report, attachments looked at, facts attempted', asy
 test('8. protocol: action items need an owner or an explicit "לא ידוע"', async () => {
   const { store, gate, a, run, db } = setup();
   const r = run();
-  const p = store.createProject(a, { name: 'דוגמית' });
+  const p = store.createProject(store.ownerId(), { name: 'דוגמית' });
   const proto = db.prepare("INSERT INTO protocols (project_id, meeting_at, title, created_by, created_at) VALUES (?,?,?,?,?)").run(p.id, '2026-11-25T10:00:00Z', 'ישיבה', a, new Date().toISOString()).lastInsertRowid;
   db.prepare("INSERT INTO protocol_items (protocol_id, idx, kind, text, created_at) VALUES (?,1,'action','להגיש תוכניות',?)").run(proto, new Date().toISOString());
   store.logEvent(a, 'protocol', proto, 'create', 'title', null, 'ישיבה');
@@ -191,7 +191,7 @@ test('pulse messages and curator output are checked too', () => {
   assert.ok(gate.checkMessage('Позвонить завтра', []).some((x) => x.key === 'cyr'));
   assert.ok(gate.checkMessage('שורה\nשורה\nשורה\nשורה\nשורה\nשורה', []).some((x) => x.key === 'long'));
   assert.ok(gate.checkMessage('יש משימה באיחור', [{}]).some((x) => x.key === 'links'));
-  const p = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const p = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const r = run();
   const v = gate.checkCurator(r, { wordsAfter: 3000, limit: 1500 });
   assert.deepEqual(v.map((x) => x.code).sort(), ['memory', 'summary']);

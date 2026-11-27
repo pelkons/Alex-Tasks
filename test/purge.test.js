@@ -14,7 +14,7 @@ function lib() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const taskdel = createTaskDelete({ db, store }); const purge = createPurge({ db, store, taskdel }); const confirm = createConfirm({ db, store, chat, taskdel, purge });
   const a = store.assistantId(), owner = store.ownerId();
-  const p1 = store.createProject(a, { name: 'פרויקט ישן' }), p2 = store.createProject(a, { name: 'פרויקט יעד' });
+  const p1 = store.createProject(store.ownerId(), { name: 'פרויקט ישן' }), p2 = store.createProject(store.ownerId(), { name: 'פרויקט יעד' });
   const t1 = store.createTask(owner, { title: 'משימה א', project: p1.id, requester: owner }), t2 = store.createTask(owner, { title: 'משימה ב', project: p1.id, requester: owner });
   return { db, store, chat, purge, confirm, a, owner, p1, p2, t1, t2 };
 }

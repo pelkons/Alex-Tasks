@@ -6,7 +6,7 @@ const fs = require('fs'); const prefix = process.argv[2] || 'shot'; fs.mkdirSync
 const { chromium } = require('playwright');
 if (process.argv.includes('--seed')) {
   const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const db = open(); const store = createStore(db); const a = store.assistantId(), owner = store.ownerId();
-  const P = ['מגדל הרצל', 'פארק הדוגמה', 'רחוב הים 12', 'שכונת הגפן', 'מרכז מסחרי הצפון'].map((n) => store.createProject(a, { name: n }));
+  const P = ['מגדל הרצל', 'פארק הדוגמה', 'רחוב הים 12', 'שכונת הגפן', 'מרכז מסחרי הצפון'].map((n) => store.createProject(store.ownerId(), { name: n }));
   const people = ['רון לוי', 'דנה אברהם', 'יעל כהן', 'משה דיין', 'אורי שדה'].map((n) => store.createPerson(a, { name: n, role: 'contact' }));
   const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   const T = [

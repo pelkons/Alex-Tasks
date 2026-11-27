@@ -14,7 +14,7 @@ const { createImporter } = require('../lib/importer');
 function setup() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const proposals = createProposals({ db, store, chat }); const fb = createFeedback({ db, store, proposals });
-  const a = store.assistantId(), owner = store.ownerId(); const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const a = store.assistantId(), owner = store.ownerId(); const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const run = db.prepare("INSERT INTO claude_runs (started_at, trigger, model) VALUES (?, 'import', 'haiku')").run(new Date().toISOString()).lastInsertRowid;
   const mailTask = (from, subject, title) => {
     const e = db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, body_text, forwarded_from) VALUES (?,?,?,?,?,?)").run('m' + Math.random(), from, subject, new Date().toISOString(), 'גוף', from).lastInsertRowid;

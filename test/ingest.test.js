@@ -88,7 +88,7 @@ test('live urgent: a boss request, due today or tomorrow, once per reason; every
   const boss = L.store.createPerson(a, { name: 'מנהלת הבדיקה', role: 'contact', notes: 'הממונה של הבעלים' });
   const imp = L.importer.liveBatch().id;
   const run = L.chat.startRun('import', 1); L.db.prepare('UPDATE claude_runs SET import_id=? WHERE id=?').run(imp, run);
-  const proj = L.store.createProject(a, { name: 'מגדל הבדיקה' });
+  const proj = L.store.createProject(L.store.ownerId(), { name: 'מגדל הבדיקה' });
   const day = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' }); };
   const mk = (title, o) => { const t = L.store.createTask(a, { title, project: proj.id, requester: owner, assignee: owner, ...o }); L.db.prepare('UPDATE events SET run_id=? WHERE entity=? AND entity_id=?').run(run, 'task', t.id); return t; };
   mk('בקשה של הממונה', { requester: boss.id, due: day(20) }); mk('דחוף למחר', { due: day(1) }); mk('בעוד חודש', { due: day(30) });

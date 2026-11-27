@@ -18,7 +18,7 @@ function setup() {
   const db = open(':memory:');
   auth.setPassword(db, 'correct horse battery');
   auth.resetFailures();
-  const app = build({ db, token: TOKEN, loginDelayMs: 0 });
+  const app = build({ db, token: TOKEN, loginDelayMs: 0 }); require('./helpers/owner')(app, db, 'correct horse battery');
   const bearer = { authorization: `Bearer ${TOKEN}` };
   const login = async () => {
     const r = await app.inject({ method: 'POST', url: '/api/login', payload: { password: 'correct horse battery' } });
@@ -30,7 +30,7 @@ const j = (r) => r.json();
 
 test('search: "תקציב" finds "והתקציב" (trigram), across kinds, with filters', async () => {
   const { app, bearer, db } = setup();
-  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל' } }));
+  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל' } }));
   await app.inject({ method: 'POST', url: '/api/tasks', headers: bearer, payload: { title: 'לבדוק את והתקציב השנתי', project: p.id, requester: 'יעל רוזן' } });
   await app.inject({ method: 'POST', url: '/api/tasks', headers: bearer, payload: { title: 'משימה אחרת' } });
   db.prepare("INSERT INTO emails (subject, body_text, received_at, forwarded_from, forwarded_date) VALUES ('נושא','הוועדה אישרה והתקציב','2026-11-01T10:00:00Z','אבי כהן <a@b.co>','2026-11-01T10:00:00Z')").run();
@@ -75,7 +75,7 @@ test('chat: owner message creates a pending event, assistant reply does not; sta
 
 test('knowledge: add, supersede keeps the old item but hides it from search', async () => {
   const { app, bearer } = setup();
-  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל הנוף' } }));
+  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הנוף' } }));
   const k = j(await app.inject({ method: 'POST', url: '/api/knowledge', headers: bearer, payload: { project: p.id, kind: 'fact', title: 'קבלן החשמל', body: 'אור-נתיב', source: 'chat' } }));
   assert.equal(j(await app.inject({ method: 'GET', url: '/api/search?q=' + encodeURIComponent('אור-נתיב'), headers: bearer })).count, 1);
   const s = j(await app.inject({ method: 'POST', url: `/api/knowledge/${k.id}/supersede`, headers: bearer, payload: { body: 'חשמל-פלוס' } }));
@@ -89,7 +89,7 @@ test('knowledge: add, supersede keeps the old item but hides it from search', as
 
 test('upload: text is extracted, chunked, searchable by project, never returned whole', async () => {
   const { app, bearer, db } = setup();
-  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל הנוף' } }));
+  const p = j(await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הנוף' } }));
   const lines = [];
   for (let i = 0; i < 300; i++) lines.push(`שורה ${i}: ${i === 250 ? 'קבלן החשמל הוא אור הדוגמה' : 'טקסט רגיל של המפרט'} עם עוד כמה מילים למילוי`);
   const boundary = '----x';
@@ -254,7 +254,7 @@ test('OCR: Hebrew image and a scanned (image-only) PDF are read with tesseract h
 
 test('project facts: newer supersedes, older is history only, same value confirms, undo restores', async () => {
   const { app, bearer, db } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל הדוגמה' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הדוגמה' } })).json();
   const set = async (b) => (await app.inject({ method: 'POST', url: '/api/facts', headers: bearer, payload: { project: p.id, ...b } })).json();
   let r = await set({ key: 'סטטוס שלד', value: 'קומה 5', as_of: '20/11/2026', source: 'chat:1' });
   assert.equal(r.result, 'created');
@@ -285,7 +285,7 @@ test('project facts: newer supersedes, older is history only, same value confirm
 
 test('protocols: items stay out of the main board until promoted; promote links a task back', async () => {
   const { app, bearer, db } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל הדוגמה' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הדוגמה' } })).json();
   const r = await app.inject({ method: 'POST', url: '/api/protocols', headers: bearer, payload: {
     project: p.id, date: '24/11/2026 10:30', title: 'ישיבת תיאום שבועית', location: 'אתר מגדל הדוגמה', source: 'chat:1', summary: 'סיכום קצר',
     participants: 'דני לוי (בונה הדוגמה, מנהל עבודה); Moshe Katz <moshek@a.co> (יועץ בטיחות, יו"ר הישיבה)',
@@ -377,7 +377,7 @@ test('people: Hebrew display names, Latin alias for matching, merge keeps every 
 
 test('the same protocol from the same source is stored once; a retry fills in missing items', async () => {
   const { app, bearer, db } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'מגדל' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל' } })).json();
   const body = { project: p.id, date: '24/11/2026 09:00', title: 'ישיבה', source: 'chat:7' };
   const a = (await app.inject({ method: 'POST', url: '/api/protocols', headers: bearer, payload: body })).json();
   const b = (await app.inject({ method: 'POST', url: '/api/protocols', headers: bearer, payload: { ...body, title: 'ישיבה (שוב)', items: [{ kind: 'action', text: 'לבצע' }] } })).json();

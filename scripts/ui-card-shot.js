@@ -6,7 +6,7 @@ const { chromium } = require('playwright'); const name = process.argv[2] || 'car
 let taskId = 1;
 if (process.argv.includes('--seed')) {
   const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createKnowledge } = require('../lib/knowledge'); const { createChat } = require('../lib/chat'); const db = open(); const store = createStore(db); const chat = createChat(db, store, createKnowledge(db, store)); const a = store.assistantId(), owner = store.ownerId();
-  const p = store.createProject(a, { name: 'פרויקט הדוגמה' }); const ppl = store.createPerson(a, { name: 'יעל כהן', role: 'contact' });
+  const p = store.createProject(store.ownerId(), { name: 'פרויקט הדוגמה' }); const ppl = store.createPerson(a, { name: 'יעל כהן', role: 'contact' });
   const t = store.createTask(a, { title: 'לבדוק את נוסח הערבות הבנקאית ולהחזיר הערות', project: p.id, requester: ppl.id, assignee: owner, due: '2026-11-29', due_source: 'estimated', priority: 'רגיל' }); taskId = t.id;
   store.updateTask(a, t.id, { due: '2026-11-25' }); store.updateTask(a, t.id, { due_source: 'explicit' }); store.updateTask(a, t.id, { priority: 'דחוף' }); store.updateTask(a, t.id, { description: 'נוסח טיוטה מצורף, להחזיר עם הערות' }); store.updateTask(a, t.id, { status: 'בטיפול' }); store.updateTask(a, t.id, { title: 'לבדוק את נוסח הערבות הבנקאית ולהחזיר הערות עד מחר' });
   store.addNote(owner, { task: t.id, text: 'לבדוק גם את סעיף התנאים המתלים' });

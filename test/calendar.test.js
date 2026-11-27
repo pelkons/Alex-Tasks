@@ -11,13 +11,13 @@ const TOKEN = 'cal-test';
 function setup() {
   const db = open(':memory:');
   auth.setPassword(db, 'correct horse battery');
-  const app = build({ db, token: TOKEN, loginDelayMs: 0 });
+  const app = build({ db, token: TOKEN, loginDelayMs: 0 }); require('./helpers/owner')(app, db, 'correct horse battery');
   return { db, app, h: { authorization: `Bearer ${TOKEN}` } };
 }
 
 test('calendar feed: secret token, no login, RFC 5545 structure with a Jerusalem VTIMEZONE', async () => {
   const { app, h } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: h, payload: { name: 'מגדל' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל' } })).json();
   const t1 = (await app.inject({ method: 'POST', url: '/api/tasks', headers: h, payload: { title: 'לבדוק, חוזה; עם ספק', project: p.id, requester: 'יעל רוזן', due: '02/12/2026', due_source: 'estimated', description: 'שורה ראשונה\nשורה שנייה' } })).json();
   const t2 = (await app.inject({ method: 'POST', url: '/api/tasks', headers: h, payload: { title: 'משימה שנסגרה', due: '03/12/2026' } })).json();
   await app.inject({ method: 'PATCH', url: `/api/tasks/${t2.id}`, headers: h, payload: { status: 'הושלם' } });
@@ -77,7 +77,7 @@ test('calendar feed: secret token, no login, RFC 5545 structure with a Jerusalem
 
 test('calendar: range view, update, and a protocol\'s next meeting becomes a calendar item', async () => {
   const { app, h } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: h, payload: { name: 'מגדל הדוגמה' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הדוגמה' } })).json();
   await app.inject({ method: 'POST', url: '/api/tasks', headers: h, payload: { title: 'משימה', due: '05/12/2026' } });
   await app.inject({ method: 'POST', url: '/api/protocols', headers: h, payload: { project: p.id, date: '23/11/2026 14:00', title: 'ישיבת תיאום', next_meeting_at: '07/12/2026 14:00', location: 'האתר', items: [{ kind: 'info', text: 'x' }] } });
   const range = (await app.inject({ method: 'GET', url: '/api/calendar?from=2026-12-01&to=2026-12-31', headers: h })).json();

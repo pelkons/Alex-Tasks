@@ -16,7 +16,7 @@ function setup() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const gate = createGate({ db, store, knowledge, entities: createEntities(db, store) });
   const a = store.assistantId(), owner = store.ownerId();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const t1 = store.createTask(owner, { title: 'להעביר תוכנית יציקות', project: proj.id, due: '2026-12-01', requester: owner });
   const t2 = store.createTask(owner, { title: 'משימה אחרת של המגדל', project: proj.id, due: '2026-12-05', requester: owner });
   const run = () => db.prepare("INSERT INTO claude_runs (started_at, trigger, pinned_task_id) VALUES (?, 'chat', ?)").run(new Date(Date.now() - 1000).toISOString(), t1.id).lastInsertRowid;

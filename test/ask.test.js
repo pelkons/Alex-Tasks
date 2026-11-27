@@ -15,7 +15,7 @@ const { createContext } = require('../lib/context');
 function setup() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store);
   const a = store.assistantId();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה', aliases: [] });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה', aliases: [] });
   const em = db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, body_text) VALUES ('m1','x@y.co','FW: הוצאה לחתימות','2026-11-20T08:00:00Z','צירפתי את החוזה')").run().lastInsertRowid;
   const fid = db.prepare("INSERT INTO files (original_name, path, source, created_at, email_id, project_id, text_status) VALUES ('הוצאה לחתימות מגדל הדוגמה.pdf','/x','email',?,?,?, 'ok')").run(new Date().toISOString(), em, proj.id).lastInsertRowid;
   db.prepare('INSERT INTO chunks (file_id, idx, text, page) VALUES (?,?,?,?)').run(fid, 0, 'סעיף 9.1 התמורה עבור החדר, קרקע ובנייה לשנאי אחד, תעמוד על 182,643.30 ש"ח בתוספת מע"מ.', 5);

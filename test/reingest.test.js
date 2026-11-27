@@ -37,7 +37,7 @@ test('re-ingest replaces the stored file, headers, body and attachment names IN 
   const emailId = r1.email_id; const em0 = L.db.prepare('SELECT * FROM emails WHERE id=?').get(emailId); const kids0 = L.db.prepare('SELECT * FROM files WHERE email_id=? AND id<>?').all(emailId, em0.file_id);
   assert.equal(kids0.length, 1); assert.match(kids0[0].original_name, /^\?+ \?+\.pdf$/);
   // things that point at the email and at the attachment
-  const proj = L.store.createProject(a, { name: 'ארבר' }); const t = L.store.createTask(owner, { title: 'משימה מהמייל', project: proj.id, requester: owner, source_email: emailId });
+  const proj = L.store.createProject(L.store.ownerId(), { name: 'ארבר' }); const t = L.store.createTask(owner, { title: 'משימה מהמייל', project: proj.id, requester: owner, source_email: emailId });
   L.store.linkTaskEmail(a, t.id, emailId, 'created'); L.db.prepare("INSERT INTO project_facts (project_id, key, value, as_of_date, source_type, source_id, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)").run(proj.id, 'שטח', '18 דונם', '2026-11-26', 'file', kids0[0].id, a, new Date().toISOString());
   L.db.prepare("INSERT INTO people (name_he, role, emails, notes, created_at) VALUES ('??? ???','contact','[\"avi@client.example\"]','',?)").run(new Date().toISOString());
   const r2 = await L.ingest.mail({ ...meta, reingest: true }, good(), 'm.msg');

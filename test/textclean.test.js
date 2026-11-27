@@ -21,7 +21,7 @@ test('text reduction: quoted replies, signature, disclaimer and banners go; the 
 
 test('attachments with the same sha256 are processed once: the second copy reuses text, summary and project', async () => {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const a = store.assistantId();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const buf = Buffer.from('סעיף 9.1 התמורה 182,643 ש"ח. '.repeat(30));
   const f1 = await knowledge.saveUpload(a, { name: 'חוזה.txt', mime: 'text/plain', buffer: buf, source: 'email', quiet: true });
   knowledge.classifyFile(a, f1.id, { project: proj.id, summary: 'חוזה לדוגמה', facts_checked: true });

@@ -13,7 +13,7 @@ function setup() {
   const db = open(':memory:');
   auth.setPassword(db, PW);
   auth.resetFailures();
-  const app = build({ db, token: TOKEN, loginDelayMs: 0 });
+  const app = build({ db, token: TOKEN, loginDelayMs: 0 }); require('./helpers/owner')(app, db, PW);
   const bearer = { authorization: `Bearer ${TOKEN}` };
   async function login() {
     const r = await app.inject({ method: 'POST', url: '/api/login', payload: { password: PW } });
@@ -109,7 +109,7 @@ test('validation errors are Hebrew', async () => {
 
 test('project merge moves tasks and keeps the old name as alias', async () => {
   const { app, bearer, db } = setup();
-  const mk = async (name) => (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name } })).json();
+  const mk = async (name) => (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name } })).json();
   const a = await mk('פרויקט א'), b = await mk('פרויקט ב');
   for (const [title, project] of [['t1', a.id], ['t2', a.id], ['t3', b.id]]) {
     await app.inject({ method: 'POST', url: '/api/tasks', headers: bearer, payload: { title, project } });
@@ -193,7 +193,7 @@ test('default order: overdue and nearest due first, no due date last', async () 
 
 test('projects get a stable saved color that can be changed', async () => {
   const { app, bearer } = setup();
-  const a = (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'א' } })).json();
+  const a = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'א' } })).json();
   assert.match(a.color, /^#[0-9a-f]{6}$/);
   const again = (await app.inject({ method: 'GET', url: '/api/projects', headers: bearer })).json().find((p) => p.id === a.id);
   assert.equal(again.color, a.color);
@@ -249,7 +249,7 @@ test('undo: reverts through the events log, logs the undo as an owner event, ref
 
 test('renaming a project keeps the old name as an alias', async () => {
   const { app, bearer } = setup();
-  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: bearer, payload: { name: 'שם ישן', aliases: 'כינוי' } })).json();
+  const p = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'שם ישן', aliases: 'כינוי' } })).json();
   const r = (await app.inject({ method: 'PATCH', url: `/api/projects/${p.id}`, headers: bearer, payload: { name: 'שם חדש' } })).json();
   assert.deepEqual(r.aliases.sort(), ['כינוי', 'שם ישן'].sort());
   const t = (await app.inject({ method: 'POST', url: '/api/tasks', headers: bearer, payload: { title: 'x', project: 'שם ישן' } })).json();

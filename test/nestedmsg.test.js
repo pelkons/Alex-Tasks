@@ -34,7 +34,7 @@ test('a nested message whose plain-text body is "?" but whose RTF body keeps the
 
 test('repair: a damaged nested file is renamed from its own subject, or merged into the clean copy a re-push added (references move, the damaged row goes)', async () => {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const a = store.assistantId();
-  const proj = store.createProject(a, { name: 'פרויקט' }); const eid = db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, body_text, project_id) VALUES ('p1','x@y','אב',?,'גוף',?)").run(new Date().toISOString(), proj.id).lastInsertRowid;
+  const proj = store.createProject(store.ownerId(), { name: 'פרויקט' }); const eid = db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, body_text, project_id) VALUES ('p1','x@y','אב',?,'גוף',?)").run(new Date().toISOString(), proj.id).lastInsertRowid;
   const addFile = (name, buf) => { const f = path.join(process.env.MESIMOT_FILES, name.replace(/[^\w.]/g, '_') + Math.random()); fs.writeFileSync(f, buf); return db.prepare("INSERT INTO files (original_name, path, mime, size, source, email_id, created_at) VALUES (?,?,?,?,?,?,?)").run(name, f, 'application/vnd.ms-outlook', buf.length, 'email', eid, new Date().toISOString()).lastInsertRowid; };
   const good = addFile('FW: בורלא 5-7, ת"א- הדמיות.msg', nested()); const bad = addFile('FW: ????? 5-7, ?"?- ??????.msg', nested({ subject: '????? ??????', body: '???? ??? ?????? ????? ??? ????? ????' }));
   db.prepare("INSERT INTO project_facts (project_id, key, value, as_of_date, source_type, source_id, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)").run(proj.id, 'מפתח', 'ערך', '2026-11-26', 'file', bad, a, new Date().toISOString());

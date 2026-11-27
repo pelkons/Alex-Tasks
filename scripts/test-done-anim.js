@@ -3,7 +3,7 @@
 process.env.MESIMOT_DB = process.env.MESIMOT_DB || '/tmp/mesimot-test/test.db'; process.env.MESIMOT_SEMANTIC = '0';
 const { chromium } = require('playwright');
 const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const db = open(); const store = createStore(db); const a = store.assistantId(), owner = store.ownerId();
-const proj = store.createProject(a, { name: 'פרויקט הדוגמה' }); const ids = [];
+const proj = store.createProject(store.ownerId(), { name: 'פרויקט הדוגמה' }); const ids = [];
 for (let i = 1; i <= 30; i++) ids.push(store.createTask(a, { title: `משימה מספר ${i} לבדיקת האנימציה`, project: proj.id, requester: owner, due: '2026-12-20' }).id);
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined }); let fails = 0; const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) fails++; };

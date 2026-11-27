@@ -12,7 +12,7 @@ const tag = process.argv[2] || 'after';
     const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createChat } = require('../lib/chat'); const { createKnowledge } = require('../lib/knowledge');
     const db = open('/tmp/mesimot-test/test.db'); const store = createStore(db); const a = store.assistantId(), owner = store.ownerId();
     if (db.prepare('SELECT COUNT(*) c FROM tasks').get().c < 5) {
-      const projects = ['מגדל הנוף', 'שדרוג תשתיות', 'מרכז מסחרי הנחל'].map((n) => store.createProject(a, { name: n }));
+      const projects = ['מגדל הנוף', 'שדרוג תשתיות', 'מרכז מסחרי הנחל'].map((n) => store.createProject(store.ownerId(), { name: n }));
       const people = ['דנה כהן', 'רונית לוי', 'משה דיין'].map((n) => store.createPerson(a, { name: n, role: 'contact' }));
       const titles = ['להגיש לאישור תוכנית פיגומים מעודכנת לקומות 9-10 עד סוף החודש', 'לבדוק את חוזה המכר בנושא סדרת השיש בדירות הגן', 'לתאם סיור בטיחות שבועי עם יועץ הבטיחות', 'להעביר תוכניות חשמל מעודכנות לקומה 9', 'לאשר בכתב את שינוי לוח היציקות', 'לעדכן את המזמין בלוח הזמנים המעודכן', 'להשלים את בדיקת העומסים של תקרת קומה 8', 'לדווח על כמות בטון שנותרה להזמנה', 'להחליף שני עגורנים פגומים באתר', 'לספק אישור בדיקת הארקה לקומות 1-6', 'לתאם פגישה עם יועץ הקונסטרוקציה לגבי קורות', 'לשלוח לאבי טיוטת תשובה על חריגות התקציב'];
       titles.forEach((t, i) => store.createTask(i % 2 ? owner : a, { title: t, project: projects[i % 3].id, requester: people[i % 3].id, due: `2026-12-${String(1 + i).padStart(2, '0')}`, priority: i % 4 === 0 ? 'דחוף' : 'רגיל', description: 'תיאור ארוך של המשימה כדי לבדוק גלישת שורות ברוחבים שונים של הכרטיס. '.repeat(3) }));

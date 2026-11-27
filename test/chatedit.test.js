@@ -15,7 +15,7 @@ function setup() {
   const undo = createUndo(db, store, knowledge); const deleted = [];
   const ce = createChatEdit({ db, store, chat, undo, tgDelete: async (id) => { deleted.push(id); } });
   const a = store.assistantId(), owner = store.ownerId();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   // an exchange: the owner writes, a run answers: opens a task and replies
   const msg = chat.sendChat(owner, { text: 'תפתח משימה לבדוק X עד מחר' }, { telegram_message_id: 555 });
   const run = db.prepare("INSERT INTO claude_runs (started_at, trigger) VALUES (?, 'chat')").run(new Date(Date.now() - 5000).toISOString()).lastInsertRowid;

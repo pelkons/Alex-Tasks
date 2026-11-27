@@ -12,7 +12,7 @@ const tag = process.argv[2] || 'after';
     const db = open('/tmp/mesimot-test/test.db'); const store = createStore(db); const cal = createCalendar(db, store); const a = store.assistantId(), owner = store.ownerId();
     if (!db.prepare('SELECT COUNT(*) c FROM calendar_items').get().c) {
       let ps = store.listProjects().filter((p) => !p.is_default);
-      if (ps.length < 3) ps = ['מגדל הנוף', 'שדרוג תשתיות', 'מרכז מסחרי הנחל'].map((n) => store.createProject(a, { name: n }));
+      if (ps.length < 3) ps = ['מגדל הנוף', 'שדרוג תשתיות', 'מרכז מסחרי הנחל'].map((n) => store.createProject(store.ownerId(), { name: n }));
       const mk = (title, start, i, extra = {}) => cal.addItem(a, { title, start, project: i == null ? null : ps[i % ps.length].id, ...extra });
       const days = ['2026-11-22', '2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27'];
       days.forEach((d, k) => { mk('סיור באתר עם יועץ הבטיחות והקבלן הראשי', `${d} 09:00`, k); mk('ישיבת תיאום שבועית', `${d} 11:30`, k + 1); mk('פגישה כללית ללא פרויקט', `${d} 14:00`, null); if (k % 2) { mk('בדיקת תוכניות', `${d} 15:00`, k + 2); mk('שיחה עם אבי', `${d} 16:00`, null); } });

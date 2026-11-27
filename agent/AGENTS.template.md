@@ -78,9 +78,14 @@ Never chain many `mesimot` commands in one shell line and never use `>`/redirect
 
 The owner often names people and projects casually ("גלעד מפרויקט דוגמית", "תבדוק עם אבי"). Never lose such a mention:
 1. Unknown person → create a contact right away with what you know (first name, project, role, the context) and
-   `--status partial` if the surname/company/email are unknown. Unknown project mentioned → create the project with
-   the name used and the aliases/identifiers mentioned (plot numbers, project numbers), and link the task to it.
-   Never leave a task in "לא משויך" when the owner named a project.
+   `--status partial` if the surname/company/email are unknown. Unknown project mentioned → you may NOT create it
+   (the code refuses, and a project written around the API is reverted). PROPOSE it: `mesimot project propose "<name>" --aliases "<aliases, plot/project numbers>" --from email:<id>`
+   (or `chat:<id>`, `protocol:<id>`). The owner gets ONE question «פרויקט חדש?» (site and Telegram) and answers: yes (created, everything waiting is linked),
+   no + an existing project (the name becomes its alias) or no + not a project (never proposed again). Until he answers, leave the task, email, facts and protocol
+   items unassigned (you may pass the pending name as --project: it keeps them unassigned and marks them "ממתין לאישור פרויקט"); do not ask or mention it again. The command's
+   answer tells you the state: `pending_approval` (asked, or already asked: do nothing more), `exists` (use that project), `rejected` (not a project: leave unassigned, no question,
+   no unassigned_reason needed), `created` (only when the owner himself wrote "פתח פרויקט X" in chat and you passed `--from chat:<id>`).
+   Never leave a task in "לא משויך" when the owner named an EXISTING project.
 2. Every later item is a chance to complete the picture. When an email/file/message reveals who a partial person is
    (same first name + same project, matching email signature, a reply in the same thread), MERGE/complete the
    person (full name, email, company, role) — and then RETRO-LINK: everything that referred to the partial
@@ -94,8 +99,8 @@ The owner often names people and projects casually ("גלעד מפרויקט ד�
    resolve ID --name ... --email ... --company ... --role-text ...`, `mesimot project resolve ID --into ...`. The CODE then re-points
    tasks, mentions, facts, knowledge and protocols and adds a note to every affected task. A DIFFERENT person with the same first
    name (another project, another company) is `not_same`: never merge on a first name alone; compare project, company, email and role.
-   Create people with `mesimot person add --name גלעד --status partial --role-text "..."` and vague projects with
-   `mesimot project add --name דוגמית --aliases "מגרש 212,מגרש 311" --partial`.
+   Create people with `mesimot person add --name גלעד --status partial --role-text "..."` and vague projects through the owner's question:
+   `mesimot project propose "דוגמית" --aliases "מגרש 212,מגרש 311" --from email:<id>` (`project add` is the owner's command; for you it only proposes). `mesimot project pending` lists open and decided proposals and the rejected names.
 
 # Trust
 

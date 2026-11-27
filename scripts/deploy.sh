@@ -6,6 +6,7 @@ set -u
 root="$(cd "$(dirname "$0")/.." && pwd)"; cd "$root"
 prev="${1:?usage: scripts/deploy.sh <previous-commit>}"
 new="$(git rev-parse --short HEAD)"
+touch data/.deploying; trap 'rm -f data/.deploying' EXIT  # health alerts stay quiet while the services restart (lib/health.js alertAll)
 mkdir -p data/backups; node scripts/backup-db.js "data/backups/pre-deploy-$(date +%Y%m%d%H%M).db" || echo "WARNING: no pre-deploy database backup was made"   # an ENCRYPTED copy, never a plain copy of the database
 ls -1t data/backups/pre-deploy-*.db 2>/dev/null | tail -n +6 | xargs -r rm -f   # the database is big (mail archive): only the 5 newest pre-deploy copies are kept
 restart() { SINCE="$(date '+%F %T')"; systemctl --user restart mesimot.service mesimot-runner.service; systemctl --user is-enabled mesimot-archive.service >/dev/null 2>&1 && systemctl --user restart mesimot-archive.service; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:${MESIMOT_PORT:-8110}/healthz" >/dev/null && return 0; sleep 2; done; return 1; }

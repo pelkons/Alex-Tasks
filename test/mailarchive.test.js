@@ -208,7 +208,7 @@ test('search: archive results carry the archived flag and the mail date, the fil
 
 test('project guess is rule based (names, aliases, project numbers, thread), no model, and only a clear winner is used', async () => {
   const L = lib(); const a = L.store.assistantId();
-  const p1 = L.store.createProject(a, { name: 'מגדל הדוגמה', aliases: ['מגדל הדגם'] }); const p2 = L.store.createProject(a, { name: 'פארק הניסוי' });
+  const p1 = L.store.createProject(L.store.ownerId(), { name: 'מגדל הדוגמה', aliases: ['מגדל הדגם'] }); const p2 = L.store.createProject(L.store.ownerId(), { name: 'פארק הניסוי' });
   await post(L, arch(70), msg(70, { subject: 'מגדל הדוגמה: לוח זמנים' })); await post(L, arch(71), msg(71, { subject: 'שאלה כללית', body: 'אין כאן שום שם' })); await post(L, arch(72), msg(72, { subject: 'מגדל הדוגמה ופארק הניסוי יחד', body: 'מגדל הדוגמה ופארק הניסוי' }));
   await drain(L);
   const pid = (n) => L.db.prepare('SELECT project_id p FROM emails WHERE msgid=?').get(`ar${n}@supplier.example`).p;

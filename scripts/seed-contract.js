@@ -13,5 +13,5 @@ const parts = [
   'סעיף 12 - מסירה. המוכר ימסור את החדר לחברה עד ליום 30.6.2027. עיכוב במסירה יזכה את החברה בפיצוי מוסכם בסך 500 ש"ח ליום.',
 ];
 parts.forEach((t, i) => db.prepare('INSERT INTO chunks (file_id, idx, text, page) VALUES (?,?,?,?)').run(fid, i, t, i < 2 ? 1 : 2));
-if (!store.listProjects().some((p) => p.name_he === 'מגדל הנוף')) store.createProject(store.assistantId(), { name: 'מגדל הנוף' });
+if (!store.listProjects().some((p) => p.name_he === 'מגדל הנוף')) store.createProject(store.ownerId(), { name: 'מגדל הנוף' });
 console.log(JSON.stringify({ file: fid, email: emailId }));

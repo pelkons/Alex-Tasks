@@ -12,7 +12,7 @@ const { createProposals } = require('../lib/proposals');
 function setup() {
   const db = open(':memory:'); const store = createStore(db); const chat = createChat(db, store, createKnowledge(db, store));
   const a = store.assistantId(), owner = store.ownerId();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה' }), proj2 = store.createProject(a, { name: 'פארק הדוגמה' });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' }), proj2 = store.createProject(store.ownerId(), { name: 'פארק הדוגמה' });
   return { db, store, chat, a, owner, proj, proj2, audit: createAudit({ db, store }), proposals: createProposals({ db, store, chat }) };
 }
 const hidden = (db) => db.prepare('SELECT id FROM statuses WHERE hidden_default=1').get().id;

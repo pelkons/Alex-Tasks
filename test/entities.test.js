@@ -27,7 +27,7 @@ test('a partial person and a vague project collect mentions from tasks, chat and
   const { store, chat, entities, a, owner, db } = setup();
   const b = store.createPerson(a, { name: 'גלעד', status: 'partial', role_text: 'מנהל פרויקט דוגמית' });
   assert.deepEqual(b.missing.sort(), ['דוא״ל', 'חברה', 'שם משפחה'].sort());
-  const lod = store.createProject(a, { name: 'דוגמית', aliases: ['מגרש 212'], partial: true });
+  const lod = store.createProject(store.ownerId(), { name: 'דוגמית', aliases: ['מגרש 212'], partial: true });
   const t = store.createTask(a, { title: 'לבדוק את השיש', requester: b.id, project: lod.id });
   chat.sendChat(owner, { text: 'גלעד ביקש לבדוק את החוזה, מגרש 212' });
   store.addNote(a, { task: t.id, text: 'דיברתי עם לגלעד' });
@@ -71,8 +71,8 @@ test('merging a partial person into a full one re-points everything; undo restor
 
 test('project resolve: tasks, facts, knowledge and aliases move; conflicting facts keep the newer; undo restores', () => {
   const { store, knowledge, entities, undo, db, a, owner } = setup();
-  const lod = store.createProject(a, { name: 'דוגמית', partial: true });
-  const full = store.createProject(a, { name: 'שכונת הפארק דוגמית', aliases: ['326.5011'] });
+  const lod = store.createProject(store.ownerId(), { name: 'דוגמית', partial: true });
+  const full = store.createProject(store.ownerId(), { name: 'שכונת הפארק דוגמית', aliases: ['326.5011'] });
   const t = store.createTask(a, { title: 'שיש', project: lod.id });
   knowledge.setFact(a, { project: lod.id, key: 'מגרשים', value: '212, 311', as_of: '2026-11-01' });
   knowledge.setFact(a, { project: full.id, key: 'מגרשים', value: '212, 311, 400', as_of: '2026-10-01' });
@@ -106,7 +106,7 @@ test('apply: required identity verdicts are enforced; not_same is remembered per
 test('apply: complete a person and a project in one call, relinking happens before the task decisions', () => {
   const { store, apply, a, db } = setup();
   const b = store.createPerson(a, { name: 'גלעד', status: 'partial' });
-  const lod = store.createProject(a, { name: 'דוגמית', partial: true });
+  const lod = store.createProject(store.ownerId(), { name: 'דוגמית', partial: true });
   const t = store.createTask(a, { title: 'שיש', requester: b.id, project: lod.id });
   const r = apply(a, { resolutions: [
     { type: 'person', id: b.id, action: 'complete', name: 'גלעד מור', email: 'gal@xyz.example', company: 'XYZ', role_text: 'מנהל פרויקט דוגמית', reason: 'חתימה' },

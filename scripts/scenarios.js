@@ -536,7 +536,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
       'סעיף 12 - מסירה. המוכר ימסור את החדר לחברה עד ליום 30.6.2027. עיכוב במסירה יזכה את החברה בפיצוי מוסכם בסך 500 ש"ח ליום.'];
     const buf = await Packer.toBuffer(new Document({ sections: [{ children: lines.map((t) => new Paragraph({ bidirectional: true, alignment: AlignmentType.RIGHT, children: [new TextRun({ text: t, rightToLeft: true })] })) }] }));
     const emailId = inject({ from: 'Avi Cohen <avi@client.example>', to: 'Dana Levi <dana@exconstruct.example>', d: 20, h: 9, m: 0, subject: 'הוצאה לחתימות - מגדל הנוף', body: 'דנה שלום, מצורף החוזה החתום לחדר השנאים של חברת החשמל במגדל הנוף. לידיעתך ולהמשך טיפול.\n\nאבי כהן' });
-    if (!store.listProjects().some((p) => p.name_he === 'מגדל הנוף')) store.createProject(store.assistantId(), { name: 'מגדל הנוף' });
+    if (!store.listProjects().some((p) => p.name_he === 'מגדל הנוף')) store.createProject(store.ownerId(), { name: 'מגדל הנוף' });
     const knowledge = createKnowledge(db, store);
     const up = await knowledge.saveUpload(store.assistantId(), { name: 'הוצאה לחתימות - חוזה מגדל הנוף.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: buf, source: 'email', email_id: emailId, quiet: true });
     await waitIdle('contract attachment', 9 * 60 * 1000);
@@ -749,7 +749,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
   await scenario('33. a plain question in chat with related tasks in its context is answered on the FIRST reply: no gate retry, no decisions demanded, no error message', async () => {
     const owner = store.ownerId(), assistant = store.assistantId();
-    const proj = store.createProject(assistant, { name: 'מגדל הרצל' });
+    const proj = store.createProject(store.ownerId(), { name: 'מגדל הרצל' });
     const noa = store.createPerson(assistant, { name: 'נועה שדה', role: 'contact', company: 'חברת הדוגמה', emails: ['noa@sample-co.example'] });
     store.createTask(assistant, { title: 'לתאם סיור במגדל הרצל עם נועה שדה מחברת הדוגמה', project: proj.id, requester: owner, assignee: owner, due: '2026-12-08' });
     store.createTask(assistant, { title: 'להעביר לחברת הדוגמה את תוכניות החשמל של מגדל הרצל', project: proj.id, requester: noa.id, assignee: owner, due: '2026-12-09' });
@@ -764,7 +764,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
   });
 
   await scenario('34. a REPLY to an older message is about THAT message: "תדחה בשבוע" replying to the message about task B moves task B, not the task of the latest message', async () => {
-    const owner = store.ownerId(), assistant = store.assistantId(); const proj = store.createProject(assistant, { name: 'מגדל התשובות' });
+    const owner = store.ownerId(), assistant = store.assistantId(); const proj = store.createProject(store.ownerId(), { name: 'מגדל התשובות' });
     const A = store.createTask(assistant, { title: 'להכין דוח התקדמות חודשי', project: proj.id, requester: owner, assignee: owner, due: '2026-12-10' });
     const B = store.createTask(assistant, { title: 'לתאם סיור מדידות באתר', project: proj.id, requester: owner, assignee: owner, due: '2026-12-11' });
     const ins = (text, tid) => ({ id: db.prepare("INSERT INTO chat_messages (author, channel, text, file_ids, task_ids, created_at, tg_sent) VALUES ('claude','web',?,'[]',?,?,1)").run(text, JSON.stringify([tid]), new Date().toISOString()).lastInsertRowid });
@@ -781,7 +781,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
   const post = (body) => fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: H2, body: JSON.stringify(body) });
   await scenario('29. project chat: "תשנה את שם הפרויקט ל..." renames it, keeps the old name as an alias and says what changed, in the project thread', async () => {
     const assistant = store.assistantId(), owner = store.ownerId();
-    const pr = store.createProject(assistant, { name: 'פרויקט בדיקת שינוי שם' });
+    const pr = store.createProject(store.ownerId(), { name: 'פרויקט בדיקת שינוי שם' });
     store.createTask(owner, { title: 'משימה בפרויקט שישנה שם', project: pr.id, requester: owner });
     const before = db.prepare('SELECT COALESCE(MAX(id),0) m FROM chat_messages').get().m;
     const res = await post({ text: 'תשנה את שם הפרויקט ל"מגדל החדש"', entity_scope: `project:${pr.id}` });
@@ -797,7 +797,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
   await scenario('30. project chat: "תמחק את הפרויקט ותעביר את המשימות ל-X" asks for confirmation, moves the tasks, deletes the project only after the owner says yes', async () => {
     const assistant = store.assistantId(), owner = store.ownerId();
-    const from = store.createProject(assistant, { name: 'פרויקט למחיקה' }), to = store.createProject(assistant, { name: 'פרויקט יעד למשימות' });
+    const from = store.createProject(store.ownerId(), { name: 'פרויקט למחיקה' }), to = store.createProject(store.ownerId(), { name: 'פרויקט יעד למשימות' });
     const t1 = store.createTask(owner, { title: 'משימה ראשונה למעבר', project: from.id, requester: owner }), t2 = store.createTask(owner, { title: 'משימה שנייה למעבר', project: from.id, requester: owner });
     const res = await post({ text: 'תמחק את הפרויקט ותעביר את המשימות לפרויקט יעד למשימות', entity_scope: `project:${from.id}` });
     expect(res.status === 201, `post failed: ${res.status}`);

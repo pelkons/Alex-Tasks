@@ -42,6 +42,7 @@ a small CLI the agent works through, validation, scheduling, storage and the web
 | Adapters | `lib/agents/*` | One module per agent CLI: tool restrictions, stream parsing, usage and cost. Model and effort are routed per job (`lib/agents/models.js`). |
 | Gate | `lib/gate.js` | The invariants below. |
 | Entities | `lib/entities.js` | Partial people and vague projects, retroactive merge and re-linking. |
+| New projects | `lib/projectask.js` | The assistant cannot create a project (`store.createProject` refuses its actor, the API answers `pending_approval`, the gate reverts a project written around the API). It proposes with `mesimot project propose`; the owner answers one question (site card + attention list + Telegram via `proposals` kinds `project_new` / `project_pick`): yes creates it, "no, it is project Y" adds an alias and moves the waiting items, "not a project" stores the normalized name with variants as rejected, never proposed again. A pending name is asked once; its items stay unassigned, marked "ממתין לאישור פרויקט". |
 | Mail | `lib/mail/*`, `lib/email.js` | Providers (AgentMail HTTP, IMAP/SMTP for Proton Bridge), scoped folders, verified cleanup, sent copies. |
 | Import | `lib/importer.js` | The daily bulk email import (below). |
 | Usage | `lib/usage.js` | Tokens, cache tokens and API-equivalent cost per agent call, rate-limit back-off, weekly summary. |

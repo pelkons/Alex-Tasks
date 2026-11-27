@@ -14,7 +14,7 @@ const { createConfirm } = require('../lib/confirm');
 function lib(ttl) {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const taskdel = createTaskDelete({ db, store, ttl }); const confirm = createConfirm({ db, store, chat, taskdel }); store.hooks.confirmView = confirm.get;
-  const a = store.assistantId(), owner = store.ownerId(); const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const a = store.assistantId(), owner = store.ownerId(); const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const t = store.createTask(owner, { title: 'משימה למחיקה סודית', project: proj.id, due: '2026-12-01', requester: owner });
   store.addNote(owner, { task: t.id, text: 'הערה סודית שצריכה להימחק' }); store.addDraft(a, t.id, 'טיוטה סודית');
   db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, body_text) VALUES ('m','x@y','s',?,'b')").run(new Date().toISOString());

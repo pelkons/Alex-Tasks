@@ -20,7 +20,7 @@ const mail = (db, o) => db.prepare("INSERT INTO emails (message_id, from_addr, s
 
 test('rules: sender, domain, phrase and regex match in code; "relevant" beats skip; a project scope limits a rule; bad input is refused', () => {
   const { db, store, f, a, owner } = setup();
-  const proj = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   f.add(owner, { kind: 'domain', pattern: '@vendor.example', action: 'skip' });
   f.add(owner, { kind: 'sender', pattern: 'boss@vendor.example', action: 'relevant' });
   f.add(owner, { kind: 'text', pattern: 'out of office', field: 'subject', action: 'skip' });

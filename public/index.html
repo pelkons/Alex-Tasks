@@ -150,7 +150,7 @@
         <div class="row" :class="{sel: route.id===t.id, urgent: t.priority_sort===1, overdue: isLate(t), unassigned: t.project_default, 'row-enter': enterId===t.id}" :style="'--pc:'+t.priority_color+';--pcol:'+pc(t)">
           <button class="check" @click="toggleDone(t, $event)" aria-label="סימון כהושלמה"><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" pathLength="1"/></svg></i></button>
           <button class="body" @click="!t._bad && openTask(t.id)">
-            <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
+            <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.pending_project ? 'ממתין לאישור פרויקט' : t.project" :title="t.pending_project ? 'פרויקט מוצע: '+t.pending_project : ''"></span></span>
             <span class="title" x-text="t.title"></span>
             <span class="from" x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="review-badge" x-show="t.needs_review" title="הבקרה האוטומטית מצאה פרט שדורש בדיקה">דורש בדיקה</span>
             <span class="dates">
@@ -186,7 +186,7 @@
     <template x-if="route.name==='task' && detail">
       <div class="tcard">
         <div class="tc-top">
-          <button type="button" class="plabel big pbtn" :class="{unassigned: detail.project_default}" :style="'--pcol:'+pc(detail)" @click="openPicker('project', $event)" title="פרויקט"><i></i><span x-text="detail.project"></span></button>
+          <button type="button" class="plabel big pbtn" :class="{unassigned: detail.project_default}" :style="'--pcol:'+pc(detail)" @click="openPicker('project', $event)" title="פרויקט"><i></i><span x-text="detail.pending_project ? 'ממתין לאישור פרויקט «'+detail.pending_project+'»' : detail.project"></span></button>
           <span class="spacer"></span>
           <button class="icon-btn drawer-close" @click="closeTask()" aria-label="סגירת הכרטיס" title="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
@@ -467,7 +467,7 @@
     <template x-for="t in arc.items" :key="t.id">
       <div class="row closed" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)">
         <button class="body" @click="openTask(t.id)">
-          <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.project"></span></span>
+          <span class="plabel" :class="{unassigned: t.project_default}" :style="'--pcol:'+pc(t)"><i></i><span x-text="t.pending_project ? 'ממתין לאישור פרויקט' : t.project" :title="t.pending_project ? 'פרויקט מוצע: '+t.pending_project : ''"></span></span>
           <span class="title" x-text="t.title"></span>
           <span class="meta"><span x-show="t.requester" x-text="'מאת '+t.requester"></span><span class="sdot" :style="'--c:'+t.status_color"><i></i><span x-text="t.status"></span></span><span class="muted" x-text="dayOf(t.done_at || t.updated_at)"></span></span>
         </button>
@@ -1506,7 +1506,7 @@
           <template x-if="m.proposal_batch && proposalCards[m.proposal_batch]">
             <div>
               <div class="imp-t"><b x-text="proposalCards[m.proposal_batch].title"></b><span class="muted" x-text="proposalCards[m.proposal_batch].open+' ממתינות · '+proposalCards[m.proposal_batch].applied+' אושרו · '+proposalCards[m.proposal_batch].rejected+' נדחו'"></span></div>
-              <div class="prop-actions" x-show="proposalCards[m.proposal_batch].open>0 && proposalCards[m.proposal_batch].kind!=='bench'"><button class="btn small primary" @click="approveProposals(m.proposal_batch)">אשר הכל</button><button class="btn small" @click="approveProposals(m.proposal_batch, true)">אשר נבחרים</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, true)">סמן הכל</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, false)">נקה</button></div>
+              <div class="prop-actions" x-show="proposalCards[m.proposal_batch].open>0 && proposalCards[m.proposal_batch].kind!=='bench' && proposalCards[m.proposal_batch].kind!=='project'"><button class="btn small primary" @click="approveProposals(m.proposal_batch)">אשר הכל</button><button class="btn small" @click="approveProposals(m.proposal_batch, true)">אשר נבחרים</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, true)">סמן הכל</button><button class="btn small ghost" @click="selectProposals(m.proposal_batch, false)">נקה</button></div>
               <div class="prop-list">
                 <template x-for="it in proposalCards[m.proposal_batch].items" :key="it.id">
                   <div class="prop-row" :class="[it.status, it.email ? 'pq' : '']">
@@ -1527,7 +1527,17 @@
                         <div class="muted sm" x-show="it.status!=='open'" x-text="'✓ נבחר: '+(it.status==='applied' ? (it.approve_label||'אושר') : (it.reject_label||'נדחה'))"></div>
                       </div>
                     </template>
-                    <template x-if="!it.email">
+                    <template x-if="it.pq_project">
+                      <div class="pq-card pq-proj">
+                        <div class="pq-ask" x-text="it.kind==='project_new' ? 'פרויקט חדש? «'+it.project_name+'»' : '«'+it.project_name+'» שייך לפרויקט קיים?'"></div>
+                        <div class="pq-meta muted sm" x-show="it.context" x-text="it.context"></div>
+                        <div class="pq-meta muted sm" x-show="it.aliases && it.aliases.length" x-text="'כינויים: '+(it.aliases||[]).join(', ')"></div>
+                        <div class="btnrow" x-show="it.status==='open' && it.kind==='project_new'"><button class="btn primary" @click="decideProposal(it,'approve')" x-text="it.approve_label"></button><button class="btn" @click="decideProposal(it,'reject')" x-text="it.reject_label"></button></div>
+                        <div class="btnrow pq-opts-row" x-show="it.status==='open' && it.kind==='project_pick'"><template x-for="o in (it.options||[])" :key="o.id"><button class="btn" @click="decideProposal(it,'approve',o.id)" x-text="o.name"></button></template><button class="btn ghost" @click="decideProposal(it,'reject')" x-text="it.none_label"></button></div>
+                        <div class="muted sm" x-show="it.status!=='open'" x-text="(it.status==='failed' ? '⚠ ' : '✓ ')+(it.result||'')"></div>
+                      </div>
+                    </template>
+                    <template x-if="!it.email && !it.pq_project">
                       <div class="prop-plain">
                     <input type="checkbox" x-show="it.status==='open'" :checked="!!propSel[it.id]" @change="propSel[it.id]=$event.target.checked" :aria-label="it.text">
                     <div class="prop-main"><span class="prop-k" x-text="it.kind_he"></span> <span x-text="it.text"></span><div class="muted sm" x-show="it.reason" x-text="it.reason"></div><div class="muted sm" x-show="it.status!=='open'" x-text="it.status==='applied' ? '✓ '+(it.result||'') : it.status==='rejected' ? '✕ נדחתה' : '⚠ '+(it.result||'')"></div></div>

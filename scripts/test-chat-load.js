@@ -6,7 +6,7 @@ process.env.MESIMOT_DB = '/tmp/mesimot-test/test.db';
 const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createKnowledge } = require('../lib/knowledge'); const { createChat } = require('../lib/chat');
 const db = open('/tmp/mesimot-test/test.db'); const store = createStore(db); const chat = createChat(db, store, createKnowledge(db, store)); const a = store.assistantId(), owner = store.ownerId();
 db.pragma('foreign_keys = OFF'); // the odd messages below reference rows that do not exist
-const proj = store.listProjects().find((p) => !p.is_default) || store.createProject(a, { name: 'מגדל הדוגמה' });
+const proj = store.listProjects().find((p) => !p.is_default) || store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
 const task = store.createTask(a, { title: 'משימה לבדיקת העומס', project: proj.id, due: '2026-12-03', requester: owner });
 for (let i = 0; i < 25; i++) chat.sendChat(i % 2 ? owner : a, { text: `הודעת רקע ${i} ` + 'מילים '.repeat(i % 7) });
 let n = 0;

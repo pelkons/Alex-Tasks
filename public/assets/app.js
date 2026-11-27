@@ -422,8 +422,8 @@ function app() {
       if (selectedOnly && !ids.length) { this.toast('לא סומנו הצעות'); return; }
       try { this.proposalCards[id] = await this.api('POST', `/api/proposals/${id}/approve`, ids ? { ids } : {}); this.toast('בוצע'); await Promise.all([this.loadBoot(), this.route.name === 'home' ? this.loadLists() : Promise.resolve()]); } catch (e) { this.fail(e); }
     },
-    async decideProposal(it, action) {
-      try { await this.api('POST', '/api/proposals/item/' + it.id, { action }); await this.loadProposals(it.batch); } catch (e) { this.fail(e); }
+    async decideProposal(it, action, project) {
+      try { await this.api('POST', '/api/proposals/item/' + it.id, { action, project }); await this.loadProposals(it.batch); if (it.pq_project) await Promise.all([this.loadBoot(), this.route.name === 'home' ? this.loadLists() : Promise.resolve()]); } catch (e) { this.fail(e); }
     },
     // ---- edit / delete chat messages
     startEdit(m) { this.msgMenu = null; this.editing = { id: m.id, text: m.text }; },

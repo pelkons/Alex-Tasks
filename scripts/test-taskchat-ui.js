@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 process.env.MESIMOT_DB = '/tmp/mesimot-test/test.db';
 const { open } = require('../lib/db'); const { createStore } = require('../lib/store');
 const db = open('/tmp/mesimot-test/test.db'); const store = createStore(db); const a = store.assistantId(), owner = store.ownerId();
-const proj = store.listProjects().find((p) => !p.is_default) || store.createProject(a, { name: 'מגדל הדוגמה' });
+const proj = store.listProjects().find((p) => !p.is_default) || store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
 const t = store.createTask(a, { title: 'לתאם סיור בטיחות', project: proj.id, due: '2026-12-02', requester: owner, assignee: owner });
 store.addNote(owner, { task: t.id, text: 'הערה ישנה להיסטוריה' });
 let fail = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fail++; };

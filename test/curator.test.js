@@ -27,7 +27,7 @@ function setup() {
   const apply = createApply(db, store, knowledge, chat, createProtocols(db, store, knowledge), createCalendar(db, store)).apply;
   const undo = createUndo(db, store, knowledge);
   const a = store.assistantId();
-  const p = store.createProject(a, { name: 'מגדל הדוגמה' });
+  const p = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   return { db, store, knowledge, apply, undo, a, p };
 }
 

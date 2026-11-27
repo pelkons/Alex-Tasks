@@ -4,7 +4,7 @@
 process.env.MESIMOT_DB = process.env.MESIMOT_DB || '/tmp/mesimot-test/test.db'; process.env.MESIMOT_SEMANTIC = '0';
 const { chromium } = require('playwright'); const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createKnowledge } = require('../lib/knowledge'); const { createChat } = require('../lib/chat');
 const db = open(); const store = createStore(db); const chat = createChat(db, store, createKnowledge(db, store)); const a = store.assistantId(), o = store.ownerId();
-const proj = store.createProject(a, { name: 'פרויקט הדוגמה' }); const person = store.createPerson(a, { name: 'אמיר דוגמה', role: 'contact', emails: ['amir@v.example'] });
+const proj = store.createProject(store.ownerId(), { name: 'פרויקט הדוגמה' }); const person = store.createPerson(a, { name: 'אמיר דוגמה', role: 'contact', emails: ['amir@v.example'] });
 const SIG = 'שלום רב,\nמצורף העדכון לגבי התכנון של הבניין הראשון והשני בפרויקט. אנא אשרו עד סוף השבוע.\nבברכה,\n\n\n\n\nאמיר\n\n\n\n\n\nדוגמה\n\n\n\nסמנכ"ל הנדסה';
 const eid = db.prepare("INSERT INTO emails (message_id, from_addr, subject, received_at, mail_date, body_text, project_id, attachments) VALUES ('sc1','Amir <amir@v.example>','עדכון תכנון',?,?,?,?,'[]')").run(new Date().toISOString(), new Date().toISOString(), SIG + '\n\n' + Array.from({ length: 40 }, (_, i) => 'שורה ארוכה מספר ' + i + ' בגוף המייל המקורי').join('\n'), proj.id).lastInsertRowid;
 for (let i = 1; i <= 40; i++) store.createTask(a, { title: `משימה מספר ${i} בפרויקט ארוך`, project: proj.id, requester: person.id, due: '2026-12-20' });

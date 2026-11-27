@@ -5,7 +5,7 @@ process.env.MESIMOT_DB = process.env.MESIMOT_DB || '/tmp/mesimot-test/test.db'; 
 const { chromium } = require('playwright');
 const { open } = require('../lib/db'); const { createStore } = require('../lib/store'); const { createKnowledge } = require('../lib/knowledge'); const { createChat } = require('../lib/chat'); const { createProposals } = require('../lib/proposals');
 const db = open(); const store = createStore(db); const proposals = createProposals({ db, store, chat: createChat(db, store, createKnowledge(db, store)) });
-const proj = store.createProject(store.assistantId(), { name: 'מגדל הדוגמה' });
+const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
 const eid = db.prepare("INSERT INTO emails (message_id, from_addr, to_addr, subject, received_at, mail_date, body_text, project_id, attachments) VALUES ('ui1','Ron <ron@vendor.example>','d@x.example','הצעת מחיר לתכנון',?,?,?,?,'[]')").run(new Date().toISOString(), new Date().toISOString(), 'שלום דנה, מצורפת הצעת המחיר המעודכנת. נשמח לאישור עד יום חמישי.\n\nבברכה, רון', proj.id).lastInsertRowid;
 db.prepare("INSERT INTO files (original_name, path, mime, size, source, email_id, created_at) VALUES ('הצעה.pdf','/x','application/pdf',1,'email',?,?)").run(eid, new Date().toISOString());
 const payload = JSON.stringify({ bench: 'ui', email_id: eid, ask: 'האם נדרשת משימה עבורך או עבור הצוות שלך בעקבות המייל הזה?', left: 'המערכת החליטה: אין משימה', right: 'המודל אומר: כן, נדרשת משימה', approve_label: 'כן, צריך משימה', reject_label: 'לא, רק מידע (אין משימה)', suggested_title: 'לאשר את הצעת המחיר' });

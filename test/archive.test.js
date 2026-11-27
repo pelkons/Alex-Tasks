@@ -6,7 +6,7 @@ const { open } = require('../lib/db');
 const { build } = require('../lib/server');
 
 function setup() {
-  const db = open(':memory:'); const app = build({ db, token: 't', loginDelayMs: 0 }); const h = { authorization: 'Bearer t' };
+  const db = open(':memory:'); const app = require('./helpers/owner')(build({ db, token: 't', loginDelayMs: 0 }), db); const h = { authorization: 'Bearer t' };
   const get = async (url) => (await app.inject({ method: 'GET', url, headers: h })).json();
   const post = async (url, payload, method = 'POST') => app.inject({ method, url, headers: { ...h, 'content-type': 'application/json' }, payload: JSON.stringify(payload) });
   return { db, app, get, post };
@@ -14,8 +14,8 @@ function setup() {
 const mk = async (post, title, extra = {}) => (await post('/api/tasks', { title, due: '2026-12-01', ...extra })).json();
 
 test('closed tasks are gone from the open list and live in the archive (newest first, with filters); reopening brings one back', async () => {
-  const { get, post } = setup();
-  const p1 = (await post('/api/projects', { name: 'מגדל הדוגמה' })).json(), p2 = (await post('/api/projects', { name: 'פארק הדוגמה' })).json();
+  const { app, get, post } = setup();
+  const p1 = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'מגדל הדוגמה' } })).json(), p2 = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'פארק הדוגמה' } })).json();
   const a = await mk(post, 'משימה פתוחה אחת', { project: p1.id }); const b = await mk(post, 'משימה שהושלמה בטון', { project: p1.id }); const c = await mk(post, 'משימה שבוטלה פיגומים', { project: p2.id });
   await post(`/api/tasks/${b.id}`, { status: 'הושלם' }, 'PATCH'); await post(`/api/tasks/${c.id}`, { status: 'בוטל' }, 'PATCH');
   const open = await get('/api/tasks?open=1'); assert.deepEqual(open.map((t) => t.id), [a.id], 'the main list shows only open tasks');

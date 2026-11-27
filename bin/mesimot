@@ -92,7 +92,7 @@ function setWebPassword(opt) {
 
 const USAGE = `mesimot <command>
   task list|show|add|update      note add      draft add
-  project list|find|add [--partial]|update|merge|resolve|show   person list|find|add [--status partial --company --role-text]|update|merge|resolve|show
+  project list|find|propose|add (owner only)|update|merge|resolve|show|pending   person list|find|add [--status partial --company --role-text]|update|merge|resolve|show
   pending     ack <id...>        attention add|list|update
   usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
   chat send --text "..." [--file FILEID[,FILEID]]   (--file sends the document(s) to the owner: web chip + Telegram document)
@@ -260,7 +260,9 @@ async function main() {
     case 'project':
       if (sub === 'list') return out(await api('GET', '/api/projects'));
       if (sub === 'find') { const needle = pos.slice(2).join(' ').toLowerCase(); if (!needle) fail('usage: project find "<name or alias>"'); const all = await api('GET', '/api/projects'); return out(all.filter((x) => [x.name_he, ...(x.aliases || [])].filter(Boolean).join(' ').toLowerCase().includes(needle)).slice(0, 10).map((x) => ({ id: x.id, name_he: x.name_he, aliases: x.aliases, open_count: x.open_count }))); }
-      if (sub === 'add') { const b = pick(opt, ['name', 'aliases', 'description', 'status', 'color']); if (opt.partial) b.partial = true; return out(await api('POST', '/api/projects', b)); }
+      if (sub === 'add') { const b = pick(opt, ['name', 'aliases', 'description', 'status', 'color', 'from']); if (opt.partial) b.partial = true; return out(await api('POST', '/api/projects', b)); } // the assistant's call becomes a proposal (202 pending_approval): only the owner creates a project
+      if (sub === 'propose') { const name = opt.name || pos.slice(2).join(' '); if (!name) fail('usage: project propose "<name>" [--aliases a,b] [--from email:<id>|chat:<id>|protocol:<id>] [--context "<one line>"] [--attach task:12,email:5]'); return out(await api('POST', '/api/projects/propose', { name, ...pick(opt, ['aliases', 'from', 'context', 'description', 'attach']) })); }
+      if (sub === 'pending') return out(await api('GET', '/api/project-proposals' + qs(opt, ['status'])));
       if (sub === 'show') { if (!arg) fail('missing project'); return out(await api('GET', `/api/projects/${encodeURIComponent(arg)}/show`)); }
       if (sub === 'update') { if (!arg) fail('missing project'); return out(await api('PATCH', `/api/projects/${encodeURIComponent(arg)}`, pick(opt, ['name', 'aliases', 'description', 'status', 'color', 'summary', 'partial']))); }
       if (sub === 'resolve') { if (!arg) fail('usage: project resolve <vague> --into <project> | --name ... --aliases ...'); const b = pick(opt, ['into', 'name', 'aliases', 'description']); return out(await api('POST', `/api/projects/${encodeURIComponent(arg)}/resolve`, b)); }
