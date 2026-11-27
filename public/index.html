@@ -1321,7 +1321,30 @@
           </template>
         </div>
         <div class="reply-quote sm" x-show="m.reply || m.reply_quote" x-text="'↩ ' + (m.reply ? m.reply.text : m.reply_quote)"></div>
-        <div class="b-text" x-show="!m.import && !m.confirm && !m.outbox && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
+        <div class="rich-digest" x-show="m.rich" x-cloak>
+          <template x-if="m.rich">
+            <div>
+              <p class="rd-prefix" x-show="m.rich.prefix"><b x-text="m.rich.prefix"></b></p>
+              <p class="rd-intro" x-show="m.rich.intro" x-text="m.rich.intro"></p>
+              <template x-for="sec in m.rich.sections" :key="sec.key">
+                <section class="rd-sec">
+                  <h4><span x-text="sec.emoji"></span> <span x-text="sec.title"></span> <span class="muted" x-show="sec.count != null" x-text="'('+sec.count+')'"></span></h4>
+                  <ul>
+                    <template x-for="(it, i) in sec.items" :key="i">
+                      <li>
+                        <template x-if="sec.numbered"><span><span x-text="(i+1)+'. '+(it.text || it.title)"></span> <a class="sm" :href="it.link" x-show="it.link">ענה</a></span></template>
+                        <template x-if="!sec.numbered"><span><b x-show="it.id"><a :href="it.link" x-text="'#'+it.id"></a></b> <a :href="it.link || null" x-text="it.title"></a><span class="muted" x-show="it.tail" x-text="' — '+it.tail"></span></span></template>
+                      </li>
+                    </template>
+                    <li x-show="sec.more"><a :href="sec.more && sec.more.link" x-text="'ועוד '+(sec.more ? sec.more.n : 0)+' ←'"></a></li>
+                  </ul>
+                </section>
+              </template>
+              <details class="rd-bg muted sm" x-show="m.rich.background"><summary>⚙️ עיבוד ברקע</summary><p x-text="m.rich.background"></p></details>
+            </div>
+          </template>
+        </div>
+        <div class="b-text" x-show="!m.rich && !m.import && !m.confirm && !m.outbox && !m.proposal_batch && !m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
         <div class="b-tasks" x-show="m.tasks.length"><template x-for="t in m.tasks" :key="t.id"><span class="tchip-w"><button class="tchip" @click="openTask(t.id)" x-text="clipText(t.title, 50)"></button><button type="button" class="fbq" @click="fbQuick(t.id, 'up')" aria-label="מועיל" title="מועיל">👍</button><button type="button" class="fbq" @click="openTask(t.id)" aria-label="לא מועיל (פתיחת המשימה)" title="לא מועיל: פתיחת המשימה לתיקון">👎</button></span></template></div>
       </div>
