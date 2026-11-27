@@ -189,3 +189,20 @@ test('quiet hours hold back what the assistant writes on its own, not answers to
   assert.ok(calls.some((c) => c.method === 'sendMessage' && c.body.text === 'תשובה לשאלה'));
   assert.ok(!calls.some((c) => c.body && c.body.text === 'הצעה יזומה באמצע הלילה'));
 });
+
+test('a reply written inside a still-working run waits for the run to end: the owner gets ONE final answer, never one that changes', async () => {
+  const { db, store, chat, tg, bind } = setup();
+  await bind();
+  const runId = db.prepare("INSERT INTO claude_runs (trigger, started_at) VALUES ('chat', ?)").run(new Date().toISOString()).lastInsertRowid;
+  const m = chat.sendChat(store.assistantId(), { text: 'טיוטה ראשונה' });
+  db.prepare('UPDATE chat_messages SET run_id=? WHERE id=?').run(runId, m.id);
+  assert.equal(await tg.deliverPending(), 0, 'held while the run works');
+  db.prepare("UPDATE chat_messages SET text='התשובה הסופית' WHERE id=?").run(m.id);
+  db.prepare('UPDATE claude_runs SET finished_at=? WHERE id=?').run(new Date().toISOString(), runId);
+  assert.equal(await tg.deliverPending(), 1, 'sent once the run ended');
+  assert.equal(db.prepare('SELECT text FROM chat_messages WHERE id=?').get(m.id).text, 'התשובה הסופית');
+  // a run stuck for over 15 minutes does not hold its messages forever
+  const old = db.prepare("INSERT INTO claude_runs (trigger, started_at) VALUES ('chat', ?)").run(new Date(Date.now() - 20 * 60000).toISOString()).lastInsertRowid;
+  const m2 = chat.sendChat(store.assistantId(), { text: 'תקוע' }); db.prepare('UPDATE chat_messages SET run_id=? WHERE id=?').run(old, m2.id);
+  assert.equal(await tg.deliverPending(), 1);
+});
