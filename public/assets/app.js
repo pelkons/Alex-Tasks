@@ -698,7 +698,13 @@ function app() {
           <div class="mh-row"><span class="mh-k">תאריך ושעה</span><b>${stamp(m.date)}</b></div>
           ${to ? `<div class="mh-row"><span class="mh-k">אל</span><span class="mh-list">${to}</span></div>` : ''}
           ${cc ? `<div class="mh-row"><span class="mh-k">עותק</span><span class="mh-list">${cc}</span></div>` : ''}`;
-        if (i === 0) return `<div class="mh-msg main">${thread.length > 1 ? '<div class="mh-badge">ההודעה העדכנית, עליה מבוססת המשימה</div>' : ''}${rows}</div>`;
+        if (i === 0) {
+          const nm = (x) => { const known = x.email && people[String(x.email).toLowerCase()]; return (known ? known.name_he : '') || x.name || x.email || ''; };
+          const toN = (m.to || []).map(nm).filter(Boolean); const ccN = (m.cc || []).filter((x) => nm(x)).length;
+          const line = [`מאת ${esc(m.from_name || m.from_email || '')}`, toN.length ? `אל ${esc(toN.slice(0, 2).join(', '))}${toN.length > 2 ? ` ועוד ${toN.length - 2}` : ''}` : '', ccN ? `עותק ${ccN}` : '', stamp(m.date)].filter(Boolean).join(' · ');
+          let open = false; try { open = localStorage.getItem('mesimot.mh.open') === '1'; } catch { /* no storage */ }
+          return `<details class="mh-msg main"${open ? ' open' : ''} ontoggle="try{localStorage.setItem('mesimot.mh.open',this.open?'1':'0')}catch(e){}"><summary>${thread.length > 1 ? '<span class="mh-badge" style="display:inline;margin-inline-end:8px">העדכנית</span>' : ''}${line}</summary>${rows}</details>`;
+        }
         return `<details class="mh-msg"><summary>${esc(m.from_name || m.from_email || '')} · ${stamp(m.date)}</summary>${rows}</details>`;
       };
       return `<div class="mailhead">${thread.map(msg).join('')}</div>`;

@@ -12,6 +12,7 @@
     "@fastify/cookie": "^11.1.5",
     "@fastify/multipart": "^10.1.9",
     "@fastify/static": "^10.1.12",
+    "sanitize-html": "^2.17.0",
     "@huggingface/transformers": "^4.3.2",
     "@kenjiuno/decompressrtf": "^0.1.4",
     "@kenjiuno/msgreader": "^1.29.0",

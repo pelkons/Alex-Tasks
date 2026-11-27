@@ -265,11 +265,16 @@
           <details class="email-src" x-show="detail.email">
             <summary>המייל המקורי</summary>
             <template x-if="detail.email">
-              <div class="es-body" x-data="{open: false}">
+              <div class="es-body" x-data="{open: false, mode: detail.email.has_html ? 'html' : 'text', remote: false}">
                 <div class="muted" x-show="detail.email.original_subject" x-text="'נושא: '+detail.email.original_subject"></div>
                 <div class="muted" x-show="detail.email.attachments.length" x-text="'קבצים מצורפים: '+detail.email.attachments.map(a=>a.filename).join(', ')"></div>
-                <pre class="mailtext" :class="{collapsed: !open}" dir="auto" x-text="open ? detail.email.body_clean : (detail.email.body_clean || '').split('\n').slice(0, 12).join('\n')"></pre>
-                <button class="btn small ghost" x-show="(detail.email.body_clean || '').split('\n').length > 12" @click="open = !open" x-text="open ? 'הצג פחות' : 'הצג הכל'"></button>
+                <div class="mailview in-card" x-show="detail.email.has_html">
+                  <div class="mv-bar"><span class="seg"><button class="btn small ghost" :class="{on: mode==='html'}" @click="mode='html'">תצוגה מקורית</button><button class="btn small ghost" :class="{on: mode==='text'}" @click="mode='text'">טקסט</button></span>
+                    <span class="mv-remote muted sm" x-show="mode==='html' && detail.email.remote_images && !remote">התמונות החיצוניות חסומות · <a href="#" @click.prevent="remote=true">הצג</a></span></div>
+                  <iframe class="mv-frame" x-show="mode==='html'" :src="mode==='html' ? '/api/emails/'+detail.email.id+'/view'+(remote?'?remote=1':'') : 'about:blank'" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="המייל המקורי"></iframe>
+                </div>
+                <pre class="mailtext" x-show="mode==='text' || !detail.email.has_html" :class="{collapsed: !open}" dir="auto" x-text="open ? detail.email.body_clean : (detail.email.body_clean || '').split('\n').slice(0, 12).join('\n')"></pre>
+                <button class="btn small ghost" x-show="(mode==='text' || !detail.email.has_html) && (detail.email.body_clean || '').split('\n').length > 12" @click="open = !open" x-text="open ? 'הצג פחות' : 'הצג הכל'"></button>
                 <button class="btn small ghost" @click="go('/email/'+detail.email.id)">פתיחה בדף מלא</button>
               </div>
             </template>
@@ -508,18 +513,28 @@
   <template x-if="emailView">
     <div>
       <button class="btn ghost" @click="history.length>1 ? history.back() : go('/')">‹ חזרה</button>
+      <div class="em-grid"><div class="em-main">
       <h1 style="font-size:1.3rem;margin:8px 0" x-text="emailView.original_subject || emailView.subject"></h1>
       <div x-html="mailHeadHtml(emailView)"></div>
       <div class="muted" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
-      <div class="muted" x-show="emailView.attachments.length" x-text="'קבצים מצורפים: '+emailView.attachments.map(a=>a.filename).join(', ')"></div>
       <div class="b-tasks" style="margin:10px 0" x-show="emailView.tasks.length"><template x-for="t in emailView.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="'משימה '+t.id+': '+t.title"></button></template></div>
-      <pre class="mailtext" dir="auto" x-text="emailView.body_text"></pre>
-      <h3 x-show="emailView.files.length" style="margin:12px 0 4px">קבצים מצורפים</h3>
-      <template x-for="f in emailView.files" :key="f.id">
-        <div class="kitem"><a :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.original_name"></a>
-          <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
-          <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status)].filter(Boolean).join(' · ')"></div></div>
-      </template>
+      <div class="mailview" x-data="{mode: emailView.has_html ? 'html' : 'text', remote: false}">
+        <div class="mv-bar" x-show="emailView.has_html">
+          <span class="seg"><button class="btn small ghost" :class="{on: mode==='html'}" @click="mode='html'">תצוגה מקורית</button><button class="btn small ghost" :class="{on: mode==='text'}" @click="mode='text'">טקסט</button></span>
+          <span class="mv-remote muted sm" x-show="mode==='html' && emailView.remote_images && !remote">התמונות החיצוניות חסומות · <a href="#" @click.prevent="remote=true">הצג</a></span>
+        </div>
+        <iframe class="mv-frame" x-show="mode==='html' && emailView.has_html" :src="mode==='html' && emailView.has_html ? '/api/emails/'+emailView.id+'/view'+(remote?'?remote=1':'') : 'about:blank'" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="המייל המקורי"></iframe>
+        <pre class="mailtext" dir="auto" x-show="mode==='text' || !emailView.has_html" x-text="emailView.body_text"></pre>
+      </div>
+      </div>
+      <aside class="em-aside" x-show="emailView.files.length"><h3>קבצים מצורפים</h3>
+        <template x-for="f in emailView.files" :key="f.id">
+          <div class="kitem em-file"><div class="ef-top"><span x-text="fileIcon(f)"></span> <b dir="auto" x-text="f.original_name"></b></div>
+            <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status)].filter(Boolean).join(' · ')"></div>
+            <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
+            <div class="ef-act"><a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a><a class="btn small ghost" :href="'/api/files/'+f.id+'/download'" download>הורדה</a></div></div>
+        </template>
+      </aside></div>
     </div>
   </template>
 </div>
