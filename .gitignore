@@ -35,3 +35,9 @@ agent/tmp/
 agent/AGENTS.md
 agent/CLAUDE.md
 agent/GEMINI.md
+
+# Alex Link build output
+connector/windows/build/
+connector/windows/dist/
+connector/windows/out/
+*.exe.sig

@@ -83,10 +83,11 @@ test('latest / download: none, then published installer with sha256 and size', a
   assert.deepEqual((await call(L, 'GET', '/ingest/connector/latest', { token: j.token })).json(), { version: null });
   assert.equal((await call(L, 'GET', '/ingest/connector/download', { token: j.token })).statusCode, 404);
   const src = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'src-')), 'AlexLink-Setup-1.2.3.exe'); fs.writeFileSync(src, Buffer.from('MZ fake installer'));
-  const info = publish(src, L.dir);
+  assert.throws(() => publish(src, L.dir), /\.sig is missing/, 'an unsigned installer is never published by default');
+  const info = publish(src, L.dir, { unsigned: true });
   assert.equal(info.version, '1.2.3'); assert.throws(() => publish(path.join(os.tmpdir(), 'x.exe'), L.dir), /file name/);
   const l = (await call(L, 'GET', '/ingest/connector/latest', { token: j.token })).json();
-  assert.deepEqual(l, { version: '1.2.3', sha256: info.sha256, size: 17, download: '/ingest/connector/download' });
+  assert.deepEqual(l, { version: '1.2.3', sha256: info.sha256, size: 17, download: '/ingest/connector/download', signature: null });
   const dl = await call(L, 'GET', '/ingest/connector/download', { token: j.token });
   assert.equal(dl.statusCode, 200); assert.equal(dl.rawPayload.toString(), 'MZ fake installer');
   assert.equal((await call(L, 'GET', '/ingest/connector/download')).statusCode, 401, 'Bearer required');
@@ -104,4 +105,14 @@ test('watchdog: Outlook closed or paused in work hours is told once, recovery on
   await wd.checkDevices(wed10 + 60000); assert.equal(tg.length, 1, 'once');
   beat(wed10 + 600000, { outlook_ok: true }); assert.equal((await wd.checkDevices(wed10 + 600000)).recovered, true); assert.equal(tg.length, 2);
   beat(wed10 + 900000, { outlook_ok: true, paused_send: true }); await wd.checkDevices(wed10 + 900000); assert.match(tg[2], /שליחת המיילים מושהית/);
+});
+
+test('update signature: Ed25519 over alexlink-update-v1|version|sha256', () => {
+  const { verifyUpdateSig } = require('../lib/connector');
+  const { publicKey, privateKey } = require('crypto').generateKeyPairSync('ed25519');
+  const pubHex = Buffer.from(publicKey.export({ format: 'jwk' }).x, 'base64url').toString('hex');
+  const sum = 'ab'.repeat(32); const sig = require('crypto').sign(null, Buffer.from(`alexlink-update-v1|1.0.0|${sum}`), privateKey).toString('base64');
+  assert.equal(verifyUpdateSig('1.0.0', sum, sig, pubHex), true);
+  assert.equal(verifyUpdateSig('1.0.1', sum, sig, pubHex), false);
+  assert.equal(verifyUpdateSig('1.0.0', sum, sig), false, 'the built-in key does not accept a foreign signature');
 });
