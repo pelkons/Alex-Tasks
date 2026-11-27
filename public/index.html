@@ -729,7 +729,7 @@
           </div>
         </div>
 <div class="sect sc-chat" x-data x-init="scLoad('project:'+pp.project.id)">
-  <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרויקט</h3>
+  <h3>שיחה עם <span x-text="assistantName()"></span> על הפרויקט</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('project:'+pp.project.id).length>0" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
     <template x-for="m in scMsgs('project:'+pp.project.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
@@ -898,7 +898,7 @@
         <div class="p-chips"><template x-for="x in proto.participants" :key="x.name+x.email"><span class="p-chip" :title="[x.company, x.role, x.email].filter(Boolean).join(' · ')"><b x-text="partName(x)"></b><i x-show="x.company || x.role" x-text="[x.company, x.role].filter(Boolean).join(', ')"></i></span></template></div>
         <p class="desc-text" x-show="proto.summary_he" x-text="proto.summary_he" style="margin:10px 0"></p>
 <div class="sect sc-chat" x-data x-init="scLoad('protocol:'+proto.id)">
-  <h3>שיחה עם <span x-text="assistantName()"></span> על על הפרוטוקול</h3>
+  <h3>שיחה עם <span x-text="assistantName()"></span> על הפרוטוקול</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('protocol:'+proto.id).length>0" x-effect="scMsgs('protocol:'+proto.id).length && scScroll()">
     <template x-for="m in scMsgs('protocol:'+proto.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
@@ -1013,7 +1013,7 @@
         </button>
       </template>
 <div class="sect sc-chat" x-data x-effect="calSel && scLoad('day:'+calSel)">
-  <h3>שיחה עם <span x-text="assistantName()"></span> על על היום הזה</h3>
+  <h3>שיחה עם <span x-text="assistantName()"></span> על היום הזה</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('day:'+calSel).length>0" x-effect="scMsgs('day:'+calSel).length && scScroll()">
     <template x-for="m in scMsgs('day:'+calSel)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">
@@ -1324,7 +1324,7 @@
             <template x-if="personCard && personCard.id===p.id">
               <div class="pcard">
 <div class="sect sc-chat" x-data x-init="scLoad('person:'+p.id)">
-  <h3>שיחה עם <span x-text="assistantName()"></span> על על איש הקשר</h3>
+  <h3>שיחה עם <span x-text="assistantName()"></span> על איש הקשר</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('person:'+p.id).length>0" x-effect="scMsgs('person:'+p.id).length && scScroll()">
     <template x-for="m in scMsgs('person:'+p.id)" :key="m.id">
       <div class="bubble tc-b" :class="m.author">

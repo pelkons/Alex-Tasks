@@ -1291,3 +1291,10 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 /* rows never grow wider than the list: a long one-line title (compact density) must truncate, not widen the page on phones */
 .rows { grid-template-columns: minmax(0, 1fr); }
 .rows > .row, .row .body, .row .title { min-width: 0; }
+
+/* calendar day list: long titles, room names and meeting links wrap inside the item instead of widening the page on phones */
+.cal-day { min-width: 0; overflow-wrap: anywhere; }
+.cal-item { min-width: 0; }
+.cal-item .ci-main { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.cal-item .ci-main .muted { display: block; }
+.cal-item .ci-t, .cal-item .ci-k, .cal-item .ptag { flex: none; white-space: nowrap; }
