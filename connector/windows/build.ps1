@@ -20,7 +20,37 @@ if ($LASTEXITCODE) { throw "tests failed" }
 
 $build = Join-Path $here "build"
 Remove-Item (Join-Path $build "dist"), (Join-Path $build "work") -Recurse -Force -ErrorAction SilentlyContinue
-python -m PyInstaller --noconfirm --clean --onedir --noconsole --name AlexLink `
+New-Item -ItemType Directory $build -Force | Out-Null
+
+# Windows version resource for AlexLink.exe
+$v4 = (($version.Split(".") + @("0", "0", "0", "0"))[0..3] | ForEach-Object { [int]$_ }) -join ", "
+$versionFile = Join-Path $build "version_info.txt"
+@"
+VSVersionInfo(
+  ffi=FixedFileInfo(filevers=($v4), prodvers=($v4), mask=0x3f, flags=0x0, OS=0x40004,
+                    fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+      StringStruct('CompanyName', 'Alex Tasks'),
+      StringStruct('FileDescription', 'Alex Link - connects Outlook to Alex Tasks'),
+      StringStruct('FileVersion', '$version'),
+      StringStruct('InternalName', 'AlexLink'),
+      StringStruct('LegalCopyright', 'Alex Tasks'),
+      StringStruct('OriginalFilename', 'AlexLink.exe'),
+      StringStruct('ProductName', 'Alex Link'),
+      StringStruct('ProductVersion', '$version')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+"@ | Set-Content $versionFile -Encoding utf8
+
+# Bootloader: PyInstaller is installed from source with a locally compiled bootloader
+# (fewer antivirus false positives than the prebuilt one):
+#   (in a "x64 Native Tools" prompt) set PYINSTALLER_COMPILE_BOOTLOADER=1
+#   python -m pip install --user --force-reinstall --no-deps --no-binary pyinstaller pyinstaller==<ver>
+python -m PyInstaller --noconfirm --clean --onedir --noconsole --noupx --name AlexLink `
+    --version-file $versionFile `
+    --manifest (Join-Path $here "installer\AlexLink.manifest") `
     --icon (Join-Path $here "icons\app.ico") `
     --add-data "$(Join-Path $here 'icons');icons" `
     --paths (Join-Path $here "src") `
