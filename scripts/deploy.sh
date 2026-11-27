@@ -6,7 +6,7 @@ set -u
 root="$(cd "$(dirname "$0")/.." && pwd)"; cd "$root"
 prev="${1:?usage: scripts/deploy.sh <previous-commit>}"
 new="$(git rev-parse --short HEAD)"
-mkdir -p data/backups && cp data/mesimot.db "data/backups/pre-deploy-$(date +%Y%m%d%H%M).db"
+mkdir -p data/backups; node scripts/backup-db.js "data/backups/pre-deploy-$(date +%Y%m%d%H%M).db" || echo "WARNING: no pre-deploy database backup was made"   # an ENCRYPTED copy, never a plain copy of the database
 restart() { SINCE="$(date '+%F %T')"; systemctl --user restart mesimot.service mesimot-runner.service; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:${MESIMOT_PORT:-8110}/healthz" >/dev/null && return 0; sleep 2; done; return 1; }
 gate() { for i in 1 2 3; do node bin/mesimot-health --quick --no-alert && stable "$SINCE" && return 0; echo "gate attempt $i failed"; sleep 15; done; return 1; }
 # a crash loop passes the HTTP checks (systemd restarts the process in 5 s): after the restart both services must stay up with ZERO automatic restarts and no stack trace in their log
@@ -19,7 +19,12 @@ stable() {
   done
   return $bad
 }
-restart; if gate; then echo "DEPLOY OK: $new"; exit 0; fi
+KEPT=data/mesimot.db.plain-pre-encrypt   # exists only right after scripts/encrypt-db.js: the verified plaintext original, removed once the gate has passed
+restart; if gate; then [ -f "$KEPT" ] && node scripts/encrypt-db.js --finalize; echo "DEPLOY OK: $new"; exit 0; fi
 echo "DEPLOY FAILED the health gate: rolling back $new -> $prev"
-git reset --hard "$prev" >/dev/null && restart && gate && echo "ROLLED BACK to $prev: healthy again" || echo "ROLLBACK ALSO UNHEALTHY: needs a human"
+if [ -f "$KEPT" ]; then # the previous code cannot read the encrypted database: put the verified plaintext one back first (and the old driver)
+  systemctl --user stop mesimot.service mesimot-runner.service; node scripts/encrypt-db.js --rollback --no-services
+  git reset --hard "$prev" >/dev/null && npm install --no-audit --no-fund >/dev/null 2>&1
+else git reset --hard "$prev" >/dev/null; fi
+restart && gate && echo "ROLLED BACK to $prev: healthy again" || echo "ROLLBACK ALSO UNHEALTHY: needs a human"
 exit 1

@@ -39,7 +39,7 @@ reopenable); permanent deletion exists, but only after a one-question confirmati
 
 ## Requirements
 
-* Linux with systemd (user units), Node.js 20+, Python 3 (voice), `sqlite3`, `pdftotext`, `tesseract` (with Hebrew data), `ffmpeg`, ImageMagick.
+* Linux with systemd (user units), Node.js 20+, Python 3 (voice), `pdftotext`, `tesseract` (with Hebrew data), `ffmpeg`, ImageMagick.
 * **A terminal coding agent CLI, installed and logged in with your own account:** Claude Code (reference adapter), Codex CLI or Gemini CLI.
 * Optional: Proton Mail + Proton Bridge (split mode) or an AgentMail inbox for email intake; a Telegram bot; `cloudflared` for a public address; Docker for the local Telegram Bot API.
 
@@ -112,10 +112,10 @@ suite with each: see `docs/COMPARING_AGENTS.md`.
 | `mesimot-pulse.timer` | daytime pulse (code finds items; the agent writes one message or stays silent) |
 | `mesimot-reconcile.timer`, `mesimot-daily.timer`, `mesimot-curator.timer` | reconciliation, morning reminders, weekly memory tidy |
 | `mesimot-housekeeping.timer` (03:00) | verified mailbox cleanup, disk check, log rotation, VACUUM; files are never deleted automatically |
-| `mesimot-backup.timer` (03:30) | SQLite backup to `backups/` (30 days) |
+| `mesimot-backup.timer` (03:30) | encrypted SQLite backup to `backups/` (30 days) |
 
 Status: Settings → "מצב המערכת". Logs: `journalctl --user -u mesimot-runner`. Run logs: `data/runs/`.
-**Restore:** stop the services, `gunzip -c backups/mesimot-YYYY-MM-DD.db.gz > data/mesimot.db`, start them. Files (`files/`) are not in the DB backup: back them up separately.
+**Restore:** stop the services, `cp backups/mesimot-YYYY-MM-DD.db data/mesimot.db` (backups are encrypted with the same key as the database, so `~/.config/mesimot/db.key` must be present), start them. Files (`files/`) are not in the DB backup: back them up separately. Everything on disk is encrypted: see `docs/ENCRYPTION.md` (and back up the key file separately: without it nothing can be read).
 
 ## Security model
 

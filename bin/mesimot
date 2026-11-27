@@ -109,6 +109,7 @@ const USAGE = `mesimot <command>
   protocol add|list|show|item add|update|promote|done|dismiss   telegram send|status|bind        chat send --text "..." [--task 5,6] [--task-scope ID|0]  chat list      email show|thread <id>
   apply [--dry] < decisions.json   (structured answer: decisions, new_tasks, knowledge, chat_message)
   run-summary --text "..."
+  sql "<query>" [--write] [--db FILE] [--format json|tsv]   (direct database access for the owner/developer: the database is encrypted, so the sqlite3 tool cannot open it)
   web-password [--generate]`;
 
 async function main() {
@@ -258,6 +259,27 @@ async function main() {
       if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
       const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, 'mesimot-health'), ...process.argv.slice(3)], { stdio: 'inherit' });
       process.exit(r.status ?? 2); }
+    case 'sql': { // the replacement for the sqlite3 command line tool (the database file is encrypted): read-only unless --write
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      const write = !!opt.write; // `--write "<query>"` makes the parser take the query as the flag's value
+      const query = [typeof opt.write === 'string' ? opt.write : undefined, sub, arg, ...pos.slice(3)].filter((x) => x !== undefined).join(' ').trim();
+      if (!query) fail('usage: sql "<query>" [--write] [--db FILE] [--format json|tsv]   (also: ".tables", ".schema [table]")');
+      const { openRaw } = require('../lib/dbkey');
+      const file = require('path').resolve(opt.db || process.env.MESIMOT_DB || require('path').join(__dirname, '..', 'data', 'mesimot.db'));
+      let db; try { db = openRaw(file, { readonly: !write }); } catch (e) { fail(e.message); }
+      try { db.pragma('busy_timeout = 15000'); require('sqlite-vec').load(db); } catch { /* vector tables are optional */ }
+      let sql = query;
+      if (/^\.tables$/i.test(sql)) sql = "SELECT name FROM sqlite_master WHERE type IN ('table','view') ORDER BY name";
+      else if (/^\.schema/i.test(sql)) { const t = sql.replace(/^\.schema\s*/i, '').trim(); sql = t ? `SELECT sql FROM sqlite_master WHERE tbl_name='${t.replace(/'/g, "''")}'` : 'SELECT sql FROM sqlite_master WHERE sql IS NOT NULL'; }
+      try {
+        let st; try { st = db.prepare(sql); } catch (e) { if (write && /more than one statement/i.test(e.message)) { db.exec(sql); return out({ ok: true }); } throw e; }
+        if (st.reader) {
+          const rows = st.all();
+          if (opt.format === 'tsv') { if (rows.length) console.log(Object.keys(rows[0]).join('\t')); for (const r of rows) console.log(Object.values(r).map((v) => (v === null ? '' : String(v).replace(/[\t\n]/g, ' '))).join('\t')); }
+          else out(rows);
+        } else { if (!write) fail('this statement changes data: add --write'); out(st.run()); }
+      } catch (e) { fail(e.message); } finally { try { db.close(); } catch { /* ignore */ } }
+      return; }
     case 'connector': { // the Windows connector installer: `connector publish <AlexLink-Setup-1.0.0.exe>`
       if (sub !== 'publish' || !arg) fail('usage: connector publish <AlexLink-Setup-<version>.exe>');
       try { return out(require('../lib/connector').publish(path.resolve(arg))); } catch (e) { fail(e.message); } }

@@ -28,7 +28,7 @@ have node || { echo "Node.js 20 or newer is required: https://nodejs.org"; exit 
 [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] || { echo "Node.js 20 or newer is required (found $(node -v))"; exit 1; }
 have npm || { echo "npm is required"; exit 1; }
 have python3 || echo "python3 not found: voice messages (speech to text) will not work"
-for t in sqlite3 pdftotext pdftoppm tesseract ffmpeg convert; do have "$t" || echo "optional tool missing: $t (needed for backups, PDF text, OCR, voice, images)"; done
+for t in pdftotext pdftoppm tesseract ffmpeg convert; do have "$t" || echo "optional tool missing: $t (needed for PDF text, OCR, voice, images)"; done
 
 say "2. Node dependencies"
 npm ci 2>/dev/null || npm install

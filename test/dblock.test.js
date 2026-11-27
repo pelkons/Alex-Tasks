@@ -13,7 +13,7 @@ const { createTelegram } = require('../lib/telegram');
 
 // another process holds the write lock for ~1.8 s
 function holdLock(file, ms) {
-  const code = `const D=require('better-sqlite3');const d=new D(process.argv[1]);d.pragma('journal_mode=WAL');d.exec('BEGIN IMMEDIATE');d.prepare("INSERT INTO settings (key,value) VALUES ('x','1') ON CONFLICT(key) DO UPDATE SET value='2'").run();console.log('locked');setTimeout(()=>{d.exec('COMMIT');process.exit(0)},${ms});`;
+  const code = `const d=require('./lib/dbkey').openRaw(process.argv[1]);d.pragma('journal_mode=WAL');d.exec('BEGIN IMMEDIATE');d.prepare("INSERT INTO settings (key,value) VALUES ('x','1') ON CONFLICT(key) DO UPDATE SET value='2'").run();console.log('locked');setTimeout(()=>{d.exec('COMMIT');process.exit(0)},${ms});`;
   const p = spawn(process.execPath, ['-e', code, file], { cwd: path.join(__dirname, '..'), stdio: ['ignore', 'pipe', 'inherit'] });
   return new Promise((res) => p.stdout.once('data', () => res(p)));
 }

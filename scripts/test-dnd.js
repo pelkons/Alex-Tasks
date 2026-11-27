@@ -1,11 +1,11 @@
 'use strict';
 // Drag-and-drop / paste of files into the chat and onto a task card, with synthetic DataTransfer events. TEST instance only.
 const { chromium } = require('playwright');
-const Database = require('better-sqlite3');
+const { openRaw } = require('../lib/dbkey');
 const BASE = 'http://127.0.0.1:8111';
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
-const db = new Database('/tmp/mesimot-test/test.db', { readonly: true });
+const db = openRaw('/tmp/mesimot-test/test.db', { readonly: true });
 // build a DataTransfer with files and fire a drag event on an element; returns whether the default was prevented
 const fire = (p, sel, type, files, related = false) => p.evaluate(([sel, type, files, related]) => {
   const el = typeof sel === 'string' ? document.querySelector(sel) : sel;
