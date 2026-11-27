@@ -1212,6 +1212,7 @@ function app() {
       finally { this.bk.busy = false; }
     },
     async cnNewCode() { try { this.cn.code = await this.api('POST', '/api/connector/pair-code', {}); } catch (e) { this.fail(e); } },
+    async cnActivate(d) { if (!window.confirm('להפוך את "' + (d.name || 'המחשב') + '" לפעיל? המחשב הפעיל כעת יעבור למצב המתנה ויפסיק לקלוט ולשלוח מיילים.')) return; try { await this.api('POST', `/api/connector/devices/${d.id}/activate`, {}); this.toast('Alex Link עבר ל-' + (d.name || 'המחשב')); await this.loadConnector(); } catch (e) { this.fail(e); } },
     async cnRevoke(d) { if (!window.confirm('לנתק את "' + (d.name || 'המחשב') + '"? התוכנה שם תפסיק לעבוד עד חיבור מחדש.')) return; try { await this.api('POST', `/api/connector/devices/${d.id}/revoke`, {}); this.toast('המחשב נותק'); await this.loadConnector(); } catch (e) { this.fail(e); } },
     archiveLine() { const a = this.ingest && this.ingest.archive; if (!a) return ''; return `ארכיון: ${a.emails} מיילים, ${a.text_only} טקסט בלבד${a.last_stored_at ? ', אחרון ' + this.fmtDateTime(a.last_stored_at) : ''}${a.queued + a.embedding ? ` · בתור: ${a.queued + a.embedding}` : ''}${a.failed ? ` · ${a.failed} נכשלו` : ''}`; },
     async loadIngest() { try { this.ingest = await this.api('GET', '/api/ingest/status'); } catch (e) { /* optional */ } },

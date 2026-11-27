@@ -42,7 +42,7 @@ All on the existing Tailscale-only listener `http://<server-tailscale-ip>:8130` 
   `404` unknown/expired/used code. The server stores only sha256(token). The device appears in Settings.
 * Device tokens are accepted on every `/ingest/*` and `/outbox/*` route exactly like `MESIMOT_INGEST_TOKEN` (which stays valid as the legacy token
   until the owner removes it). Each request updates the device's `last_contact_at`. A revoked device gets `401`.
-* `POST /ingest/heartbeat` `{ "app_version", "computer_name", "outlook_ok": true, "paused_ingest": false, "paused_send": false, "last_sync_at": "ISO", "last_error": "text or null" }` → `200 {}`.
+* `POST /ingest/heartbeat` `{ "app_version", "computer_name", "outlook_ok": true, "paused_ingest": false, "paused_send": false, "last_sync_at": "ISO", "last_error": "text or null" }` → `200 { "role": "active"|"standby", "active_device": {...}|null }` (see "Roles").
   Stored per device; shown in Settings; the health check and the existing 2-hour watchdog use it (Outlook closed or paused in work hours is reported once, not repeatedly).
 * `GET /ingest/connector/latest` → `{ "version": "1.0.0", "sha256": "hex", "size": 123, "download": "/ingest/connector/download" }` or `{ "version": null }`.
   `GET /ingest/connector/download` (Bearer) streams the installer.
@@ -52,3 +52,21 @@ All on the existing Tailscale-only listener `http://<server-tailscale-ip>:8130` 
 * **site** Settings → section "מחשב Outlook": list of devices (name, version, last contact, Outlook ok, paused flags, last error), buttons
   "חבר מחשב חדש" (shows the connect string with a copy button and the expiry), "הורדת התוכנה", "ניתוק" per device (revoke, with confirm).
   Hebrew, RTL, same look as the other settings cards, works on the phone.
+
+## Roles: one active computer
+Only ONE computer runs Alex Link for real (no double Outlook reading or sending). Each device has a role, `active` or `standby` (column `connector_devices.role`); at most one is active.
+
+* Migration (idempotent): among the live (not revoked) devices the most recently contacted becomes active, the others standby. Revoked devices are standby.
+* `POST /ingest/pair` response also has `"role"` and `"active_device": {"id","name","last_contact_at"}` or `null`. The new device becomes active when there is no active
+  device or the active one has been silent for more than 24 hours (the old one then becomes standby); otherwise it is standby and the app asks the owner whether to take over.
+* `POST /ingest/heartbeat` → `{ "role", "active_device" }` (the active device may be the caller itself). Works in both roles.
+* `POST /ingest/activate` (Bearer, body `{}`) → this device becomes active, the previous active one standby; `200 {"role":"active"}`. The legacy token gets `400` (it is not a device).
+* A STANDBY device: `POST /ingest/mail` and `POST /ingest/calendar` → `409 {"error":"standby"}`, except mail with `meta.archive === true` (archive backfill works from any
+  device); `GET /outbox/approved` → `{"enabled": false, "standby": true, "items": []}`; `POST /outbox/:id/claim` → `409`. `/ingest/status`, heartbeat, latest, download, activate work as usual.
+* The legacy token (`MESIMOT_INGEST_TOKEN`) is not a device and is never restricted.
+* **site** `POST /api/connector/devices/:id/activate` (owner web session only). Settings → "מחשב Outlook" shows a "פעיל" badge on the active device, "במצב המתנה" on the others
+  and a "הפוך לפעיל" button (with confirm) on standby devices.
+* Every role switch is one entry in the activity log ("Alex Link עבר ל-<name>").
+* Watchdog and health: "Outlook closed / not seen / paused" alerts apply ONLY to the active device (without any device: the legacy contact time, as before); standby devices are
+  silent and only shown in Settings. If the active device has been silent for 2 hours in work hours (Sun-Thu 08:00-19:00 Jerusalem) and a standby device is alive (heartbeat under
+  15 minutes), the owner gets one Telegram message with a button "העבר ל-<name>" per live standby device (callback `cnact:<id>`, at most 2 per row) that activates it.

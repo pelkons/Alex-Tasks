@@ -1192,6 +1192,8 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
 .cn-dev.revoked { opacity: .55; }
 .cn-err { color: var(--danger, #b91c1c); overflow-wrap: anywhere; }
 .cn-tag { font-size: .75rem; padding: 1px 6px; border-radius: 6px; background: var(--border, #e5e7eb); }
+.cn-tag.cn-active { background: #16a34a; color: #fff; }
+.cn-dev .btnrow { flex-wrap: wrap; }
 .cn-card .btnrow { margin-top: 8px; }
 .cn-card a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 
