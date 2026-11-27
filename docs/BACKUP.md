@@ -9,6 +9,13 @@ The key (`~/.config/mesimot/db.key`) is never uploaded. Without it the copies ar
 * `db/mesimot-db-YYYY-MM-DD.db.zst.vault`: one copy per night. Kept: the newest 7 days and the newest 4 Sunday copies. If the folder passes 10 GB the oldest copies are thinned (the 2 newest always stay). Only these names, only in `db/`, are ever deleted.
 * `files/...`: the stored files, same relative paths as `files/` here. Only new or changed files are uploaded (`data/offsite-manifest.json` remembers what is there; a changed file is a new revision). Nothing under `files/` is ever deleted. A file that is not in the vault format is never uploaded.
 
+## The mail archive is NOT uploaded (rule, enforced in code)
+
+The Outlook mail archive (`docs/OUTLOOK-INGEST.md`, "Archive mode") keeps the complete files of the last year's old mail under `files/archive/`. These files are far too big for the 15 GB Drive, so **no file of the archive ever goes to Proton Drive**:
+the upload of `files/` skips the `archive/` directory, skips every path recorded as `files.archived = 1` wherever it is, and `guardNotArchive` refuses such a path at the moment of upload (tests in `test/mailarchive.test.js`; the dry run reports `files.skipped_archive`).
+**The database is uploaded as always, and it holds all the archive TEXT** (bodies, the text of every attachment, the search index and the vectors), so after a disaster the archive is fully searchable again; only the complete `.msg` files and attachments of the last year's old mail
+(and nothing else) would have to be re-sent from Outlook. The Drive budget therefore depends on the database size (it is compressed first; the 10 GB cap thins the oldest copies, the 2 newest always stay). Local backups in `backups/` contain everything.
+
 ## Safety rules (code, unit-tested in `test/offsite.test.js`)
 
 * Every remote path goes through `guardRemote`: anything outside `/my-files/Alex Tasks Backups/` (also `..`, backslashes, other sections) is refused before a command runs.

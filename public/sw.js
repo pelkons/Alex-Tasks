@@ -1,4 +1,4 @@
-const CACHE = 'mesimot-v3';
+const CACHE = 'mesimot-v4';
 const SHELL = ['/assets/app.css', '/assets/app.js', '/assets/sha256.js', '/assets/layout.js', '/assets/vendor/alpine.min.js', '/assets/vendor/heebo-400.ttf', '/assets/vendor/heebo-500.ttf', '/assets/vendor/heebo-700.ttf', '/assets/icon.svg', '/assets/icon-192.png'];
 
 self.addEventListener('install', (e) => {

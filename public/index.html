@@ -483,7 +483,8 @@
   <div class="page-h"><h1>חיפוש</h1></div>
   <form class="searchbox" @submit.prevent="runSearch()">
     <input type="search" x-model="sq.q" placeholder="חיפוש בכל המידע (לפחות שלוש אותיות)" aria-label="חיפוש" @input.debounce.400ms="runSearch()">
-    <label class="switch-row sm"><input type="checkbox" x-model="sq.archive" @change="runSearch()"><span>כולל ארכיון</span></label>
+    <label class="switch-row sm"><input type="checkbox" x-model="sq.mailArchive" @change="runSearch()" data-test="sq-mail-archive"><span>כולל ארכיון</span></label>
+    <label class="switch-row sm"><input type="checkbox" x-model="sq.archive" @change="runSearch()"><span>כולל משימות סגורות</span></label>
     <button class="btn primary" type="submit">חיפוש</button>
   </form>
   <div class="sfilters">
@@ -504,7 +505,7 @@
       <div class="sres-list">
         <template x-for="r in g.items" :key="r.key">
           <button class="sres" @click="openResult(r)">
-            <span class="plabel" :class="{unassigned: r.project_default}" x-show="r.project" :style="'--pcol:'+(r.project_default||!r.project_color ? '#6b7280' : r.project_color)"><i></i><span x-text="r.project"></span></span>
+            <span class="s-top"><span class="arch-chip" x-show="r.archived" title="מייל מהארכיון (לא עובד על ידי העוזר)">ארכיון</span><span class="plabel" :class="{unassigned: r.project_default}" x-show="r.project" :style="'--pcol:'+(r.project_default||!r.project_color ? '#6b7280' : r.project_color)"><i></i><span x-text="r.project"></span></span></span>
             <span class="s-title" x-show="r.title" x-text="r.title"></span>
             <span class="s-snip" x-html="r.html"></span>
             <span class="s-meta muted" x-text="[r.person, dayOf(r.date), r.via==='semantic' ? 'נמצא לפי משמעות' : ''].filter(Boolean).join(' · ')"></span>
@@ -526,7 +527,8 @@
       <div class="em-grid"><div class="em-main">
       <h1 style="font-size:1.3rem;margin:8px 0" x-text="emailView.original_subject || emailView.subject"></h1>
       <div x-html="mailHeadHtml(emailView)"></div>
-      <div class="muted" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
+      <div class="arch-note" x-show="emailView.archive" data-test="arch-note"><span class="arch-chip">ארכיון</span> <span x-text="emailView.archive ? emailView.archive.note : ''"></span></div>
+      <div class="muted" x-show="!emailView.archive" x-text="'התקבל במערכת: '+fmtDateTime(emailView.received_at)"></div>
       <div class="b-tasks" style="margin:10px 0" x-show="emailView.tasks.length"><template x-for="t in emailView.tasks" :key="t.id"><button class="tchip" @click="openTask(t.id)" x-text="'משימה '+t.id+': '+t.title"></button></template></div>
       <div class="mailview" x-data="{mode: emailView.has_html ? 'html' : 'text', remote: false}">
         <div class="mv-bar" x-show="emailView.has_html">
@@ -542,7 +544,8 @@
           <div class="kitem em-file"><div class="ef-top"><span x-text="fileIcon(f)"></span> <b dir="auto" x-text="f.original_name"></b></div>
             <div class="muted k-m" x-text="[fmtSize(f.size), textStatusHe(f.text_status)].filter(Boolean).join(' · ')"></div>
             <div class="k-b" x-show="f.summary" x-text="f.summary"></div>
-            <div class="ef-act"><a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a><a class="btn small ghost" :href="'/api/files/'+f.id+'/download'" download>הורדה</a></div></div>
+            <div class="ef-act" x-show="!f.discarded"><a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a><a class="btn small ghost" :href="'/api/files/'+f.id+'/download'" download>הורדה</a></div>
+            <div class="muted sm only-outlook" x-show="f.discarded" data-test="only-outlook">הקובץ נמצא רק ב-Outlook</div></div>
         </template>
       </aside></div>
     </div>
@@ -981,6 +984,8 @@
         <div>
           <p><b x-text="ingestState()"></b> <span class="muted sm" x-text="ingest.last_contact_at ? 'קשר אחרון: '+fmtDateTime(ingest.last_contact_at) : 'עדיין לא התחבר'"></span></p>
           <p class="muted sm" x-text="'מיילים: '+ingest.mail.total+' התקבלו · בעיבוד: '+ingest.mail.pending_in_pipeline+(ingest.mail.last_received_at ? ' · אחרון: '+fmtDateTime(ingest.mail.last_received_at) : '')"></p>
+          <p class="muted sm" x-show="ingest.archive && (ingest.archive.emails || ingest.archive.queued || ingest.archive.embedding)" data-test="archive-line" x-text="archiveLine()"></p>
+          <p class="muted sm" x-show="ingest.archive && !ingest.archive.disk_ok" style="color:var(--danger)" x-text="'ארכיון: מעט מקום פנוי בדיסק, הקליטה נעצרה'"></p>
           <p class="muted sm" x-text="'יומן: '+ingest.calendar.items+' אירועים'+(ingest.calendar.last_received_at ? ' · עודכן: '+fmtDateTime(ingest.calendar.last_received_at) : '')"></p>
           <template x-for="d in ingest.mail.per_day" :key="d.day"><div class="muted sm" x-text="fmtDate(d.day)+': '+d.received+' התקבלו, '+d.stored+' חדשים'"></div></template>
         </div>
@@ -1307,7 +1312,15 @@
                     <span class="msg-menu" x-show="msgMenu===m.id" x-cloak><button type="button" @click="startReply(m)">השב</button><button type="button" x-show="m.author==='owner'" @click="startEdit(m)">ערוך</button><button type="button" @click="askDelete(m)">מחק</button></span></span>
         <span class="edited-mark" x-show="m.edited">נערך</span>
         <div class="imp-card" x-show="m.import" x-cloak>
-          <template x-if="m.import">
+          <template x-if="m.import && m.import.archive">
+            <div data-test="archive-card">
+              <div class="imp-t"><b x-text="'ארכיון Outlook: '+m.import.processed+'/'+m.import.total+' נקלטו'"></b><span class="imp-st muted" x-text="m.import.status==='done' ? 'הושלם' : 'ברקע'"></span></div>
+              <div class="imp-bar" role="progressbar" :aria-valuenow="m.import.processed" aria-valuemin="0" :aria-valuemax="m.import.total"><i :style="'width:'+(m.import.total ? Math.round(100*m.import.processed/m.import.total) : 0)+'%'"></i></div>
+              <div class="imp-n muted" x-text="[m.import.stored+' בארכיון', m.import.text_only+' טקסט בלבד', m.import.full ? m.import.full+' מלאים' : '', m.import.embedding ? m.import.embedding+' ממתינים לאינדקס חכם' : '', m.import.dup ? m.import.dup+' כפולים' : '', m.import.failed ? m.import.failed+' נכשלו' : ''].filter(Boolean).join(' · ')"></div>
+              <div class="imp-n muted">מיילים ישנים לחיפוש ושאלות בלבד: ללא משימות והתראות</div>
+            </div>
+          </template>
+          <template x-if="m.import && !m.import.archive">
             <div>
               <div class="imp-t"><b x-text="'ייבוא יומי: '+m.import.processed+'/'+m.import.total+' עובדו'"></b><span class="imp-st muted" x-text="importStage(m.import)"></span></div>
               <div class="imp-bar" role="progressbar" :aria-valuenow="m.import.processed" aria-valuemin="0" :aria-valuemax="m.import.total"><i :style="'width:'+(m.import.total ? Math.round(100*m.import.processed/m.import.total) : 0)+'%'"></i></div>

@@ -7,7 +7,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"; cd "$root"
 prev="${1:?usage: scripts/deploy.sh <previous-commit>}"
 new="$(git rev-parse --short HEAD)"
 mkdir -p data/backups; node scripts/backup-db.js "data/backups/pre-deploy-$(date +%Y%m%d%H%M).db" || echo "WARNING: no pre-deploy database backup was made"   # an ENCRYPTED copy, never a plain copy of the database
-restart() { SINCE="$(date '+%F %T')"; systemctl --user restart mesimot.service mesimot-runner.service; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:${MESIMOT_PORT:-8110}/healthz" >/dev/null && return 0; sleep 2; done; return 1; }
+ls -1t data/backups/pre-deploy-*.db 2>/dev/null | tail -n +6 | xargs -r rm -f   # the database is big (mail archive): only the 5 newest pre-deploy copies are kept
+restart() { SINCE="$(date '+%F %T')"; systemctl --user restart mesimot.service mesimot-runner.service; systemctl --user is-enabled mesimot-archive.service >/dev/null 2>&1 && systemctl --user restart mesimot-archive.service; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:${MESIMOT_PORT:-8110}/healthz" >/dev/null && return 0; sleep 2; done; return 1; }
 gate() { for i in 1 2 3; do node bin/mesimot-health --quick --no-alert && stable "$SINCE" && return 0; echo "gate attempt $i failed"; sleep 15; done; return 1; }
 # a crash loop passes the HTTP checks (systemd restarts the process in 5 s): after the restart both services must stay up with ZERO automatic restarts and no stack trace in their log
 stable() {

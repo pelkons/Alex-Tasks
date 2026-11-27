@@ -32,7 +32,7 @@ async function main() {
   if (flag('--status')) { out({ status: offsite.readStatus(db), local: offsite.localBackupInfo(path.join(root, 'backups')), verdict: offsite.verdict(offsite.readStatus(db)) }); return; }
   const dry = flag('--dry-run');
   lock();
-  const res = await offsite.run({ drive, dbFile, filesRoot, manifestFile, hex, dryRun: dry, log: (m) => console.error(m) });
+  const res = await offsite.run({ drive, db, dbFile, filesRoot, manifestFile, hex, dryRun: dry, log: (m) => console.error(m) });
   if (!dry) {
     offsite.writeStatus(db, res);
     // the owner is told once when the Drive is nearly full (and again only after it was fine in between); failures are reported by the health check

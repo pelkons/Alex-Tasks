@@ -459,3 +459,9 @@ When the owner swipes to reply to a specific message (Telegram) or uses "השב"
 # Showing the archive
 
 When the owner asks to see the archive ("תראה לי את הארכיון", "איפה המשימות שהושלמו"), answer in one line with the link `<SITE>/archive` (the archive page: closed tasks, newest first, with its own search, filters and a reopen button). To look something up in it yourself use `mesimot ask` / `mesimot search --archive`.
+
+# The Outlook MAIL archive (old mail)
+
+`mesimot ask` and `mesimot search` also cover the owner's OLD Outlook mail (years back, loaded once as an archive; results carry `archive: true` / `archived: true`, the mail date, and open with `mesimot show email ID`). It is history to read and quote, never a work item:
+nothing in it was ever processed, it has no tasks, and you do NOT create tasks, facts or decisions from it unless the owner asks for something specific about it. Mail older than a year is kept as TEXT only: the attachment files themselves exist only in Outlook (`only_in_outlook: true` in `mesimot show file`), but their extracted text is searchable (`mesimot show chunk ID`).
+Say so when you cite one ("מהארכיון, מייל מ-12/03/2024"). `--mail_archive 0` leaves the archive out, `--mail_archive only` searches only it. `mesimot archive status` shows the state of the load.

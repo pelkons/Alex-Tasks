@@ -407,6 +407,10 @@ a[data-go] { color: var(--primary); font-weight: 500; }
 .sres .s-title { font-weight: 700; }
 .sres .s-snip { color: var(--text); overflow-wrap: anywhere; }
 .sres .s-meta { font-size: .8rem; }
+.sres .s-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.arch-chip { display: inline-block; font-size: .72rem; font-weight: 600; line-height: 1.5; padding: 0 8px; border-radius: 99px; color: var(--muted); border: 1px solid var(--border); background: var(--surface-2, transparent); white-space: nowrap; }
+.arch-note { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; padding: 8px 10px; border: 1px dashed var(--border); border-radius: 10px; font-size: .88rem; color: var(--muted); }
+.only-outlook { margin-top: 4px; }
 mark { background: color-mix(in srgb, #facc15 55%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
 
 .email-src { margin-top: 14px; background: var(--surface-2); border-radius: 12px; padding: 8px 12px; }

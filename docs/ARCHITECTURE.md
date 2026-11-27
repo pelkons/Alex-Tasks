@@ -73,6 +73,10 @@ parse real headers and direction (sent / received) -> dedupe by Message-ID and b
 triage call (relevant / FYI / noise) -> one agent run per relevant thread in chronological order -> a single digest message. Sent mail is evidence: a reply
 closes the task, a promise becomes a task for the owner, a request to someone else becomes a follow-up task. Chat always has priority over the import.
 
+**Outlook mail archive.** The owner's old mail (tens of thousands of messages) arrives through the same listener (`meta.archive = true`, docs/OUTLOOK-INGEST.md), is queued encrypted, and a separate low-priority worker (`bin/mesimot-archive`, lib/archive.js) stores it without any assistant call:
+parse, body and attachment text, a rule-based project guess, its own FTS5 index (`search_archive`) and local vectors. Mail older than `archive_full_since` is text only (binaries discarded); newer mail is stored complete under `files/archive/` (never uploaded off-site). `emails.archived = 1` keeps it out of the runner,
+the look-backs, the live index and the context for new mail (archive appears there only as a few low-ranked hits); search and `mesimot ask` include it.
+
 **Entity resolution.** Names mentioned casually become partial people or vague projects; later they are completed or merged and everything that referred to
 them (tasks, mentions, facts) is re-linked, undoably.
 

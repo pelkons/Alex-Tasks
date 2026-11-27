@@ -1,0 +1,17 @@
+[Unit]
+Description=Mesimot: Outlook mail archive worker (old mail, text index and vectors, no assistant calls)
+After=network-online.target mesimot.service
+
+[Service]
+WorkingDirectory=@ROOT@
+ExecStart=@NODE@ @ROOT@/bin/mesimot-archive
+Restart=always
+RestartSec=10
+# live mail and the website always come first: lowest CPU and disk priority, bounded memory
+Nice=15
+IOSchedulingClass=idle
+CPUWeight=20
+MemoryHigh=3G
+
+[Install]
+WantedBy=default.target

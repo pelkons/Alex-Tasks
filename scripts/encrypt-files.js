@@ -15,7 +15,7 @@ const dry = args.includes('--dry');
 const limit = args.includes('--limit') ? +args[args.indexOf('--limit') + 1] : Infinity;
 const dirs = [];
 for (let i = 0; i < args.length; i++) if (args[i] === '--dir') dirs.push(path.resolve(args[++i]));
-if (!dirs.length) dirs.push(process.env.MESIMOT_FILES || path.join(ROOT, 'files'), process.env.MESIMOT_RUN_LOG || path.join(ROOT, 'data', 'runs'));
+if (!dirs.length) dirs.push(process.env.MESIMOT_FILES || path.join(ROOT, 'files'), process.env.MESIMOT_RUN_LOG || path.join(ROOT, 'data', 'runs'), require('../lib/archive').queueDir());
 const SKIP = /\.(tmp|old-\d+)$|\.vault-\d+-[0-9a-f]+\.tmp$/;
 const QUIET_MS = 120 * 1000; // a file touched in the last two minutes may still be written
 

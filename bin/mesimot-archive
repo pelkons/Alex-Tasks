@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+'use strict';
+// The worker of the Outlook mail ARCHIVE (lib/archive.js): a separate, low-priority process (nice 15). One mail at a time; it does nothing while live mail is being processed.
+// It reads the queue the ingest listener fills, stores each mail (text, attachments, own search index), then creates the vectors in small batches. No assistant (LLM) calls, ever.
+//   mesimot-archive            run forever          mesimot-archive --once N     process at most N mails then stop (tests, benchmarks)
+const { open } = require('../lib/db');
+const { createStore } = require('../lib/store');
+const { createKnowledge } = require('../lib/knowledge');
+const { createSemantic } = require('../lib/semantic');
+const { createArchive } = require('../lib/archive');
+const hb = require('../lib/heartbeat');
+const docs = require('../lib/docs');
+
+process.env.OMP_THREAD_LIMIT = process.env.OMP_THREAD_LIMIT || '1'; // tesseract: one thread per OCR job (the concurrency is across mails)
+docs.LIMITS.pdf_pages = +(process.env.MESIMOT_ARCHIVE_PDF_PAGES || 120); // old mail: the first 120 pages of a PDF are plenty
+docs.LIMITS.ocr_pdf_max_pages = +(process.env.MESIMOT_ARCHIVE_OCR_PAGES || 10);
+docs.LIMITS.ocr_pages_read = +(process.env.MESIMOT_ARCHIVE_OCR_READ || 4); // a scanned PDF: OCR of its first 4 pages only
+docs.LIMITS.ocr_image_ms = 45000; docs.LIMITS.convert_ms = 20000; // one picture never holds the worker for minutes // OCR of a scanned PDF only up to 10 pages
+const db = open(process.env.MESIMOT_DB);
+const store = createStore(db);
+const knowledge = createKnowledge(db, store);
+const semantic = createSemantic(db);
+const log = (...a) => console.log(new Date().toISOString(), ...a);
+const archive = createArchive({ db, store, knowledge, semantic, log });
+const once = process.argv.includes('--once') ? +process.argv[process.argv.indexOf('--once') + 1] || 1 : 0;
+require('../lib/vault').sweepTmp();
+let stop = false; for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => { stop = true; });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+(async () => {
+  let did = 0, idle = 0, beat = 0;
+  log('archive worker started');
+  while (!stop) {
+    try {
+      if (Date.now() - beat > 30000) { hb.beat(db, 'archive_worker', { pid: process.pid }); beat = Date.now(); }
+      if (!once) archive.recover();
+      const r = await archive.step();
+      if (r === 'yield') { await sleep(5000); continue; } // live mail first
+      if (r === 'idle') { idle++; if (once) break; await sleep(Math.min(5000, 1000 + idle * 500)); } else { idle = 0; did++; }
+      if (once && did >= once && !db.prepare("SELECT 1 FROM archive_queue WHERE state IN ('queued','stored') LIMIT 1").get()) break;
+    } catch (e) { log('archive worker error:', e.message); await sleep(5000); }
+  }
+  log(`archive worker stopped (${did} units)`);
+  process.exit(0);
+})();

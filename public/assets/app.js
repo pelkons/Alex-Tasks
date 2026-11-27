@@ -25,7 +25,7 @@ function app() {
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
     showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
-    sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
+    sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false, mailArchive: true }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '',
     pp: null, ppErr: '', ppSearch: { q: '', results: [] }, projQ: '', showNewProj: false, kNote: '', menuOpen: false,
 
@@ -987,6 +987,7 @@ function app() {
       const p = new URLSearchParams({ q, limit: '60' });
       for (const k of ['kind', 'project', 'person', 'from', 'to']) if (this.sq[k]) p.set(k, this.sq[k]);
       if (this.sq.archive) p.set('archive', '1');
+      if (!this.sq.mailArchive) p.set('mail_archive', '0');
       try { this.sres = await this.api('GET', '/api/search?' + p); } catch (e) { this.sres = null; this.sErr = e.message; }
       try { this.sem = await this.api('GET', '/api/semantic/status'); } catch (e) { /* ignore */ }
     },
@@ -1212,6 +1213,7 @@ function app() {
     },
     async cnNewCode() { try { this.cn.code = await this.api('POST', '/api/connector/pair-code', {}); } catch (e) { this.fail(e); } },
     async cnRevoke(d) { if (!window.confirm('לנתק את "' + (d.name || 'המחשב') + '"? התוכנה שם תפסיק לעבוד עד חיבור מחדש.')) return; try { await this.api('POST', `/api/connector/devices/${d.id}/revoke`, {}); this.toast('המחשב נותק'); await this.loadConnector(); } catch (e) { this.fail(e); } },
+    archiveLine() { const a = this.ingest && this.ingest.archive; if (!a) return ''; return `ארכיון: ${a.emails} מיילים, ${a.text_only} טקסט בלבד${a.last_stored_at ? ', אחרון ' + this.fmtDateTime(a.last_stored_at) : ''}${a.queued + a.embedding ? ` · בתור: ${a.queued + a.embedding}` : ''}${a.failed ? ` · ${a.failed} נכשלו` : ''}`; },
     async loadIngest() { try { this.ingest = await this.api('GET', '/api/ingest/status'); } catch (e) { /* optional */ } },
     ingestState() { const t = this.ingest && this.ingest.last_contact_at ? Date.now() - Date.parse(this.ingest.last_contact_at) : null; return t === null ? 'לא מחובר' : t < 30 * 60000 ? 'מחובר' : t < 2 * 3600000 ? 'שקט (מעל חצי שעה)' : 'לא שולח מעל שעתיים'; },
     async loadFilters() { try { this.mailFilters = await this.api('GET', '/api/filters'); } catch (e) { /* optional */ } },

@@ -33,13 +33,13 @@ function* walk(d) { if (!fs.existsSync(d)) return; for (const e of fs.readdirSyn
   if (!K.validKey(newHex)) die('db.key.new is not a valid key');
   const keys = [newHex, oldHex];
   const backups = BACKUPS.flatMap((d) => (fs.existsSync(d) ? fs.readdirSync(d).filter((f) => /\.db$/.test(f)).map((f) => path.join(d, f)) : []));
-  const fileList = [...walk(FILES), ...walk(RUNS)];
+  const fileList = [...walk(FILES), ...walk(RUNS), ...walk(require('../lib/archive').queueDir())]; // the archive queue (raw mail waiting for the worker) is encrypted with the same key
   log(`plan: database, ${fileList.length} stored files and run logs, ${backups.length} backups`);
   if (dry) { log('dry run: nothing changed'); return; }
 
   const timers = sc('list-units', 'mesimot-*.timer', '--state=active', '--no-legend', '--plain').stdout.split('\n').map((l) => l.trim().split(/\s+/)[0]).filter(Boolean);
-  if (!noServices) { log('stopping timers and services'); for (const t of timers) sc('stop', t); for (const s of ['mesimot-runner.service', 'mesimot.service']) sc('stop', s); }
-  const start = () => { if (!noServices) { for (const s of ['mesimot.service', 'mesimot-runner.service']) sc('start', s); for (const t of timers) sc('start', t); } };
+  if (!noServices) { log('stopping timers and services'); for (const t of timers) sc('stop', t); for (const s of ['mesimot-archive.service', 'mesimot-runner.service', 'mesimot.service']) sc('stop', s); }
+  const start = () => { if (!noServices) { for (const s of ['mesimot.service', 'mesimot-runner.service', 'mesimot-archive.service']) sc('start', s); for (const t of timers) sc('start', t); } };
   try {
     // 1. database
     let dbNew = false; try { K.openRaw(DB, { hex: newHex, readonly: true }).close(); dbNew = true; } catch { /* still on the old key */ }

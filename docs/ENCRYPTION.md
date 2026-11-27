@@ -20,6 +20,8 @@ The key is never logged, never printed, never committed, and never part of a bac
 | Database backups | `backups/mesimot-DATE.db` (daily, 30 days), `data/backups/pre-deploy-*.db` | Encrypted copies made with the database key (never a plain copy, not gzipped: encrypted data does not compress). |
 | Stored files | `files/**` (attachments, `.msg`/`.eml`, voice notes, documents) | AES-256-GCM per file, see below. Same paths and names as before. |
 | Run logs | `data/runs/*` (prompts, streams, tool lists) | Same file format as stored files. Read one with `mesimot vault cat data/runs/123.prompt.txt`. |
+| Mail archive queue | `data/archive-queue/**` | Raw Outlook messages waiting for the archive worker: same vault format, deleted once stored. Covered by `mesimot rekey`. |
+| Mail archive, complete mail | `files/archive/**` | Mail from the last year (`archive_full_since`): the `.msg` and attachments, vault format like every stored file (never uploaded off-site, docs/BACKUP.md). Older mail is text only: its text lives in the encrypted database (body, attachment text, the `search_archive` index and the `vec_archive` vectors); no binary is kept. |
 | Chunked uploads in progress | `data/uploads/**` | Parts and metadata are encrypted too (deleted after the upload completes). |
 
 Not encrypted on purpose: `data/connector` (the public installer of the Windows program), `agent/memory/` (the assistant reads and edits it as plain files), `data/memory-backups`
