@@ -41,7 +41,7 @@ async function makeAttachments() {
 
 (async () => {
   const db = open(process.env.MESIMOT_DB); const store = createStore(db); const knowledge = createKnowledge(db, store);
-  const semantic = createSemantic(db); const archive = createArchive({ db, store, knowledge, semantic });
+  const semantic = arg('nosem', false) ? null : createSemantic(db); const archive = createArchive({ db, store, knowledge, semantic });
   const att = await makeAttachments(); const sizeOf = () => { let s = fs.statSync(process.env.MESIMOT_DB).size; try { s += fs.statSync(process.env.MESIMOT_DB + '-wal').size; } catch { /* none */ } return s; };
   const mixes = [['none', 0.55], ['txt', 0.08], ['csv', 0.05], ['docx', 0.08], ['xlsx', 0.06], ['pdf', 0.14], ['png', 0.04]];
   const kindOf = () => { let r = rnd(), a = 0; for (const [k, p] of mixes) { a += p; if (r < a) return k; } return 'none'; };
@@ -57,7 +57,7 @@ async function makeAttachments() {
   }
   const tGen = Date.now() - t0; const db0 = sizeOf();
   const tw = Date.now(); let parse = 0, emb = 0;
-  for (;;) { const a = Date.now(); const r = await archive.step(); const dt = Date.now() - a; if (r === 'idle') break; if (r === 'embedded') emb += dt; else parse += dt; }
+  for (;;) { const a = Date.now(); const r = await archive.step(); const dt = Date.now() - a; if (arg('rss', false)) console.error(r, 'rss', Math.round(process.memoryUsage().rss / 1048576), 'ab', Math.round(process.memoryUsage().arrayBuffers / 1048576)); if (r === 'idle') break; if (r === 'embedded') emb += dt; else parse += dt; }
   const wall = Date.now() - tw; const st = archive.status();
   const per = (x) => +(x / N).toFixed(1);
   const res = { n: N, mix: counts, full_share: FULL, generated_in_s: +(tGen / 1000).toFixed(1), worker_wall_s: +(wall / 1000).toFixed(1), emails_per_minute: +(N / (wall / 60000)).toFixed(1), ms_per_email: { total: per(wall), parse_store_extract: per(parse), embedding: per(emb) },

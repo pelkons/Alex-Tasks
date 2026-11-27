@@ -1,45 +1,76 @@
 #!/usr/bin/env node
 'use strict';
-// The worker of the Outlook mail ARCHIVE (lib/archive.js): a separate, low-priority process (nice 15). One mail at a time; it does nothing while live mail is being processed.
-// It reads the queue the ingest listener fills, stores each mail (text, attachments, own search index), then creates the vectors in small batches. No assistant (LLM) calls, ever.
-//   mesimot-archive            run forever          mesimot-archive --once N     process at most N mails then stop (tests, benchmarks)
+// The worker of the Outlook mail ARCHIVE (lib/archive.js). No assistant (LLM) calls, ever. Three kinds of process, all at the lowest priority:
+//   mesimot-archive            the SUPERVISOR: holds the embedding model (vectors in batches), starts up to 3 store workers while mail is queued, restarts them, stops within seconds on SIGTERM
+//   mesimot-archive --child    a STORE worker: one mail at a time (parse, attachment text, own search index). It exits by itself after 40 mails or when it grows past ~1 GB or when idle, so memory
+//                              never accumulates (the supervisor starts a fresh one); each mail is ONE short transaction, so killing it at any moment loses nothing (its mail goes back to the queue)
+//   mesimot-archive --once N   everything in this one process, at most N mails, then stop (tests, benchmarks)
+// Live mail has priority: no process does anything while live mail is being received or processed.
+const { spawn } = require('child_process');
 const { open } = require('../lib/db');
 const { createStore } = require('../lib/store');
 const { createKnowledge } = require('../lib/knowledge');
-const { createSemantic } = require('../lib/semantic');
 const { createArchive } = require('../lib/archive');
 const hb = require('../lib/heartbeat');
 const docs = require('../lib/docs');
 
 process.env.OMP_THREAD_LIMIT = process.env.OMP_THREAD_LIMIT || '1'; // tesseract: one thread per OCR job (the concurrency is across mails)
 docs.LIMITS.pdf_pages = +(process.env.MESIMOT_ARCHIVE_PDF_PAGES || 120); // old mail: the first 120 pages of a PDF are plenty
-docs.LIMITS.ocr_pdf_max_pages = +(process.env.MESIMOT_ARCHIVE_OCR_PAGES || 10);
+docs.LIMITS.ocr_pdf_max_pages = +(process.env.MESIMOT_ARCHIVE_OCR_PAGES || 10); // OCR of a scanned PDF only up to 10 pages
 docs.LIMITS.ocr_pages_read = +(process.env.MESIMOT_ARCHIVE_OCR_READ || 4); // a scanned PDF: OCR of its first 4 pages only
-docs.LIMITS.ocr_image_ms = 45000; docs.LIMITS.convert_ms = 20000; // one picture never holds the worker for minutes // OCR of a scanned PDF only up to 10 pages
+docs.LIMITS.ocr_image_ms = 45000; docs.LIMITS.convert_ms = 20000; // one picture never holds a worker for minutes
+const argv = process.argv.slice(2);
+const CHILD = argv.includes('--child');
+const once = argv.includes('--once') ? +argv[argv.indexOf('--once') + 1] || 1 : 0;
 const db = open(process.env.MESIMOT_DB);
 const store = createStore(db);
 const knowledge = createKnowledge(db, store);
-const semantic = createSemantic(db);
-const log = (...a) => console.log(new Date().toISOString(), ...a);
+const semantic = CHILD ? null : require('../lib/semantic').createSemantic(db); // only the supervisor loads the model
+const log = (...a) => console.log(new Date().toISOString(), CHILD ? `[store ${process.pid}]` : '', ...a);
 const archive = createArchive({ db, store, knowledge, semantic, log });
-const once = process.argv.includes('--once') ? +process.argv[process.argv.indexOf('--once') + 1] || 1 : 0;
 require('../lib/vault').sweepTmp();
-let stop = false; for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => { stop = true; });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const n = (sql) => db.prepare(sql).get().n;
+let stop = false;
 
-(async () => {
-  let did = 0, idle = 0, beat = 0;
-  log('archive worker started');
-  while (!stop) {
-    try {
-      if (Date.now() - beat > 30000) { hb.beat(db, 'archive_worker', { pid: process.pid }); beat = Date.now(); }
-      if (!once) archive.recover();
-      const r = await archive.step();
-      if (r === 'yield') { await sleep(5000); continue; } // live mail first
-      if (r === 'idle') { idle++; if (once) break; await sleep(Math.min(5000, 1000 + idle * 500)); } else { idle = 0; did++; }
-      if (once && did >= once && !db.prepare("SELECT 1 FROM archive_queue WHERE state IN ('queued','stored') LIMIT 1").get()) break;
-    } catch (e) { log('archive worker error:', e.message); await sleep(5000); }
-  }
-  log(`archive worker stopped (${did} units)`);
-  process.exit(0);
-})();
+if (CHILD) {
+  const MAX_MAILS = +(process.env.MESIMOT_ARCHIVE_CHILD_MAILS || 40), MAX_RSS = +(process.env.MESIMOT_ARCHIVE_CHILD_MB || 1000) * 1048576;
+  const bye = () => { stop = true; try { archive.releaseInflight(); } catch { /* the supervisor requeues orphans */ } process.exit(0); };
+  for (const s of ['SIGINT', 'SIGTERM']) process.on(s, bye);
+  (async () => {
+    let did = 0, idle = 0;
+    while (!stop && did < MAX_MAILS && process.memoryUsage().rss < MAX_RSS) {
+      try {
+        if (archive.liveBusy()) { await sleep(3000); continue; }
+        const r = await archive.processOne();
+        if (r) { did++; idle = 0; } else { if (++idle > 20) break; await sleep(1500); }
+      } catch (e) { log('error:', e.message); await sleep(3000); }
+    }
+    process.exit(0);
+  })();
+} else if (once) {
+  (async () => { let did = 0, idle = 0;
+    while (did < once || db.prepare("SELECT 1 FROM archive_queue WHERE state='stored' LIMIT 1").get()) {
+      const r = await archive.step(); if (r === 'yield') { await sleep(2000); continue; } if (r === 'idle') { if (++idle > 1) break; } else { idle = 0; did++; }
+    }
+    process.exit(0); })();
+} else {
+  const MAX_KIDS = Math.max(1, +(process.env.MESIMOT_ARCHIVE_WORKERS || 3));
+  const kids = new Set(); let beat = 0;
+  const spawnKid = () => { const c = spawn(process.execPath, [__filename, '--child'], { stdio: ['ignore', 'inherit', 'inherit'], env: process.env }); kids.add(c); c.on('exit', () => kids.delete(c)); };
+  // a stop request: the store workers are told to stop (each puts its mail back), the embedding batch in flight is abandoned (its vectors are committed together with the 'done' mark, so nothing is half done)
+  const shutdown = () => { if (stop) return; stop = true; log('stopping'); for (const c of kids) { try { c.kill('SIGTERM'); } catch { /* gone */ } } setTimeout(() => { try { archive.requeueWorking(); } catch { /* ignore */ } log('archive worker stopped'); process.exit(0); }, 1500).unref(); };
+  for (const s of ['SIGINT', 'SIGTERM']) process.on(s, shutdown);
+  (async () => {
+    log('archive supervisor started; requeued from a previous run:', archive.requeueWorking());
+    while (!stop) {
+      try {
+        if (Date.now() - beat > 20000) { hb.beat(db, 'archive_worker', { pid: process.pid, kids: kids.size }); beat = Date.now(); archive.recover(); }
+        if (archive.liveBusy()) { await sleep(3000); continue; }
+        const queued = n("SELECT COUNT(*) n FROM archive_queue WHERE state='queued'"), stored = n("SELECT COUNT(*) n FROM archive_queue WHERE state='stored'");
+        for (let i = kids.size; i < Math.min(MAX_KIDS, queued); i++) spawnKid();
+        if (stored >= 12 || (stored && !queued)) await archive.embedStep(12); else await sleep(queued ? 1000 : 2500);
+      } catch (e) { log('supervisor error:', e.message); await sleep(3000); }
+    }
+  })();
+}

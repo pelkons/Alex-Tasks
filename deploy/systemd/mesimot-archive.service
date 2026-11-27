@@ -7,11 +7,16 @@ WorkingDirectory=@ROOT@
 ExecStart=@NODE@ @ROOT@/bin/mesimot-archive
 Restart=always
 RestartSec=10
-# live mail and the website always come first: lowest CPU and disk priority, bounded memory
+# stops within seconds: the workers put their mail back in the queue (nothing is half stored)
+TimeoutStopSec=15
+KillMode=control-group
+# live mail and the website always come first: lowest CPU and disk priority, bounded memory (the supervisor holds the model, ~1 GB; up to 3 store workers of <1 GB, recycled)
 Nice=15
 IOSchedulingClass=idle
 CPUWeight=20
-MemoryHigh=3G
+MemoryHigh=4G
+MemoryMax=5G
+Environment=MALLOC_ARENA_MAX=2
 
 [Install]
 WantedBy=default.target
