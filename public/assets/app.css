@@ -1181,3 +1181,12 @@ pre[dir="auto"], textarea[dir="auto"], .mailtext, .ob-text, .pq-full pre, .rs-te
   .topbar-in > .spacer { flex: 0 0 0; }
   .topbar-in { gap: 4px; }
 }
+
+/* connector devices (settings) */
+.cn-card .cn-code { margin-top: 10px; }
+.cn-dev { border-top: 1px solid var(--border, #e5e7eb); padding: 8px 0; display: grid; gap: 2px; }
+.cn-dev.revoked { opacity: .55; }
+.cn-err { color: var(--danger, #b91c1c); overflow-wrap: anywhere; }
+.cn-tag { font-size: .75rem; padding: 1px 6px; border-radius: 6px; background: var(--border, #e5e7eb); }
+.cn-card .btnrow { margin-top: 8px; }
+.cn-card a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }

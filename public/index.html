@@ -983,6 +983,29 @@
       </template>
     </section>
 
+    <section class="card cn-card" x-init="loadConnector()">
+      <h3>מחשב Outlook</h3>
+      <p class="muted sm">התוכנה Alex Tasks Connector במחשב Windows שולחת את המיילים והיומן ושולחת מיילים שאושרו. להתקנה במחשב חדש: הורידו את התוכנה, הריצו אותה, והדביקו בה את קוד החיבור.</p>
+      <div class="btnrow"><button class="btn primary" @click="cnNewCode()">חבר מחשב חדש</button><a class="btn" href="/api/connector/download" x-show="cn.latest && cn.latest.version" download>הורדת התוכנה <span class="muted sm" dir="ltr" x-text="cn.latest && cn.latest.version"></span></a></div>
+      <p class="muted sm" x-show="cn.latest && !cn.latest.version">עדיין לא הועלתה תוכנה להורדה.</p>
+      <template x-if="cn.code">
+        <div class="cn-code">
+          <div class="copy-row"><input type="text" readonly :value="cn.code.connect_string" dir="ltr" @focus="$event.target.select()" aria-label="קוד חיבור"><button class="btn" @click="copyText(cn.code.connect_string)">העתקה</button></div>
+          <p class="muted sm" x-text="'הקוד תקף עד '+fmtDateTime(cn.code.expires_at)+' ולשימוש אחד בלבד'"></p>
+        </div>
+      </template>
+      <template x-for="d in cn.devices" :key="'cd'+d.id">
+        <div class="cn-dev" :class="{revoked: d.revoked}">
+          <div><b x-text="d.name || ('מחשב '+d.id)"></b> <span class="muted sm" dir="ltr" x-text="d.app_version ? 'v'+d.app_version : ''"></span> <span class="cn-tag" x-show="d.revoked">נותק</span></div>
+          <div class="muted sm" x-text="'קשר אחרון: '+(d.last_contact_at ? fmtDateTime(d.last_contact_at) : 'אין')"></div>
+          <div class="muted sm" x-show="!d.revoked" x-text="'Outlook: '+(d.outlook_ok === null ? 'לא ידוע' : d.outlook_ok ? 'פתוח' : 'סגור')+(d.paused_ingest ? ' · קליטה מושהית' : '')+(d.paused_send ? ' · שליחה מושהית' : '')"></div>
+          <div class="sm cn-err" x-show="!d.revoked && d.hb_last_error" x-text="'שגיאה אחרונה: '+d.hb_last_error"></div>
+          <div class="btnrow" x-show="!d.revoked"><button class="btn small danger" @click="cnRevoke(d)">ניתוק</button></div>
+        </div>
+      </template>
+      <p class="muted sm" x-show="!cn.devices.length">אין מחשבים מחוברים בשיטה החדשה.</p>
+    </section>
+
     <section class="card filters-card">
       <h3>סינון מיילים</h3>
       <p class="muted sm">כללים שלך שמופעלים בקוד, לפני שמודל רואה את המייל (בייבוא היומי ובדואר שוטף). "לדלג": המייל נשמר וניתן לחיפוש אבל לא מעובד. "לידיעה": רק עובדות, בלי משימות. "תמיד רלוונטי": לעולם לא מסוננים. אפשר גם בצ׳אט: "תסנן מיילים מ-X".</p>
