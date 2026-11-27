@@ -675,6 +675,13 @@ function app() {
       try { this.ppSearch.results = (await this.api('GET', '/api/search?limit=20&project=' + this.pp.project.id + '&q=' + encodeURIComponent(q))).results; } catch (e) { this.ppSearch.results = []; }
     },
     // email header block: sender (marked), to, cc, date and exact time; several messages newest first
+    // the emails linked to the open task, the latest first (the source email alone when nothing else is linked)
+    mailList() {
+      const d = this.detail; if (!d) return [];
+      const list = (d.correspondence || []).map((c) => ({ id: c.email_id, subject: c.subject, date: c.date }));
+      if (d.source_email_id && !list.some((x) => x.id === d.source_email_id)) list.push({ id: d.source_email_id, subject: d.email && (d.email.original_subject || d.email.subject), date: d.email && d.email.received_at });
+      return list;
+    },
     mailHeadHtml(e) {
       if (!e) return '';
       const esc = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

@@ -211,6 +211,12 @@
           <span class="sep">·</span>
           <button class="mi" @click="openPicker('priority', $event)" title="דחיפות"><span :class="{late: detail.priority_sort===1}" x-text="detail.priority"></span></button>
         </div>
+        <div class="open-mail" x-show="mailList().length" x-data="{menu: false}" @click.outside="menu=false" @keydown.escape="menu=false">
+          <span class="split-btn"><button class="btn small ghost mail-btn" @click="go('/email/'+mailList()[0].id)"><span aria-hidden="true">📧</span> פתיחת המייל</button><button class="btn small ghost mail-btn caret" x-show="mailList().length>1" @click="menu=!menu" :aria-expanded="menu" aria-haspopup="menu" aria-label="מיילים נוספים בקשר למשימה" title="מיילים נוספים">▾</button></span>
+          <div class="mail-menu" role="menu" x-show="menu" x-cloak>
+            <template x-for="m in mailList()" :key="m.id"><button role="menuitem" class="mail-menu-item" @click="menu=false; go('/email/'+m.id)"><b x-text="clipText(m.subject || 'ללא נושא', 60)"></b><span class="muted sm" x-text="m.date ? fmtDateTime(m.date) : ''"></span></button></template>
+          </div>
+        </div>
 
         <div class="tc-desc">
           <template x-if="ed!=='desc'">
