@@ -93,9 +93,9 @@ const LONG = 'לבדוק עם הקבלן את לוח הזמנים המעודכן
     await page.screenshot({ path: `${OUT}/trash-confirm-${T}.png` });
     await page.locator('.modal-bg .btn.primary').click(); await page.waitForTimeout(1200); ok(await rows.count() === 4, `${T}: deleted for good`);
     // ---- 4. the setting
-    await page.goto(BASE + '/settings'); await page.waitForTimeout(1800);
+    await page.goto(BASE + '/settings?c=trash'); await page.waitForTimeout(1800);
     const fld = page.locator('[data-test=trash-days]'); ok(await fld.inputValue() === '60', `${T}: Settings shows 60 days`);
-    await fld.fill('30'); await fld.dispatchEvent('change'); await page.waitForTimeout(1200);
+    await fld.selectOption('30'); await page.waitForTimeout(1200);
     await page.goto(BASE + '/trash'); await page.waitForTimeout(1500);
     ok(/יימחק סופית בעוד 30 ימים/.test(await page.locator('.bin-page').innerText()), `${T}: a changed setting applies to what is already in the bin`);
     // ---- 5. empty the bin

@@ -10,7 +10,7 @@ const fs = require('fs');
   for (const [w, h] of [[412, 900], [1280, 900]]) {
     const ctx = await b.newContext({ viewport: { width: w, height: h }, permissions: ['clipboard-read', 'clipboard-write'] }); const page = await ctx.newPage();
     await page.goto(BASE + '/login'); await page.fill('input[type=password]', process.env.MESIMOT_WEB_PASSWORD); await page.keyboard.press('Enter'); await page.waitForTimeout(1500);
-    await page.goto(BASE + '/settings'); await page.waitForTimeout(1500);
+    await page.goto(BASE + '/settings?c=backup'); await page.waitForTimeout(1500);
     const card = page.locator('.bk-card'); await card.scrollIntoViewIfNeeded(); ok(await card.count() === 1, `[${w}] card exists`);
     ok((await card.innerText()).includes('גיבוי והצפנה'), `[${w}] title`);
     ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `[${w}] no horizontal overflow`);

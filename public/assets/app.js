@@ -13,6 +13,25 @@ function jerusalemParts(d) {
 }
 const todayISO = () => { const p = jerusalemParts(new Date()); return `${p.year}-${p.month}-${p.day}`; };
 
+// the settings categories (order = the order on the screen) and their icons
+const SET_CATS = [
+  { id: 'notify', title: 'התראות וטלגרם' }, { id: 'outlook', title: 'מחשב Outlook' }, { id: 'mail', title: 'דואר' },
+  { id: 'calendar', title: 'יומן באאוטלוק' }, { id: 'ai', title: 'מודלים ועלויות' }, { id: 'tasks', title: 'סטטוסים ודחיפויות' },
+  { id: 'trash', title: 'סל מחזור ושמירה' }, { id: 'backup', title: 'גיבוי והצפנה' }, { id: 'account', title: 'חשבון ואבטחה' }, { id: 'system', title: 'מצב המערכת' },
+];
+const SET_ICONS = {
+  notify: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  outlook: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  ai: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>',
+  tasks: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  backup: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  system: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+};
+
 function app() {
   return {
     ready: false, boot: { statuses: [], priorities: [], people: [], projects: [], today: '' },
@@ -111,7 +130,7 @@ function app() {
       if (path === '/people') return { name: 'people', id: null };
       if (path === '/protocols') return { name: 'protocols', id: null };
       if (path === '/calendar') return { name: 'calendar', id: null };
-      if (path === '/settings') return { name: 'settings', id: null };
+      if (path === '/settings') { const c = new URLSearchParams(location.search).get('c'); return { name: 'settings', id: null, cat: SET_CATS.some((x) => x.id === c) ? c : null }; }
       if ((m = /^\/protocols\/(\d+)$/.exec(path))) return { name: 'protocols', id: +m[1] };
       if (path === '/chat') return { name: 'home', id: null, chat: true };
       if (path === '/activity') return { name: 'activity', id: null };
@@ -152,7 +171,14 @@ function app() {
         else if (r.name === 'mail') await this.mailEnter(prev);
         else if (r.name === 'email') { this.mailThreadOpen = null; await this.loadEmail(r.id); }
         else if (r.name === 'calendar') { await this.loadBoot(); await this.loadCalendar(); }
-        else if (r.name === 'settings') { await this.loadBoot(); await this.loadSettings(); }
+        else if (r.name === 'settings') {
+          // wide screens always show a category (the last one used); on phones /settings is the list of categories
+          if (!r.cat && window.matchMedia('(min-width: 900px)').matches) return this.go('/settings?c=' + this.setLast(), true);
+          if (r.cat) { try { localStorage.setItem('mesimot.set.cat', r.cat); } catch (e) { /* no storage */ } }
+          if (!prev || prev.name !== 'settings') this._setPushed = false;
+          window.scrollTo(0, 0); const mp = document.querySelector('main.page'); if (mp) mp.scrollTop = 0;
+          await this.loadBoot(); await this.loadSettings();
+        }
         else if (r.name === 'protocols') {
           await this.loadBoot(); await this.loadProtocols();
           if (r.id) { window.scrollTo(0, 0); await this.loadProtocol(r.id); }
@@ -1415,7 +1441,55 @@ function app() {
     async addFilter() { try { await this.api('POST', '/api/filters', { ...this.fform, project: this.fform.project || null }); this.fform.pattern = ''; this.fprev = null; this.toast('הכלל נוסף'); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async toggleFilter(f) { try { await this.api('PATCH', '/api/filters/' + f.id, { enabled: !f.enabled }); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async deleteFilter(f) { try { const r = await this.api('DELETE', '/api/filters/' + f.id); this.showBinBar(r); await Promise.all([this.loadFilters(), this.loadBoot()]); } catch (e) { this.fail(e); } },
-    async loadSettings() { this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
+    // ---- the settings screen: a list of categories, one panel per category
+    setCats() { return SET_CATS; },
+    setLast() { let c = null; try { c = localStorage.getItem('mesimot.set.cat'); } catch (e) { /* no storage */ } return SET_CATS.some((x) => x.id === c) ? c : SET_CATS[0].id; },
+    setCat() { return (this.route && this.route.cat) || this.setLast(); },
+    setTitle() { const c = SET_CATS.find((x) => x.id === this.setCat()); return c ? c.title : ''; },
+    setOpen(id) {
+      const wideNow = window.matchMedia('(min-width: 900px)').matches;
+      if (!wideNow) this._setPushed = true;
+      return this.go('/settings?c=' + id, wideNow); // phones: a real step back to the list; wide screens: switching categories is not history
+    },
+    setBack() { if (this._setPushed) { this._setPushed = false; history.back(); } else this.go('/settings', true); },
+    setIcon(id) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (SET_ICONS[id] || '') + '</svg>'; },
+    setSummary(id) {
+      const st = this.st; if (!st) return '';
+      const on = (b) => (b ? 'פועל' : 'כבוי');
+      switch (id) {
+        case 'notify': return 'דוא״ל ' + on(st.notify_email) + ' · טלגרם ' + on(st.notify_telegram) + ' · שקט ' + st.quiet_start + '–' + st.quiet_end;
+        case 'outlook': { const act = this.cn.devices.filter((d) => !d.revoked).length; return (this.ingest ? this.ingestState() : '') + (act ? ' · ' + act + ' מחשבים' : ''); }
+        case 'mail': return (this.obSet ? (this.obSet.enabled ? 'שליחה פעילה' : 'שליחה מושבתת') + ' · ' : '') + this.mailFilters.length + ' כללי סינון';
+        case 'calendar': return 'קישור מנוי לאאוטלוק';
+        case 'ai': { const o = st.agent && st.agent.options.find((x) => x.name === st.agent.name); return (o ? o.label : '') + (st.daily_budget_usd ? ' · תקרה ' + this.usd(st.daily_budget_usd) : ''); }
+        case 'tasks': return st.statuses.length + ' סטטוסים · ' + st.priorities.length + ' דחיפויות';
+        case 'trash': return (+st.trash_days ? st.trash_days + ' ימים בסל' : 'הסל לא מתרוקן') + ' · תיבה ' + st.mailbox_keep_days + ' ימים';
+        case 'backup': return this.bk.st ? 'גיבוי אחרון: ' + (this.bk.st.offsite.last_success_at ? this.fmtDateTime(this.bk.st.offsite.last_success_at) : 'אין') : '';
+        case 'account': return 'סיסמה וכתובות האתר';
+        case 'system': return this.sysHealth ? (this.sysHealth.summary || '') : '';
+        default: return '';
+      }
+    },
+    // the options of the dropdowns; a value that is not in the list (set elsewhere) is kept as its own option
+    withCur(list, cur) { const v = cur == null ? '' : String(cur); return list.some((o) => String(o[0]) === v) ? list : [...list, [v, v]]; },
+    timeOpts(cur) { const l = []; for (let h = 0; h < 24; h++) for (const mm of ['00', '30']) { const t = String(h).padStart(2, '0') + ':' + mm; l.push([t, t]); } return this.withCur(l, cur); },
+    trashOpts(cur) { return this.withCur([[7, '7 ימים'], [14, '14 ימים'], [30, '30 ימים'], [60, '60 ימים'], [90, '90 ימים'], [180, '180 ימים'], [365, 'שנה'], [0, 'לא לרוקן אוטומטית']], cur); },
+    keepOpts(cur) { return this.withCur([[7, '7 ימים'], [14, '14 ימים'], [30, '30 ימים'], [60, '60 ימים'], [90, '90 ימים'], [180, '180 ימים'], [365, 'שנה']], cur); },
+    mbOpts(cur) { return this.withCur([[25, '25 מ״ב'], [50, '50 מ״ב'], [100, '100 מ״ב'], [250, '250 מ״ב'], [500, '500 מ״ב'], [1024, '1 ג״ב'], [2048, '2 ג״ב'], [4096, '4 ג״ב']], cur); },
+    modelOpts(cur) {
+      const ag = this.st && this.st.agent && this.st.agent.name;
+      const base = [['', 'ברירת מחדל']].concat(ag === 'claude-code' ? [['sonnet', 'Sonnet'], ['opus', 'Opus'], ['haiku', 'Haiku']] : []);
+      return [...this.withCur(base, cur), ['__other', 'אחר…']];
+    },
+    effortOpts(cur) {
+      const ag = this.st && this.st.agent && this.st.agent.name;
+      const lv = ag === 'codex' ? ['minimal', 'low', 'medium', 'high'] : ag === 'claude-code' ? ['low', 'medium', 'high', 'xhigh', 'max'] : [];
+      const he = { minimal: 'מינימלי', low: 'נמוך', medium: 'בינוני', high: 'גבוה', xhigh: 'גבוה מאוד', max: 'מרבי' };
+      return [...this.withCur([['', 'ברירת מחדל'], ...lv.map((x) => [x, he[x]])], cur), ['__other', 'אחר…']];
+    },
+    setOther: null,
+    pickModel(key, v, save) { if (v === '__other') { this.setOther = key; this.$nextTick(() => { const el = document.querySelector('[data-other="' + key + '"]'); if (el) el.focus(); }); return; } this.setOther = null; save(v); },
+    async loadSettings() { this.loadSysHealth(); this.loadOutbox(); this.loadIngest(); this.loadConnector(); this.loadBackup(); this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
     async saveSet(b) { try { await this.api('PATCH', '/api/settings', b); this.toast('נשמר'); await this.loadSettings(); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async renameItem(table, s, name) { try { await this.api('PATCH', `/api/${table}/${s.id}`, { name_he: name }); this.toast('נשמר'); await Promise.all([this.loadSettings(), this.loadBoot()]); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async copyText(t) {

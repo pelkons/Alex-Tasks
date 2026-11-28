@@ -57,7 +57,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8111';
     await page.goto(BASE + '/chat'); await page.waitForTimeout(2500);
     const cards = await page.locator('[data-test=archive-card]').count(); ok(cards === 1, `${tag}: ONE archive card in the chat (${cards})`);
     if (cards) { ok(/ארכיון Outlook: 2\/2 נקלטו/.test(await page.locator('[data-test=archive-card]').first().innerText()), `${tag}: card text`); await page.locator('[data-test=archive-card]').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: `/tmp/ui-shots/archive-card-${tag}.png` }); }
-    await page.goto(BASE + '/settings'); await page.waitForTimeout(2500);
+    await page.goto(BASE + '/settings?c=outlook'); await page.waitForTimeout(2500);
     const line = page.locator('[data-test=archive-line]'); ok(await line.isVisible() && /ארכיון: 2 מיילים, 1 טקסט בלבד/.test(await line.innerText()), `${tag}: Settings line: ${await line.innerText().catch(() => '?')}`);
     await line.scrollIntoViewIfNeeded(); await page.screenshot({ path: `/tmp/ui-shots/archive-settings-${tag}.png` }); await noOverflow('settings');
     await ctx.close();

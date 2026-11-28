@@ -79,7 +79,7 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++
   const ll = await p.evaluate(() => { const e = document.querySelector('.proto-list'); return e.scrollHeight > e.clientHeight; });
   await check('protocols list', '.proto-list', ['.proto-page', '.chat-panel .feed'], ll);
   // a page without panes (settings): the page area scrolls inside the shell, the window never does
-  await p.goto(BASE + '/settings'); await p.waitForTimeout(900);
+  await p.goto(BASE + '/settings?c=ai'); await p.waitForTimeout(900); // the longest category
   await wheelOver('main.page', 4000);
   ok((await win()) === 0 && (await scrollOf('main.page')) > 0, `settings: the main area scrolls (${await scrollOf('main.page')}), the window does not`);
   await onLeft('settings page area', 'main.page');

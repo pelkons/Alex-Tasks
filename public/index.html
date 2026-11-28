@@ -1170,256 +1170,352 @@
 </div>
 </template>
 
-<!-- ===== SETTINGS ===== -->
+<!-- ===== SETTINGS: a list of categories (right) and the selected category's panel; on phones the list, and a category as its own screen ===== -->
 <template x-if="route.name==='settings'">
-<div class="settings-page">
-  <div class="page-h"><h1>הגדרות</h1></div>
+<div class="settings-page" :class="{'set-sub': !!route.cat}">
+  <template x-if="!st"><div class="empty">טוען…</div></template>
   <template x-if="st">
-  <div class="set-grid">
-    <section class="card">
-      <h3>התראות</h3>
-      <label class="switch-row"><input type="checkbox" :checked="st.notify_email" @change="saveSet({notify_email: $event.target.checked})"><span>דוא״ל (סיכום בוקר ופריטים דחופים)</span></label>
-      <label class="switch-row"><input type="checkbox" :checked="st.notify_telegram" @change="saveSet({notify_telegram: $event.target.checked})"><span>טלגרם</span></label>
-      <label class="switch-row"><input type="checkbox" :checked="st.shabbat" @change="saveSet({shabbat: $event.target.checked})"><span>שקט בשבת (שישי 16:00 עד מוצאי שבת 20:00)</span></label>
-      <div class="two"><label class="field"><span>תחילת שעות שקט</span><input type="time" :value="st.quiet_start" @change="saveSet({quiet_start: $event.target.value})"></label>
-        <label class="field"><span>סיום שעות שקט</span><input type="time" :value="st.quiet_end" @change="saveSet({quiet_end: $event.target.value})"></label></div>
-      <p class="muted sm">בשעות שקט ובשבת לא נשלחים דוא״ל והודעות יזומות בטלגרם. הדוא״ל נשלח רק אליכם.</p>
-    </section>
+  <div class="set-wrap">
+    <nav class="set-nav" aria-label="קטגוריות ההגדרות">
+      <h1>הגדרות</h1>
+      <div class="set-cats">
+        <template x-for="c in setCats()" :key="c.id">
+          <button class="set-cat" :class="{on: setCat()===c.id}" :aria-current="setCat()===c.id ? 'page' : null" @click="setOpen(c.id)" :data-cat="c.id">
+            <span class="set-ic" x-html="setIcon(c.id)"></span>
+            <span class="set-ct"><b x-text="c.title"></b><small x-text="setSummary(c.id)"></small></span>
+            <svg class="set-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+        </template>
+      </div>
+    </nav>
 
-    <section class="card">
-      <h3>יומן באאוטלוק</h3>
-      <div class="copy-row"><input type="text" readonly :value="here(st.calendar_url)" dir="ltr" @focus="$event.target.select()" aria-label="קישור ליומן"><button class="btn" @click="copyText(here(st.calendar_url))">העתקה</button></div>
-      <ol class="how"><li>באאוטלוק בחרו: הוספת לוח שנה</li><li>בחרו: מהאינטרנט</li><li>הדביקו את הקישור ואשרו</li></ol>
-      <div class="btnrow"><button class="btn small" @click="copyText(st.calendar_url + '?only=tasks')">העתקת קישור למשימות בלבד</button><button class="btn small" @click="copyText(st.calendar_url + '?only=meetings')">העתקת קישור לפגישות בלבד</button></div>
-      <p class="muted sm">אאוטלוק מעדכן יומנים מנויים לבד כל כמה שעות. הקישור סודי: מי שמחזיק בו יכול לראות את המשימות והפגישות.</p>
-      <button class="btn small danger" @click="rotateCal()">יצירת קישור חדש (הקישור הישן יפסיק לעבוד)</button>
-    </section>
+    <section class="set-panel" data-test="set-panel" :data-cat="setCat()">
+      <header class="set-ph">
+        <button class="icon-btn set-back" @click="setBack()" aria-label="חזרה להגדרות" title="חזרה">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <h2 x-text="setTitle()"></h2>
+      </header>
 
-    <section class="card">
-      <h3>איך לייצא מיילים מ-Outlook (ייבוא יומי)</h3>
-      <p class="muted sm">כל בוקר אפשר להעביר לאלכס את כל המיילים של אתמול, גם שהתקבלו וגם שנשלחו. אלכס מסנן כפילויות ורעש, מקבץ לשרשורים, פותח וסוגר משימות, ושולח סיכום אחד כשהוא מסיים.</p>
-      <p><b>הדרך המומלצת: העברה כקובץ מצורף (Outlook קלאסי)</b></p>
-      <ol class="how"><li>בתיקיית הדואר הנכנס סמנו את המיילים של אתמול (Ctrl+A בתצוגה של אתמול, או חיפוש <span dir="ltr">received:yesterday</span>)</li><li>לחצו <span dir="ltr">Ctrl+Alt+F</span> (העבר כקובץ מצורף)</li><li>בשדה "אל" כתבו את כתובת התיבה של העוזר ושלחו</li><li>אם Outlook אומר שההודעה גדולה מדי, שלחו בשניים או שלושה חלקים; אלכס מאחד אותם לייבוא אחד</li><li>חזרו על זה בתיקייה "פריטים שנשלחו" כדי שגם המיילים שכתבתם ייכנסו (חשוב: כך אלכס יודע מה כבר ענית והבטחת)</li></ol>
-      <p class="muted sm">מייל עם יותר משלושה מיילים מצורפים נחשב לייבוא יומי. כשלא מגיעים חלקים חדשים כ-10 דקות, אלכס מתחיל לעבד, ובסוף שולח סיכום אחד.</p>
-      <p><b>דרך חלופית: גרירה לצ׳אט</b></p>
-      <ol class="how"><li>גררו את המיילים לתיקייה בשולחן העבודה (הם הופכים לקבצי msg; בקבוצות גדולות Outlook לא תמיד שומר את כולם)</li><li>סמנו את כל הקבצים וגררו אותם לחלון הצ׳אט (אפשר גם קובץ zip שלהם)</li></ol>
-      <p><b>Outlook החדש:</b> ייצאו כקבצי eml וגררו לצ׳אט, או העבירו את המיילים כקבצים מצורפים לכתובת התיבה של העוזר.</p>
-      <p class="muted sm">מעל שלושה קבצי מייל בצ׳אט, או הודעה שכוללת "ייבוא יומי", מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
-    </section>
+      <!-- התראות וטלגרם -->
+      <template x-if="setCat()==='notify'">
+        <div class="set-body">
+          <div class="set-group">
+            <label class="set-row"><span class="set-l"><b>סיכום בדוא״ל</b><small>סיכום בוקר ופריטים דחופים, רק אליכם</small></span>
+              <input type="checkbox" class="tgl" :checked="st.notify_email" @change="saveSet({notify_email: $event.target.checked})" data-test="set-notify-email"></label>
+            <label class="set-row"><span class="set-l"><b>הודעות בטלגרם</b></span>
+              <input type="checkbox" class="tgl" :checked="st.notify_telegram" @change="saveSet({notify_telegram: $event.target.checked})"></label>
+            <label class="set-row"><span class="set-l"><b>שקט בשבת</b><small>שישי 16:00 עד מוצאי שבת 20:00</small></span>
+              <input type="checkbox" class="tgl" :checked="st.shabbat" @change="saveSet({shabbat: $event.target.checked})"></label>
+            <div class="set-row"><span class="set-l"><b>שעות שקט</b><small>בלי דוא״ל והודעות יזומות</small></span>
+              <span class="set-v set-pair">
+                <select :aria-label="'תחילת שעות שקט'" @change="saveSet({quiet_start: $event.target.value})" data-test="set-quiet-start"><template x-for="o in timeOpts(st.quiet_start)" :key="o[0]"><option :value="o[0]" :selected="o[0]===st.quiet_start" x-text="o[1]"></option></template></select>
+                <span class="muted">עד</span>
+                <select :aria-label="'סיום שעות שקט'" @change="saveSet({quiet_end: $event.target.value})"><template x-for="o in timeOpts(st.quiet_end)" :key="o[0]"><option :value="o[0]" :selected="o[0]===st.quiet_end" x-text="o[1]"></option></template></select>
+              </span></div>
+          </div>
+          <h3 class="set-h">טלגרם</h3>
+          <div class="set-group">
+            <div class="set-row"><span class="set-l"><b x-text="st.telegram.bound ? 'הבוט מחובר' : (st.telegram.configured ? 'ממתין לחיבור' : 'הבוט לא הוגדר')"></b>
+                <small x-text="st.telegram.bound ? 'עונה רק לכם' : (st.telegram.configured ? 'החיבור בקישור חד־פעמי ממנהל המערכת' : 'להפעלה יש לפנות למנהל המערכת')"></small></span>
+              <button class="btn small danger" x-show="st.telegram.bound" @click="unbindTelegram()">ניתוק הבוט</button></div>
+          </div>
+        </div>
+      </template>
 
-    <section class="card">
-      <h3>תקציב יומי: עבודה לא דחופה בלבד</h3>
-      <label class="field"><span>תקרה רכה ביום ($ שווה ערך API; 0 = כבוי, ברירת המחדל)</span><input type="number" min="0" step="1" :value="st.daily_budget_usd" @change="saveSet({daily_budget_usd: $event.target.value})"></label>
-      <p class="muted sm">היום נוצלו <b x-text="usd(st.spent_today_usd)"></b>. כשהתקרה מושגת נדחית רק עבודה לא דחופה (סיכום זיכרון שבועי, השלמות, חילוץ עובדות מלידיעה בלבד), עד 24 שעות. משימות, דואר שוטף, שרשורי ייבוא, צ׳אט ותזכורות לעולם לא נדחים. בנוסף תקבלו התראה אם ההוצאה היומית גבוהה פי 2 מהממוצע.</p>
-    </section>
-
-    <section class="card health-card" x-init="loadSysHealth()">
-      <h3>מצב המערכת</h3>
-      <p class="muted sm">בדיקה מלאה כל 15 דקות, כולל פתיחה אמיתית של האתר בדפדפן. תקלה אדומה מדווחת לך פעם אחת, ושוב כשהיא חוזרת לתקין.</p>
-      <template x-if="sysHealth">
-        <div>
-          <p><b x-text="sysHealth.summary || 'עדיין לא רצה בדיקה'"></b></p>
-          <template x-for="c in sysHealth.checks" :key="c.id">
-            <div class="hc-row sm"><span class="hc-dot" :class="c.status" :title="c.status"></span><b x-text="c.label"></b> <span class="muted" x-text="c.message"></span> <span class="muted hc-t" x-text="fmtDateTime(c.at)"></span></div>
+      <!-- מחשב Outlook -->
+      <template x-if="setCat()==='outlook'">
+        <div class="set-body cn-card">
+          <div class="set-group">
+            <div class="set-row"><span class="set-l"><b>Alex Link</b><small>התוכנה במחשב Windows: קולטת מיילים ויומן ושולחת מיילים שאושרו</small></span>
+              <span class="set-v"><button class="btn small primary" @click="cnNewCode()">חבר מחשב חדש</button></span></div>
+            <template x-if="cn.code">
+              <div class="set-row set-col cn-code">
+                <div class="copy-row"><input type="text" readonly :value="cn.code.connect_string" dir="ltr" @focus="$event.target.select()" aria-label="קוד חיבור"><button class="btn small" @click="copyText(cn.code.connect_string)">העתקה</button></div>
+                <small class="muted" x-text="'מדביקים את הקוד בתוכנה. תקף עד '+fmtDateTime(cn.code.expires_at)+', לשימוש אחד'"></small>
+              </div>
+            </template>
+            <div class="set-row"><span class="set-l"><b>הורדת התוכנה</b><small dir="ltr" class="set-ltr" x-text="cn.latest && cn.latest.version ? 'v'+cn.latest.version : 'עדיין לא הועלתה תוכנה'"></small></span>
+              <a class="btn small" href="/api/connector/download" x-show="cn.latest && cn.latest.version" download>הורדה</a></div>
+          </div>
+          <h3 class="set-h">מחשבים מחוברים</h3>
+          <div class="set-group">
+            <template x-for="d in cn.devices" :key="'cd'+d.id">
+              <div class="set-row set-col cn-dev" :class="{revoked: d.revoked}">
+                <div class="cn-top"><b x-text="d.name || ('מחשב '+d.id)"></b> <span class="muted sm" dir="ltr" x-text="d.app_version ? 'v'+d.app_version : ''"></span> <span class="cn-tag" x-show="d.revoked">נותק</span> <span class="cn-tag cn-active" x-show="!d.revoked && d.role === 'active'">פעיל</span><span class="cn-tag" x-show="!d.revoked && d.role !== 'active'">במצב המתנה</span></div>
+                <div class="muted sm" x-text="'קשר אחרון: '+(d.last_contact_at ? fmtDateTime(d.last_contact_at) : 'אין')"></div>
+                <div class="muted sm" x-show="!d.revoked" x-text="'Outlook: '+(d.outlook_ok === null ? 'לא ידוע' : d.outlook_ok ? 'פתוח' : 'סגור')+(d.paused_ingest ? ' · קליטה מושהית' : '')+(d.paused_send ? ' · שליחה מושהית' : '')"></div>
+                <div class="sm cn-err" x-show="!d.revoked && d.hb_last_error" x-text="'שגיאה אחרונה: '+d.hb_last_error"></div>
+                <div class="btnrow" x-show="!d.revoked"><button class="btn small" x-show="d.role !== 'active'" @click="cnActivate(d)">הפוך לפעיל</button><button class="btn small danger" @click="cnRevoke(d)">ניתוק</button></div>
+              </div>
+            </template>
+            <div class="set-row" x-show="!cn.devices.length"><span class="set-l"><small>אין מחשבים מחוברים</small></span></div>
+          </div>
+          <template x-if="ingest">
+            <div>
+              <h3 class="set-h">קליטה מ-Outlook</h3>
+              <div class="set-group ol-card">
+                <div class="set-row"><span class="set-l"><b>מצב</b></span><span class="set-val"><b x-text="ingestState()"></b><small x-text="ingest.last_contact_at ? 'קשר אחרון: '+fmtDateTime(ingest.last_contact_at) : 'עדיין לא התחבר'"></small></span></div>
+                <div class="set-row"><span class="set-l"><b>מיילים</b></span><span class="set-val"><span x-text="ingest.mail.total+' התקבלו · בעיבוד: '+ingest.mail.pending_in_pipeline"></span><small x-show="ingest.mail.last_received_at" x-text="'אחרון: '+fmtDateTime(ingest.mail.last_received_at)"></small></span></div>
+                <div class="set-row" x-show="ingest.archive && (ingest.archive.emails || ingest.archive.queued || ingest.archive.embedding || !ingest.archive.disk_ok)"><span class="set-l"><b>ארכיון</b></span><span class="set-val">
+                  <small data-test="archive-line" x-show="ingest.archive && (ingest.archive.emails || ingest.archive.queued || ingest.archive.embedding)" x-text="archiveLine()"></small>
+                  <small class="cn-err" x-show="ingest.archive && !ingest.archive.disk_ok">מעט מקום פנוי בדיסק, הקליטה נעצרה</small></span></div>
+                <div class="set-row"><span class="set-l"><b>יומן</b></span><span class="set-val"><span x-text="ingest.calendar.items+' אירועים'"></span><small x-show="ingest.calendar.last_received_at" x-text="'עודכן: '+fmtDateTime(ingest.calendar.last_received_at)"></small></span></div>
+                <details class="set-row set-col set-more" x-show="ingest.mail.per_day.length"><summary>מיילים לפי ימים</summary>
+                  <template x-for="d in ingest.mail.per_day" :key="d.day"><div class="muted sm" x-text="fmtDate(d.day)+': '+d.received+' התקבלו, '+d.stored+' חדשים'"></div></template></details>
+              </div>
+            </div>
           </template>
         </div>
       </template>
-    </section>
 
-    <section class="card ob-set" x-init="loadOutbox()">
-      <h3>שליחת מיילים</h3>
-      <p class="muted sm">העוזר מכין טיוטות בלבד. שום מייל לא יוצא מהחשבון שלך בלי שתאשר את הנוסח המדויק בכרטיס (כפתור ✅ בצ׳אט או בטלגרם), והשליחה עצמה נעשית מה-Outlook במחשב MAINPC.</p>
-      <template x-if="obSet">
-        <div>
-          <p><b x-text="obSet.enabled ? 'שליחת מיילים: פעיל' : 'שליחת מיילים: מושבת'"></b> <span class="muted sm" x-text="'נשלחו היום '+obSet.sent_today+' מתוך '+obSet.daily_cap"></span></p>
-          <div class="btnrow"><button class="btn" :class="obSet.enabled ? 'danger' : 'primary'" @click="obToggle()" x-text="obSet.enabled ? 'השבת שליחה' : 'הפעל שליחה'"></button>
-            <label class="sm">מגבלה יומית <input type="number" min="1" max="500" style="width:5em" x-model.number="obSet.daily_cap" @change="obSetCap()"></label></div>
-          <p class="muted sm" x-text="'כתובת שולח: '+(obSet.from || 'לא הוגדרה')+(obSet.signature_set ? ' · חתימה מוגדרת' : ' · ללא חתימה (המייל יוצא בשמך)')"></p>
-        </div>
-      </template>
-    </section>
-
-    <section class="card ol-card" x-init="loadIngest()">
-      <h3>Outlook</h3>
-      <p class="muted sm">מחבר במחשב MAINPC שולח מיילים ויומן כל כמה דקות. מיילים חדשים מטופלים ברקע; רק דברים דחופים מגיעים מיד, והשאר בסיכום הבוקר (07:30).</p>
-      <template x-if="ingest">
-        <div>
-          <p><b x-text="ingestState()"></b> <span class="muted sm" x-text="ingest.last_contact_at ? 'קשר אחרון: '+fmtDateTime(ingest.last_contact_at) : 'עדיין לא התחבר'"></span></p>
-          <p class="muted sm" x-text="'מיילים: '+ingest.mail.total+' התקבלו · בעיבוד: '+ingest.mail.pending_in_pipeline+(ingest.mail.last_received_at ? ' · אחרון: '+fmtDateTime(ingest.mail.last_received_at) : '')"></p>
-          <p class="muted sm" x-show="ingest.archive && (ingest.archive.emails || ingest.archive.queued || ingest.archive.embedding)" data-test="archive-line" x-text="archiveLine()"></p>
-          <p class="muted sm" x-show="ingest.archive && !ingest.archive.disk_ok" style="color:var(--danger)" x-text="'ארכיון: מעט מקום פנוי בדיסק, הקליטה נעצרה'"></p>
-          <p class="muted sm" x-text="'יומן: '+ingest.calendar.items+' אירועים'+(ingest.calendar.last_received_at ? ' · עודכן: '+fmtDateTime(ingest.calendar.last_received_at) : '')"></p>
-          <template x-for="d in ingest.mail.per_day" :key="d.day"><div class="muted sm" x-text="fmtDate(d.day)+': '+d.received+' התקבלו, '+d.stored+' חדשים'"></div></template>
-        </div>
-      </template>
-    </section>
-
-    <section class="card cn-card" x-init="loadConnector()">
-      <h3>מחשב Outlook</h3>
-      <p class="muted sm">התוכנה Alex Link במחשב Windows שולחת את המיילים והיומן ושולחת מיילים שאושרו. להתקנה במחשב חדש: הורידו את התוכנה, הריצו אותה, והדביקו בה את קוד החיבור.</p>
-      <div class="btnrow"><button class="btn primary" @click="cnNewCode()">חבר מחשב חדש</button><a class="btn" href="/api/connector/download" x-show="cn.latest && cn.latest.version" download>הורדת התוכנה <span class="muted sm" dir="ltr" x-text="cn.latest && cn.latest.version"></span></a></div>
-      <p class="muted sm" x-show="cn.latest && !cn.latest.version">עדיין לא הועלתה תוכנה להורדה.</p>
-      <template x-if="cn.code">
-        <div class="cn-code">
-          <div class="copy-row"><input type="text" readonly :value="cn.code.connect_string" dir="ltr" @focus="$event.target.select()" aria-label="קוד חיבור"><button class="btn" @click="copyText(cn.code.connect_string)">העתקה</button></div>
-          <p class="muted sm" x-text="'הקוד תקף עד '+fmtDateTime(cn.code.expires_at)+' ולשימוש אחד בלבד'"></p>
-        </div>
-      </template>
-      <template x-for="d in cn.devices" :key="'cd'+d.id">
-        <div class="cn-dev" :class="{revoked: d.revoked}">
-          <div><b x-text="d.name || ('מחשב '+d.id)"></b> <span class="muted sm" dir="ltr" x-text="d.app_version ? 'v'+d.app_version : ''"></span> <span class="cn-tag" x-show="d.revoked">נותק</span> <span class="cn-tag cn-active" x-show="!d.revoked && d.role === 'active'">פעיל</span><span class="cn-tag" x-show="!d.revoked && d.role !== 'active'">במצב המתנה</span></div>
-          <div class="muted sm" x-text="'קשר אחרון: '+(d.last_contact_at ? fmtDateTime(d.last_contact_at) : 'אין')"></div>
-          <div class="muted sm" x-show="!d.revoked" x-text="'Outlook: '+(d.outlook_ok === null ? 'לא ידוע' : d.outlook_ok ? 'פתוח' : 'סגור')+(d.paused_ingest ? ' · קליטה מושהית' : '')+(d.paused_send ? ' · שליחה מושהית' : '')"></div>
-          <div class="sm cn-err" x-show="!d.revoked && d.hb_last_error" x-text="'שגיאה אחרונה: '+d.hb_last_error"></div>
-          <div class="btnrow" x-show="!d.revoked"><button class="btn small" x-show="d.role !== 'active'" @click="cnActivate(d)">הפוך לפעיל</button><button class="btn small danger" @click="cnRevoke(d)">ניתוק</button></div>
-        </div>
-      </template>
-      <p class="muted sm" x-show="!cn.devices.length">אין מחשבים מחוברים בשיטה החדשה.</p>
-    </section>
-
-    <section class="card bk-card" x-init="loadBackup()">
-      <h3>גיבוי והצפנה</h3>
-      <p class="muted sm">כל המידע במערכת מוצפן בדיסק. כל לילה נשמר גיבוי מוצפן נוסף ב-Proton Drive. בלי מפתח ההצפנה אי אפשר לשחזר את הנתונים מאף גיבוי.</p>
-      <template x-if="bk.st">
-        <div class="stor bk-stat">
-          <div><span>גיבוי מקומי אחרון</span><b x-text="bk.st.local.last_at ? fmtDateTime(bk.st.local.last_at) : 'אין'"></b></div>
-          <div><span>גיבוי אחרון ל-Proton Drive</span><b x-text="bk.st.offsite.last_success_at ? fmtDateTime(bk.st.offsite.last_success_at) : (bk.st.offsite.configured ? 'עדיין לא הצליח' : 'עדיין לא הופעל')"></b></div>
-          <div><span>תוצאה אחרונה</span><b :class="{'bk-bad': bk.st.offsite.last_ok === false}" x-text="bk.st.offsite.configured ? (bk.st.offsite.last_ok ? 'הצליח' + (bk.st.offsite.last_run_at ? ' · ' + fmtDateTime(bk.st.offsite.last_run_at) : '') : 'נכשל: ' + (bk.st.offsite.last_error || '')) : 'לא רץ עדיין'"></b></div>
-          <div><span>מקום בתיקיית Proton</span><b x-text="bk.st.offsite.remote_bytes != null ? fmtGB(bk.st.offsite.remote_bytes) : 'לא ידוע'"></b></div>
-          <div><span>עותקי מסד נתונים ב-Proton</span><b x-text="bk.st.offsite.copies != null ? bk.st.offsite.copies : 'לא ידוע'"></b></div>
-        </div>
-      </template>
-      <div class="bk-key-area">
-        <div class="btnrow" x-show="!bk.key && !bk.ask"><button class="btn" @click="bk.ask = true; bk.err = ''; $nextTick(() => $refs.bkpw && $refs.bkpw.focus())">הצג מפתח הצפנה</button></div>
-        <form x-show="bk.ask && !bk.key" @submit.prevent="bkShow()" class="bk-form">
-          <label class="field"><span>הקלידו שוב את סיסמת האתר</span>
-            <input type="password" x-ref="bkpw" x-model="bk.pw" autocomplete="current-password" aria-label="סיסמת האתר"></label>
-          <p class="sm cn-err" x-show="bk.err" x-text="bk.err"></p>
-          <div class="btnrow"><button class="btn primary" type="submit" :disabled="bk.busy || !bk.pw">הצג</button><button class="btn" type="button" @click="bkHide()">ביטול</button></div>
-        </form>
-        <div x-show="bk.key" class="bk-shown">
-          <div class="bk-key" dir="ltr" x-text="bk.key" @focus="$event.target.select()" tabindex="0"></div>
-          <div class="btnrow"><button class="btn" @click="copyText(bk.key)">העתק</button><button class="btn" @click="bkHide()">הסתר</button></div>
-          <p class="sm">שמרו את המפתח ב-Bitwarden. בלי המפתח אי אפשר לשחזר את הנתונים.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="card filters-card">
-      <h3>סינון מיילים</h3>
-      <p class="muted sm">כללים שלך שמופעלים בקוד, לפני שמודל רואה את המייל (בייבוא היומי ובדואר שוטף). "לדלג": המייל נשמר וניתן לחיפוש אבל לא מעובד. "לידיעה": רק עובדות, בלי משימות. "תמיד רלוונטי": לעולם לא מסוננים. אפשר גם בצ׳אט: "תסנן מיילים מ-X".</p>
-      <template x-for="f in mailFilters" :key="f.id">
-        <div class="frule" :class="{off: !f.enabled}">
-          <span class="fk" x-text="{sender:'שולח', domain:'דומיין', text:'טקסט', regex:'ביטוי'}[f.kind]"></span>
-          <b dir="auto" x-text="f.pattern"></b>
-          <span class="muted sm" x-show="f.project" x-text="'· '+f.project"></span>
-          <span class="fa" x-text="f.action_he"></span>
-          <span class="muted sm" x-text="f.hits+' פגיעות'"></span>
-          <button class="btn small ghost" @click="toggleFilter(f)" x-text="f.enabled ? 'השבת' : 'הפעל'"></button>
-          <button class="icon-btn" @click="deleteFilter(f)" aria-label="מחיקת כלל" title="מחיקה">✕</button>
-        </div>
-      </template>
-      <p class="muted sm" x-show="mailFilters.length===0">אין כללים עדיין.</p>
-      <form class="fform" @submit.prevent="addFilter()">
-        <select x-model="fform.kind" aria-label="סוג כלל"><option value="sender">כתובת שולח</option><option value="domain">דומיין השולח</option><option value="text">מכיל טקסט</option><option value="regex">ביטוי רגולרי (מתקדם)</option></select>
-        <input type="text" x-model="fform.pattern" :placeholder="{sender:'name@example.com', domain:'example.com', text:'למשל: Out of office', regex:'^(RE|FW):'}[fform.kind]" dir="auto" aria-label="תבנית">
-        <select x-model="fform.action" aria-label="פעולה"><option value="skip">לדלג (רק לשמור)</option><option value="fyi">לידיעה בלבד</option><option value="relevant">תמיד רלוונטי</option></select>
-        <select x-model="fform.project" aria-label="היקף פרויקט"><option value="">כל הפרויקטים</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
-        <button type="button" class="btn small" @click="previewFilter()">בדוק את הכלל</button>
-        <button type="submit" class="btn small primary" :disabled="!fform.pattern.trim()">הוספה</button>
-      </form>
-      <p class="sm" x-show="fprev" x-text="fprev ? 'הכלל היה תופס '+fprev.matches+' מתוך '+fprev.total+' המיילים של '+fprev.days+' הימים האחרונים'+(fprev.examples.length ? ': '+fprev.examples.map(e=>e.subject).join(' · ') : '') : ''"></p>
-    </section>
-
-    <section class="card" x-show="st && st.urls">
-      <h3>כתובות האתר</h3>
-      <div class="copy-row"><span class="muted" style="min-width:5.5em">ראשית</span><input type="text" readonly :value="st.urls.main" dir="ltr" @focus="$event.target.select()" aria-label="כתובת ראשית"><button class="btn" @click="copyText(st.urls.main)">העתקה</button></div>
-      <div class="copy-row" x-show="st.urls.mirror"><span class="muted" style="min-width:5.5em">מהעבודה</span><input type="text" readonly :value="st.urls.mirror" dir="ltr" @focus="$event.target.select()" aria-label="כתובת מהעבודה"><button class="btn" @click="copyText(st.urls.mirror)">העתקה</button></div>
-      <p class="muted sm">הכתובת "מהעבודה" היא מראה של האתר לרשתות שחוסמות את הכתובת הראשית. הקישורים באתר נשארים על הכתובת שבה אתם משתמשים כרגע.</p>
-      <label class="linkcheck" x-show="st.urls.mirror"><input type="checkbox" :checked="st.links_use_mirror" @change="saveSet({links_use_mirror: $event.target.checked})"> קישורים בטלגרם, במייל וביומן דרך כתובת "מהעבודה" (ברירת מחדל: הראשית)</label>
-    </section>
-
-    <section class="card" x-show="st && st.agent">
-      <h3>המוח של אלכס</h3>
-      <p class="muted sm">אלכס עובד דרך תוכנת סוכן שכבר מותקנת אצלך ומחוברת לחשבון שלך (Claude Code, Codex או Gemini CLI). המערכת רק מפעילה את התוכנה הרשמית, בלי לגעת בפרטי ההתחברות.</p>
-      <label class="field"><span>סוכן</span>
-        <select :value="st.agent.name" @change="saveSet({agent_provider: $event.target.value})">
-          <template x-for="o in st.agent.options" :key="o.name"><option :value="o.name" :selected="o.name===st.agent.name" x-text="o.label+(o.ready ? '' : ' (לא מותקן)')"></option></template>
-        </select></label>
-      <label class="field"><span>מודל (אופציונלי, ריק = ברירת המחדל של הסוכן)</span><input type="text" dir="ltr" :value="st.agent.model" @change="saveSet({agent_model: $event.target.value})"></label>
-      <h4 style="margin:10px 0 4px">מודל ורמת מאמץ לכל סוג עבודה</h4>
-      <p class="muted sm">ברירת המחדל sonnet/medium. עבודות קצרות (למשל הודעת דופק) אפשר להריץ על מודל קטן וזול יותר. ריק = ברירת המחדל של הסוכן. הערכים מועברים לסוכן כמו שהם.</p>
-      <template x-for="m in st.agent.models" :key="m.job">
-        <div class="model-row"><span x-text="m.label"></span>
-          <input type="text" dir="ltr" placeholder="מודל" :value="m.model" @change="saveModel(m.job, 'model', $event.target.value)">
-          <input type="text" dir="ltr" placeholder="מאמץ" :value="m.effort" @change="saveModel(m.job, 'effort', $event.target.value)"></div>
-      </template>
-      <template x-for="o in st.agent.options.filter(x => x.name===st.agent.name)" :key="o.name"><p class="muted sm" x-text="(o.ready ? '✔ ' : '✖ ')+o.setup"></p></template>
-    </section>
-
-    <section class="card">
-      <h3>מצב המערכת</h3>
-      <template x-if="health">
-        <div class="health">
-          <template x-for="c in health.components" :key="c.id">
-            <div class="hrow"><span class="dot" :class="c.ok ? 'ok' : 'bad'"></span><span x-text="c.label"></span><i class="muted" x-text="c.detail"></i></div>
+      <!-- דואר -->
+      <template x-if="setCat()==='mail'">
+        <div class="set-body">
+          <template x-if="obSet">
+            <div class="set-group ob-set">
+              <label class="set-row"><span class="set-l"><b>שליחת מיילים</b><small>רק אחרי שתאשרו את הנוסח המדויק בכרטיס</small></span>
+                <input type="checkbox" class="tgl" :checked="obSet.enabled" @change="obToggle()" data-test="set-outbox"></label>
+              <div class="set-row"><span class="set-l"><b>מגבלה יומית</b><small x-text="'נשלחו היום '+obSet.sent_today"></small></span>
+                <input type="number" class="set-num" min="1" max="500" x-model.number="obSet.daily_cap" @change="obSetCap()" aria-label="מגבלה יומית"></div>
+              <div class="set-row"><span class="set-l"><b>כתובת שולח</b></span><span class="set-val"><span dir="auto" x-text="obSet.from || 'לא הוגדרה'"></span><small x-text="obSet.signature_set ? 'חתימה מוגדרת' : 'ללא חתימה'"></small></span></div>
+            </div>
           </template>
+          <h3 class="set-h">כתובות מורשות</h3>
+          <div class="set-group">
+            <div class="set-row set-col"><textarea x-model="allowText" rows="3" dir="ltr" aria-label="כתובות מורשות"></textarea>
+              <div class="set-foot"><small class="muted">מיילים מהכתובות האלה, או מועברים מהן, נקלטים. כתובת בכל שורה.</small><button class="btn small primary" @click="saveSet({email_allowlist: allowText})">שמירה</button></div></div>
+          </div>
+          <h3 class="set-h">סינון מיילים</h3>
+          <div class="set-group filters-card">
+            <template x-for="f in mailFilters" :key="f.id">
+              <div class="set-row frule" :class="{off: !f.enabled}">
+                <span class="set-l fr-l"><span><span class="fk" x-text="{sender:'שולח', domain:'דומיין', text:'טקסט', regex:'ביטוי'}[f.kind]"></span> <b dir="auto" x-text="f.pattern"></b></span>
+                  <small><span class="fa" x-text="f.action_he"></span><span x-show="f.project" x-text="' · '+f.project"></span><span x-text="' · '+f.hits+' פגיעות'"></span></small></span>
+                <input type="checkbox" class="tgl" :checked="f.enabled" @change="toggleFilter(f)" :aria-label="f.enabled ? 'השבתת הכלל' : 'הפעלת הכלל'">
+                <button class="icon-btn" @click="deleteFilter(f)" aria-label="מחיקת כלל" title="מחיקה">✕</button>
+              </div>
+            </template>
+            <div class="set-row" x-show="mailFilters.length===0"><span class="set-l"><small>אין כללים עדיין</small></span></div>
+            <form class="set-row set-col fform" @submit.prevent="addFilter()">
+              <div class="fform-g">
+                <select x-model="fform.kind" aria-label="סוג כלל"><option value="sender">כתובת שולח</option><option value="domain">דומיין השולח</option><option value="text">מכיל טקסט</option><option value="regex">ביטוי רגולרי (מתקדם)</option></select>
+                <input type="text" x-model="fform.pattern" :placeholder="{sender:'name@example.com', domain:'example.com', text:'למשל: Out of office', regex:'^(RE|FW):'}[fform.kind]" dir="auto" aria-label="תבנית">
+                <select x-model="fform.action" aria-label="פעולה"><option value="skip">לדלג (רק לשמור)</option><option value="fyi">לידיעה בלבד</option><option value="relevant">תמיד רלוונטי</option></select>
+                <select x-model="fform.project" aria-label="היקף פרויקט"><option value="">כל הפרויקטים</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+              </div>
+              <div class="set-foot"><button type="button" class="btn small" @click="previewFilter()">בדוק את הכלל</button><button type="submit" class="btn small primary" :disabled="!fform.pattern.trim()">הוספת כלל</button></div>
+              <small x-show="fprev" x-text="fprev ? 'הכלל היה תופס '+fprev.matches+' מתוך '+fprev.total+' המיילים של '+fprev.days+' הימים האחרונים'+(fprev.examples.length ? ': '+fprev.examples.map(e=>e.subject).join(' · ') : '') : ''"></small>
+            </form>
+            <details class="set-row set-col set-more"><summary>פרטים</summary>
+              <p>הכללים פועלים לפני שמודל רואה את המייל, בייבוא היומי ובדואר השוטף. "לדלג": המייל נשמר וניתן לחיפוש אבל לא מעובד. "לידיעה": רק עובדות, בלי משימות. "תמיד רלוונטי": לעולם לא מסוננים. אפשר גם בצ׳אט: "תסנן מיילים מ-X".</p></details>
+          </div>
+          <h3 class="set-h">ייבוא יומי ידני</h3>
+          <div class="set-group">
+            <details class="set-row set-col set-more"><summary>איך לייצא מיילים מ-Outlook</summary>
+              <p>כל בוקר אפשר להעביר לאלכס את כל המיילים של אתמול, גם שהתקבלו וגם שנשלחו. אלכס מסנן כפילויות ורעש, מקבץ לשרשורים, פותח וסוגר משימות, ושולח סיכום אחד כשהוא מסיים.</p>
+              <p><b>הדרך המומלצת: העברה כקובץ מצורף (Outlook קלאסי)</b></p>
+              <ol class="how"><li>בתיקיית הדואר הנכנס סמנו את המיילים של אתמול (Ctrl+A בתצוגה של אתמול, או חיפוש <span dir="ltr">received:yesterday</span>)</li><li>לחצו <span dir="ltr">Ctrl+Alt+F</span> (העבר כקובץ מצורף)</li><li>בשדה "אל" כתבו את כתובת התיבה של העוזר ושלחו</li><li>אם Outlook אומר שההודעה גדולה מדי, שלחו בשניים או שלושה חלקים; אלכס מאחד אותם לייבוא אחד</li><li>חזרו על זה בתיקייה "פריטים שנשלחו" כדי שגם המיילים שכתבתם ייכנסו (חשוב: כך אלכס יודע מה כבר ענית והבטחת)</li></ol>
+              <p class="muted">מייל עם יותר משלושה מיילים מצורפים נחשב לייבוא יומי. כשלא מגיעים חלקים חדשים כ-10 דקות, אלכס מתחיל לעבד, ובסוף שולח סיכום אחד.</p>
+              <p><b>דרך חלופית: גרירה לצ׳אט</b></p>
+              <ol class="how"><li>גררו את המיילים לתיקייה בשולחן העבודה (הם הופכים לקבצי msg; בקבוצות גדולות Outlook לא תמיד שומר את כולם)</li><li>סמנו את כל הקבצים וגררו אותם לחלון הצ׳אט (אפשר גם קובץ zip שלהם)</li></ol>
+              <p><b>Outlook החדש:</b> ייצאו כקבצי eml וגררו לצ׳אט, או העבירו את המיילים כקבצים מצורפים לכתובת התיבה של העוזר.</p>
+              <p class="muted">מעל שלושה קבצי מייל בצ׳אט, או הודעה שכוללת "ייבוא יומי", מופיע כרטיס אחד עם התקדמות במקום הודעה לכל קובץ.</p>
+            </details>
+          </div>
         </div>
       </template>
-      <p class="muted sm">נבדק אוטומטית כל 5 דקות. שירות שנופל מופעל מחדש פעם אחת, ואם הבעיה נמשכת תגיע אליך הודעה.</p>
-    </section>
 
-    <section class="card">
-      <h3>אחסון</h3>
-      <template x-if="storage">
-        <div class="stor">
-          <div><span>דיסק השרת</span><b x-text="fmtGB(storage.disk_free)+' פנויים מתוך '+fmtGB(storage.disk_total)+' ('+storage.disk_free_pct+'%)'"></b></div>
-          <div><span>קבצים (ארכיון)</span><b x-text="fmtGB(storage.files)"></b></div>
-          <div><span>מסד נתונים ויומני הרצה</span><b x-text="fmtGB(storage.data)"></b></div>
-          <div><span>גיבויים</span><b x-text="fmtGB(storage.backups)"></b></div>
-          <div><span>מודלים</span><b x-text="fmtGB(storage.models)"></b></div>
+      <!-- יומן באאוטלוק -->
+      <template x-if="setCat()==='calendar'">
+        <div class="set-body">
+          <div class="set-group">
+            <div class="set-row set-col"><span class="set-l"><b>קישור ליומן</b><small>סודי: מי שמחזיק בו רואה את המשימות והפגישות</small></span>
+              <div class="copy-row"><input type="text" readonly :value="here(st.calendar_url)" dir="ltr" @focus="$event.target.select()" aria-label="קישור ליומן"><button class="btn small" @click="copyText(here(st.calendar_url))">העתקה</button></div></div>
+            <div class="set-row"><span class="set-l"><b>משימות בלבד</b></span><button class="btn small" @click="copyText(st.calendar_url + '?only=tasks')">העתקת קישור</button></div>
+            <div class="set-row"><span class="set-l"><b>פגישות בלבד</b></span><button class="btn small" @click="copyText(st.calendar_url + '?only=meetings')">העתקת קישור</button></div>
+            <div class="set-row"><span class="set-l"><b>קישור חדש</b><small>הקישור הישן יפסיק לעבוד</small></span><button class="btn small danger" @click="rotateCal()">יצירה</button></div>
+            <details class="set-row set-col set-more"><summary>איך מוסיפים לאאוטלוק</summary>
+              <ol class="how"><li>באאוטלוק בחרו: הוספת לוח שנה</li><li>בחרו: מהאינטרנט</li><li>הדביקו את הקישור ואשרו</li></ol>
+              <p class="muted">אאוטלוק מעדכן יומנים מנויים לבד כל כמה שעות.</p></details>
+          </div>
         </div>
       </template>
-      <label class="field"><span>גודל קובץ מרבי להעלאה (מ״ב)</span><input type="number" min="1" max="4096" :value="st.max_file_mb" @change="saveSet({max_file_mb: $event.target.value})"></label>
-      <p class="muted sm">קבצים גדולים עולים באתר בחלקים ואפשר להמשיך אחרי ניתוק. את הטקסט של קבצים ענקיים קוראים ברקע ובמגבלה (למשל 300 העמודים הראשונים של PDF), ווידאו ואודיו נשמרים בלי אינדקס. בטלגרם המגבלה היא <span x-text="st.telegram_max_mb >= 1000 ? '2 ג״ב' : '20 מ״ב'"></span>.</p>
-      <label class="field"><span>ימים בסל המחזור לפני מחיקה סופית</span><input type="number" min="0" max="3650" :value="st.trash_days" @change="saveSet({trash_days: $event.target.value}).then(() => loadBoot())" data-test="trash-days"></label>
-      <p class="muted sm">כל מה שנמחק (משימות, פרויקטים, אנשים, פרוטוקולים, פריטי יומן, הודעות, כללי דואר) עובר קודם ל<a href="/trash" @click.prevent="go('/trash')">סל המחזור</a> ונמחק סופית אחרי מספר הימים הזה. 0 = לא לרוקן אוטומטית. השינוי חל גם על מה שכבר בסל.</p>
-      <label class="field"><span>השמר בתיבה (ימים)</span><input type="number" min="1" max="3650" :value="st.mailbox_keep_days" @change="saveSet({mailbox_keep_days: $event.target.value})"></label>
-      <p class="muted sm">מיילים שטופלו ונשמרו אצלנו במלואם (כולל הקבצים המצורפים) נמחקים מתיבת הדוא״ל של המערכת אחרי מספר הימים הזה. קבצים בארכיון לא נמחקים אוטומטית. הניקוי רץ בכל לילה.</p>
-    </section>
 
-    <section class="card">
-      <h3>כתובות דוא״ל מורשות</h3>
-      <textarea x-model="allowText" rows="3" dir="ltr" style="min-height:84px" aria-label="כתובות מורשות"></textarea>
-      <p class="muted sm">מיילים מהכתובות האלה (או מועברים ממנה) נקלטים. כתובת בכל שורה או מופרדות בפסיק.</p>
-      <button class="btn primary" @click="saveSet({email_allowlist: allowText})">שמירה</button>
-    </section>
+      <!-- בינה מלאכותית ועלויות -->
+      <template x-if="setCat()==='ai' && st.agent">
+        <div class="set-body">
+          <div class="set-group">
+            <div class="set-row"><span class="set-l"><b>סוכן</b><template x-for="o in st.agent.options.filter(x => x.name===st.agent.name)" :key="o.name"><small dir="auto" x-text="o.ready ? '✔ מותקן ומחובר' : '✖ '+o.setup"></small></template></span>
+              <select class="set-sel" @change="saveSet({agent_provider: $event.target.value})" aria-label="סוכן" data-test="set-agent">
+                <template x-for="o in st.agent.options" :key="o.name"><option :value="o.name" :selected="o.name===st.agent.name" x-text="o.label+(o.ready ? '' : ' (לא מותקן)')"></option></template></select></div>
+            <div class="set-row"><span class="set-l"><b>מודל ברירת מחדל</b></span>
+              <span class="set-v set-pair">
+                <select class="set-sel" @change="pickModel('default', $event.target.value, (v) => saveSet({agent_model: v}))" aria-label="מודל ברירת מחדל"><template x-for="o in modelOpts(st.agent.model)" :key="o[0]"><option :value="o[0]" :selected="o[0]===(setOther==='default' ? '__other' : (st.agent.model||''))" x-text="o[1]"></option></template></select>
+                <input type="text" dir="ltr" class="set-other" data-other="default" x-show="setOther==='default'" placeholder="שם המודל" @change="setOther=null; saveSet({agent_model: $event.target.value})" aria-label="שם מודל אחר">
+              </span></div>
+          </div>
+          <h3 class="set-h">מודל ורמת מאמץ לפי סוג עבודה</h3>
+          <div class="set-group">
+            <template x-for="m in st.agent.models" :key="m.job">
+              <div class="set-row model-row" :data-job="m.job"><span class="set-l"><b x-text="m.label"></b></span>
+                <span class="set-v set-pair">
+                  <select @change="pickModel('m:'+m.job, $event.target.value, (v) => saveModel(m.job, 'model', v))" :aria-label="'מודל: '+m.label"><template x-for="o in modelOpts(m.model)" :key="o[0]"><option :value="o[0]" :selected="o[0]===(setOther==='m:'+m.job ? '__other' : (m.model||''))" x-text="o[1]"></option></template></select>
+                  <select @change="pickModel('e:'+m.job, $event.target.value, (v) => saveModel(m.job, 'effort', v))" :aria-label="'מאמץ: '+m.label"><template x-for="o in effortOpts(m.effort)" :key="o[0]"><option :value="o[0]" :selected="o[0]===(setOther==='e:'+m.job ? '__other' : (m.effort||''))" x-text="o[1]"></option></template></select>
+                  <input type="text" dir="ltr" class="set-other" :data-other="'m:'+m.job" x-show="setOther==='m:'+m.job" placeholder="מודל" @change="setOther=null; saveModel(m.job, 'model', $event.target.value)" aria-label="שם מודל אחר">
+                  <input type="text" dir="ltr" class="set-other" :data-other="'e:'+m.job" x-show="setOther==='e:'+m.job" placeholder="מאמץ" @change="setOther=null; saveModel(m.job, 'effort', $event.target.value)" aria-label="רמת מאמץ אחרת">
+                </span></div>
+            </template>
+          </div>
+          <h3 class="set-h">תקציב</h3>
+          <div class="set-group">
+            <div class="set-row"><span class="set-l"><b>תקרה יומית לעבודה לא דחופה ($)</b><small x-text="'0 = כבוי · היום נוצלו '+usd(st.spent_today_usd)"></small></span>
+              <input type="number" class="set-num" min="0" step="1" :value="st.daily_budget_usd" @change="saveSet({daily_budget_usd: $event.target.value})" aria-label="תקרה יומית"></div>
+            <div class="set-row"><span class="set-l"><b>שימוש ועלויות</b><small>פירוט לפי יום, סוג עבודה ומודל</small></span><button class="btn small" @click="go('/activity')">פתיחה</button></div>
+            <details class="set-row set-col set-more"><summary>פרטים</summary>
+              <p>הערכים שווה ערך API. כשהתקרה מושגת נדחית רק עבודה לא דחופה (סיכום זיכרון שבועי, השלמות, חילוץ עובדות מלידיעה בלבד), עד 24 שעות. משימות, דואר שוטף, שרשורי ייבוא, צ׳אט ותזכורות לעולם לא נדחים. בנוסף תקבלו התראה אם ההוצאה היומית גבוהה פי 2 מהממוצע.</p>
+              <p>אלכס עובד דרך תוכנת סוכן שכבר מותקנת אצלך ומחוברת לחשבון שלך (Claude Code, Codex או Gemini CLI). המערכת רק מפעילה את התוכנה הרשמית, בלי לגעת בפרטי ההתחברות. ערכי המודל והמאמץ מועברים לסוכן כמו שהם.</p></details>
+          </div>
+        </div>
+      </template>
 
-    <section class="card">
-      <h3>סטטוסים ודחיפויות</h3>
-      <div class="ren-list">
-        <template x-for="s in st.statuses" :key="'s'+s.id"><div class="ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('statuses', s, $event.target.value)" aria-label="שם סטטוס"></div></template>
-      </div>
-      <div class="ren-list" style="margin-top:10px">
-        <template x-for="s in st.priorities" :key="'p'+s.id"><div class="ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('priorities', s, $event.target.value)" aria-label="שם דחיפות"></div></template>
-      </div>
-      <p class="muted sm">שינוי שם חל מיד על כל המשימות.</p>
-    </section>
+      <!-- סטטוסים ודחיפויות -->
+      <template x-if="setCat()==='tasks'">
+        <div class="set-body">
+          <h3 class="set-h set-h1">סטטוסים</h3>
+          <div class="set-group">
+            <template x-for="s in st.statuses" :key="'s'+s.id"><div class="set-row ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('statuses', s, $event.target.value)" aria-label="שם סטטוס"></div></template>
+          </div>
+          <h3 class="set-h">דחיפויות</h3>
+          <div class="set-group">
+            <template x-for="s in st.priorities" :key="'p'+s.id"><div class="set-row ren"><span class="dot" :style="'background:'+s.color"></span><input type="text" :value="s.name_he" @change="renameItem('priorities', s, $event.target.value)" aria-label="שם דחיפות"></div></template>
+          </div>
+          <p class="set-hint">שינוי שם חל מיד על כל המשימות.</p>
+        </div>
+      </template>
 
-    <section class="card">
-      <h3>שינוי סיסמה</h3>
-      <form @submit.prevent="changePassword()" class="pw-form">
-        <input type="password" x-model="pw.old" autocomplete="current-password" placeholder="הסיסמה הנוכחית" aria-label="הסיסמה הנוכחית">
-        <input type="password" x-model="pw.new" autocomplete="new-password" placeholder="סיסמה חדשה (לפחות 12 תווים)" aria-label="סיסמה חדשה">
-        <button class="btn primary" type="submit" :disabled="!pw.old || pw.new.length < 12">שינוי סיסמה</button>
-      </form>
-      <p class="muted sm">לאחר שינוי הסיסמה יש להתחבר מחדש בשאר המכשירים.</p>
-    </section>
+      <!-- סל מחזור ושמירה -->
+      <template x-if="setCat()==='trash'">
+        <div class="set-body">
+          <div class="set-group">
+            <div class="set-row"><span class="set-l"><b>מחיקה סופית מהסל אחרי</b><small>חל גם על מה שכבר בסל</small></span>
+              <select class="set-sel" @change="saveSet({trash_days: $event.target.value}).then(() => loadBoot())" data-test="trash-days" aria-label="ימים בסל המחזור"><template x-for="o in trashOpts(st.trash_days)" :key="o[0]"><option :value="o[0]" :selected="String(o[0])===String(st.trash_days)" x-text="o[1]"></option></template></select></div>
+            <div class="set-row"><span class="set-l"><b>סל המחזור</b><small x-text="boot.trash_total ? boot.trash_total+' פריטים בסל' : 'הסל ריק'"></small></span><button class="btn small" @click="go('/trash')">פתיחה</button></div>
+            <div class="set-row"><span class="set-l"><b>שמירה בתיבת הדואר של המערכת</b><small>מיילים שטופלו ונשמרו במלואם נמחקים מהתיבה (לא מהארכיון)</small></span>
+              <select class="set-sel" @change="saveSet({mailbox_keep_days: $event.target.value})" data-test="mailbox-keep" aria-label="ימי שמירה בתיבה"><template x-for="o in keepOpts(st.mailbox_keep_days)" :key="o[0]"><option :value="o[0]" :selected="String(o[0])===String(st.mailbox_keep_days)" x-text="o[1]"></option></template></select></div>
+            <details class="set-row set-col set-more"><summary>פרטים</summary>
+              <p>כל מה שנמחק (משימות, פרויקטים, אנשים, פרוטוקולים, פריטי יומן, הודעות, כללי דואר) עובר קודם לסל המחזור ונמחק סופית אחרי מספר הימים שנבחר. ניקוי התיבה רץ בכל לילה; קבצים בארכיון לא נמחקים אוטומטית.</p></details>
+          </div>
+        </div>
+      </template>
 
-    <section class="card">
-      <h3>טלגרם</h3>
-      <p x-text="st.telegram.bound ? 'הבוט מחובר ועונה רק לכם.' : (st.telegram.configured ? 'הבוט הוגדר וממתין לחיבור. החיבור נעשה פעם אחת בקישור חד־פעמי שמייצר מנהל המערכת.' : 'הבוט עדיין לא הוגדר. לאחר יצירת בוט וקבלת טוקן יש לפנות למנהל המערכת להפעלה.')"></p>
-      <button class="btn small danger" x-show="st.telegram.bound" @click="unbindTelegram()">ניתוק הבוט</button>
+      <!-- גיבוי והצפנה -->
+      <template x-if="setCat()==='backup'">
+        <div class="set-body bk-card">
+          <h3 class="sr">גיבוי והצפנה</h3>
+          <template x-if="bk.st">
+            <div class="set-group bk-stat">
+              <div class="set-row"><span class="set-l"><b>גיבוי מקומי אחרון</b></span><span class="set-val" x-text="bk.st.local.last_at ? fmtDateTime(bk.st.local.last_at) : 'אין'"></span></div>
+              <div class="set-row"><span class="set-l"><b>גיבוי אחרון ל-Proton Drive</b></span><span class="set-val" x-text="bk.st.offsite.last_success_at ? fmtDateTime(bk.st.offsite.last_success_at) : (bk.st.offsite.configured ? 'עדיין לא הצליח' : 'עדיין לא הופעל')"></span></div>
+              <div class="set-row"><span class="set-l"><b>תוצאה אחרונה</b></span><span class="set-val" :class="{'bk-bad': bk.st.offsite.last_ok === false}" x-text="bk.st.offsite.configured ? (bk.st.offsite.last_ok ? 'הצליח' + (bk.st.offsite.last_run_at ? ' · ' + fmtDateTime(bk.st.offsite.last_run_at) : '') : 'נכשל: ' + (bk.st.offsite.last_error || '')) : 'לא רץ עדיין'"></span></div>
+              <div class="set-row"><span class="set-l"><b>מקום בתיקיית Proton</b></span><span class="set-val" x-text="bk.st.offsite.remote_bytes != null ? fmtGB(bk.st.offsite.remote_bytes) : 'לא ידוע'"></span></div>
+              <div class="set-row"><span class="set-l"><b>עותקי מסד נתונים ב-Proton</b></span><span class="set-val" x-text="bk.st.offsite.copies != null ? bk.st.offsite.copies : 'לא ידוע'"></span></div>
+            </div>
+          </template>
+          <h3 class="set-h">מפתח ההצפנה</h3>
+          <div class="set-group bk-key-area">
+            <div class="set-row" x-show="!bk.key && !bk.ask"><span class="set-l"><b>מפתח ההצפנה</b><small>בלי המפתח אי אפשר לשחזר את הנתונים מאף גיבוי</small></span>
+              <button class="btn small" @click="bk.ask = true; bk.err = ''; $nextTick(() => $refs.bkpw && $refs.bkpw.focus())">הצג מפתח הצפנה</button></div>
+            <form x-show="bk.ask && !bk.key" @submit.prevent="bkShow()" class="set-row set-col bk-form">
+              <label class="field"><span>הקלידו שוב את סיסמת האתר</span>
+                <input type="password" x-ref="bkpw" x-model="bk.pw" autocomplete="current-password" aria-label="סיסמת האתר"></label>
+              <p class="sm cn-err" x-show="bk.err" x-text="bk.err"></p>
+              <div class="btnrow"><button class="btn small primary" type="submit" :disabled="bk.busy || !bk.pw">הצג</button><button class="btn small" type="button" @click="bkHide()">ביטול</button></div>
+            </form>
+            <div x-show="bk.key" class="set-row set-col bk-shown">
+              <div class="bk-key" dir="ltr" x-text="bk.key" @focus="$event.target.select()" tabindex="0"></div>
+              <div class="btnrow"><button class="btn small" @click="copyText(bk.key)">העתק</button><button class="btn small" @click="bkHide()">הסתר</button></div>
+              <p class="sm">שמרו את המפתח ב-Bitwarden. בלי המפתח אי אפשר לשחזר את הנתונים.</p>
+            </div>
+          </div>
+          <p class="set-hint">כל המידע מוצפן בדיסק, וכל לילה נשמר גיבוי מוצפן ב-Proton Drive.</p>
+        </div>
+      </template>
+
+      <!-- חשבון ואבטחה -->
+      <template x-if="setCat()==='account'">
+        <div class="set-body">
+          <h3 class="set-h set-h1">שינוי סיסמה</h3>
+          <div class="set-group">
+            <form @submit.prevent="changePassword()" class="set-row set-col pw-form">
+              <input type="password" x-model="pw.old" autocomplete="current-password" placeholder="הסיסמה הנוכחית" aria-label="הסיסמה הנוכחית">
+              <input type="password" x-model="pw.new" autocomplete="new-password" placeholder="סיסמה חדשה (לפחות 12 תווים)" aria-label="סיסמה חדשה">
+              <div class="set-foot"><small class="muted">אחרי השינוי מתחברים מחדש בשאר המכשירים</small><button class="btn small primary" type="submit" :disabled="!pw.old || pw.new.length < 12">שינוי סיסמה</button></div>
+            </form>
+          </div>
+          <template x-if="st.urls">
+            <div>
+              <h3 class="set-h">כתובות האתר</h3>
+              <div class="set-group">
+                <div class="set-row set-col"><span class="set-l"><b>ראשית</b></span>
+                  <div class="copy-row"><input type="text" readonly :value="st.urls.main" dir="ltr" @focus="$event.target.select()" aria-label="כתובת ראשית"><button class="btn small" @click="copyText(st.urls.main)">העתקה</button></div></div>
+                <template x-if="st.urls.mirror">
+                  <div class="set-row set-col"><span class="set-l"><b>מהעבודה</b><small>מראה של האתר לרשתות שחוסמות את הכתובת הראשית</small></span>
+                    <div class="copy-row"><input type="text" readonly :value="st.urls.mirror" dir="ltr" @focus="$event.target.select()" aria-label="כתובת מהעבודה"><button class="btn small" @click="copyText(st.urls.mirror)">העתקה</button></div></div>
+                </template>
+                <template x-if="st.urls.mirror">
+                  <label class="set-row"><span class="set-l"><b>קישורים דרך כתובת "מהעבודה"</b><small>בטלגרם, במייל וביומן</small></span>
+                    <input type="checkbox" class="tgl" :checked="st.links_use_mirror" @change="saveSet({links_use_mirror: $event.target.checked})"></label>
+                </template>
+              </div>
+            </div>
+          </template>
+          <div class="set-group set-gap">
+            <div class="set-row"><span class="set-l"><b>יציאה מהאתר</b><small>במכשיר הזה</small></span><button class="btn small danger" @click="logout()">יציאה</button></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- מצב המערכת -->
+      <template x-if="setCat()==='system'">
+        <div class="set-body">
+          <template x-if="sysHealth">
+            <div class="health-card">
+              <div class="set-group">
+                <div class="set-row"><span class="set-l"><b>בדיקה מלאה</b><small>כל 15 דקות; תקלה אדומה מדווחת לכם פעם אחת, ושוב כשהיא חוזרת לתקין</small></span><span class="set-val"><b x-text="sysHealth.summary || 'עדיין לא רצה בדיקה'"></b></span></div>
+                <template x-for="c in sysHealth.checks" :key="c.id">
+                  <div class="set-row hc-row"><span class="hc-dot" :class="c.status" :title="c.status"></span><span class="set-l"><b x-text="c.label"></b><small x-text="c.message"></small></span><small class="muted hc-t" x-text="fmtDateTime(c.at)"></small></div>
+                </template>
+              </div>
+            </div>
+          </template>
+          <template x-if="health">
+            <div>
+              <h3 class="set-h">שירותים</h3>
+              <div class="set-group">
+                <template x-for="c in health.components" :key="c.id">
+                  <div class="set-row hrow"><span class="dot" :class="c.ok ? 'ok' : 'bad'"></span><span class="set-l"><b x-text="c.label"></b><small x-text="c.detail"></small></span></div>
+                </template>
+              </div>
+            </div>
+          </template>
+          <h3 class="set-h">אחסון</h3>
+          <div class="set-group">
+            <template x-if="storage">
+              <div>
+                <div class="set-row"><span class="set-l"><b>דיסק השרת</b></span><span class="set-val" x-text="fmtGB(storage.disk_free)+' פנויים מתוך '+fmtGB(storage.disk_total)+' ('+storage.disk_free_pct+'%)'"></span></div>
+                <div class="set-row"><span class="set-l"><b>קבצים (ארכיון)</b></span><span class="set-val" x-text="fmtGB(storage.files)"></span></div>
+                <div class="set-row"><span class="set-l"><b>מסד נתונים ויומני הרצה</b></span><span class="set-val" x-text="fmtGB(storage.data)"></span></div>
+                <div class="set-row"><span class="set-l"><b>גיבויים</b></span><span class="set-val" x-text="fmtGB(storage.backups)"></span></div>
+                <div class="set-row"><span class="set-l"><b>מודלים</b></span><span class="set-val" x-text="fmtGB(storage.models)"></span></div>
+              </div>
+            </template>
+            <div class="set-row"><span class="set-l"><b>גודל קובץ מרבי להעלאה</b><small x-text="'בטלגרם: '+(st.telegram_max_mb >= 1000 ? '2 ג״ב' : '20 מ״ב')"></small></span>
+              <select class="set-sel" @change="saveSet({max_file_mb: $event.target.value})" aria-label="גודל קובץ מרבי" data-test="max-file"><template x-for="o in mbOpts(st.max_file_mb)" :key="o[0]"><option :value="o[0]" :selected="String(o[0])===String(st.max_file_mb)" x-text="o[1]"></option></template></select></div>
+            <details class="set-row set-col set-more"><summary>פרטים</summary>
+              <p>קבצים גדולים עולים באתר בחלקים ואפשר להמשיך אחרי ניתוק. את הטקסט של קבצים ענקיים קוראים ברקע ובמגבלה (למשל 300 העמודים הראשונים של PDF), ווידאו ואודיו נשמרים בלי אינדקס. השירותים נבדקים כל 5 דקות; שירות שנופל מופעל מחדש פעם אחת, ואם הבעיה נמשכת תגיע אליכם הודעה.</p></details>
+          </div>
+        </div>
+      </template>
     </section>
   </div>
   </template>
