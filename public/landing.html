@@ -3,65 +3,114 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mesimot — task and project management for construction engineering teams</title>
-<meta name="description" content="Mesimot is a private business tool for engineering and construction teams: turn emails into tasks, keep a project knowledge base, record meeting minutes and follow a shared calendar. Hebrew interface. משימות — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה.">
+<title>Alex Tasks — an AI assistant that runs tasks and projects for construction teams</title>
+<meta name="description" content="Alex Tasks is a private task and project system for construction and engineering managers, run by an AI assistant named Alex: email to task, project knowledge, meeting minutes, calendar, drafts in your own writing style. Hebrew interface. אלכס — עוזר שמנהל משימות ופרויקטים לצוותי הנדסה ובנייה.">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#1d4ed8">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png?v=2">
 <style>
+@font-face{font-family:'Heebo';font-weight:400;font-display:swap;src:url(/assets/vendor/heebo-400.ttf) format('truetype')}
+@font-face{font-family:'Heebo';font-weight:700;font-display:swap;src:url(/assets/vendor/heebo-700.ttf) format('truetype')}
+:root{--bg:#f4f6fa;--surface:#fff;--surface-2:#eef1f7;--text:#141a26;--muted:#5d6779;--border:#dce1ea;--primary:#1d4ed8;--primary-soft:#e3ecff;--hero:#1d4ed8;--hero-2:#1e3a8a;--hero-text:#fff;--btn:#fff;--btn-text:#1d4ed8}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1218;--surface:#171d27;--surface-2:#202836;--text:#e8ecf3;--muted:#9aa5b8;--border:#2b3445;--primary:#6d9bff;--primary-soft:#1d2b4a;--hero:#16264d;--hero-2:#0e1730;--hero-text:#e8ecf3;--btn:#6d9bff;--btn-text:#0b1220}}
 *{box-sizing:border-box}
-body{margin:0;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2937;background:#f4f6fa}
-header{background:#1d4ed8;color:#fff;padding:28px 20px}
-.wrap{max-width:860px;margin:0 auto}
-h1{margin:0 0 6px;font-size:1.6rem;line-height:1.3}
-header p{margin:0;opacity:.92}
-main{padding:8px 20px 40px}
-section.lang{background:#fff;border-radius:12px;margin:22px 0;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-section.lang h2{margin:0 0 4px;font-size:1.25rem}
-section.lang .sub{margin:0 0 14px;color:#4b5563}
-h3{margin:18px 0 2px;font-size:1.05rem}
-p{margin:4px 0}
-.btn{display:inline-block;margin-top:14px;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600}
-.btn:hover{background:#1e40af}
-footer{text-align:center;color:#6b7280;font-size:.9rem;padding:8px 20px 36px}
+html{color-scheme:light dark}
+body{margin:0;font:16px/1.65 'Heebo',system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
+header{background:linear-gradient(160deg,var(--hero),var(--hero-2));color:var(--hero-text);padding:40px 0 44px}
+.hero{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.hero img{width:96px;height:96px;border-radius:22px;background:#fff;flex:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.hero-t{flex:1 1 300px;min-width:0}
+h1{margin:0;font-size:2rem;line-height:1.2}
+.tag{margin:6px 0 0;font-size:1.1rem;opacity:.95}
+.tag-he{margin:2px 0 0;font-size:1.05rem;opacity:.85}
+.cta{display:inline-block;margin-top:22px;background:var(--btn);color:var(--btn-text);text-decoration:none;padding:11px 26px;border-radius:12px;font-weight:700}
+.cta:hover{filter:brightness(.95)}
+main{padding:10px 0 32px}
+section.lang{margin:28px 0}
+h2{margin:0 0 6px;font-size:1.45rem}
+.sub{margin:0 0 18px;color:var(--muted);max-width:760px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 2px 8px rgba(16,24,40,.05)}
+.card h3{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:1.05rem}
+.card p{margin:0;color:var(--muted)}
+.ic{flex:none;width:36px;height:36px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center}
+.ic svg{width:20px;height:20px}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 0;padding:0;list-style:none;counter-reset:s}
+.steps li{background:var(--surface-2);border-radius:14px;padding:14px 16px;counter-increment:s}
+.steps li::before{content:counter(s);display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--surface);font-weight:700;margin-bottom:6px}
+.steps b{display:block}
+.steps span{color:var(--muted)}
+.trust{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-inline-start:4px solid var(--primary);border-radius:14px;padding:14px 18px}
+.trust b{display:block;margin-bottom:2px}
+.trust p{margin:0;color:var(--muted)}
+.signin{margin-top:18px}
+.signin a{display:inline-block;background:var(--primary);color:var(--surface);text-decoration:none;padding:10px 24px;border-radius:12px;font-weight:700}
+hr{border:0;border-top:1px solid var(--border);margin:36px 0}
+footer{text-align:center;color:var(--muted);font-size:.9rem;padding:4px 16px 36px}
 [dir=rtl]{text-align:right}
+@media (max-width:700px){.grid,.steps{grid-template-columns:minmax(0,1fr)}h1{font-size:1.6rem}.hero img{width:72px;height:72px;border-radius:18px}header{padding:30px 0 34px}}
 </style>
 </head>
 <body>
-<header><div class="wrap">
-<h1>Mesimot — task and project management for construction engineering teams</h1>
-<p>Alex Tasks — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה</p>
+<header><div class="wrap hero">
+<img src="/assets/icon-192.png?v=2" width="96" height="96" alt="">
+<div class="hero-t">
+<h1>Alex Tasks</h1>
+<p class="tag">An AI assistant that runs your tasks and projects. You tell him; he does the work.</p>
+<p class="tag-he" lang="he" dir="rtl">Alex Tasks — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה</p>
+<a class="cta" href="/login">Sign in / כניסה</a>
+</div>
 </div></header>
+
 <main><div class="wrap">
 
 <section class="lang" lang="en" dir="ltr">
 <h2>What it is</h2>
-<p class="sub">Mesimot is a private web application that helps an engineering or construction team keep track of work across many projects at once. The interface is in Hebrew.</p>
-<h3>Email to task</h3>
-<p>Forward a project email and it becomes a task with a requester, a due date and the right project. Replies and follow-ups are linked to the same task, so the history of a request stays in one place.</p>
-<h3>Project knowledge base</h3>
-<p>Every project keeps a card of dated facts (quantities, contractors, contract status, milestones) and a searchable archive of documents and correspondence, so the current status is always one search away.</p>
-<h3>Meeting minutes</h3>
-<p>Meeting protocols are stored with their decisions and action items. Items that matter are promoted to the task board; the rest stay searchable.</p>
-<h3>Calendar</h3>
-<p>Meetings and task deadlines appear in one calendar that can be subscribed to from Outlook and other calendar applications.</p>
-<a class="btn" href="/login">Sign in / כניסה</a>
+<p class="sub">A private web app for a construction or engineering manager who runs many projects at once. An assistant named Alex reads the mail, keeps the tasks and the project files in order, and does what you ask in the chat. The interface is in Hebrew and works on the phone and on the computer.</p>
+<div class="grid">
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>Talk to Alex</h3><p>Write or send a voice message in the app or in Telegram. Alex creates and updates tasks, answers questions about any project and finds documents. Every task and project has its own chat.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>Email to task</h3><p>The Alex Link program on your Windows computer brings in your Outlook mail. Requests become tasks with the requester, the due date and the right project; replies join the same task, and mail you delete in Outlook leaves here too.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>Project knowledge</h3><p>Each project has a passport with dated facts and the latest status of design, permit, construction and marketing. Documents and correspondence are searchable, and answers come with their source.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 12h6M9 16h4"/></svg></span>Meeting minutes</h3><p>Minutes are kept with their decisions and action items. The items that matter move to the task board; the rest stay searchable.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>Calendar</h3><p>Meetings, deadlines and your Outlook meetings in one calendar, which you can also subscribe to from Outlook or the phone.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Mail in your own voice</h3><p>Alex drafts emails the way you write to each person. You see the exact text and approve it with one tap; only then does Outlook send it.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></span>Nothing gets lost</h3><p>Deleted items wait in a recycle bin for 60 days. Every change is logged and can be undone, and permanent deletion always asks you first.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>On your phone</h3><p>Install it as an app on the phone and get notifications there or in Telegram: a new urgent task, a meeting, a question from Alex.</p></div>
+</div>
+<ol class="steps">
+<li><b>Mail and messages come in</b><span>From Outlook, the chat, Telegram and files you attach.</span></li>
+<li><b>Alex sorts and links</b><span>Tasks, projects, people, dates and documents, each in its place.</span></li>
+<li><b>You decide</b><span>Alex asks when something is unclear and carries out what you approve.</span></li>
+</ol>
+<div class="trust"><b>Private by design</b><p>It runs on your own server. The database, the files and the nightly off-site backup are encrypted. Alex works with your own AI subscription (Claude, Codex or Gemini). No trackers and no ads.</p></div>
+<p class="signin"><a href="/login">Sign in / כניסה</a></p>
 </section>
+
+<hr>
 
 <section class="lang" lang="he" dir="rtl">
 <h2>מה זה</h2>
-<p class="sub">Alex Tasks היא מערכת אינטרנטית פרטית שעוזרת לצוות הנדסה ובנייה לעקוב אחרי העבודה בכמה פרויקטים במקביל. הממשק בעברית.</p>
-<h3>ממייל למשימה</h3>
-<p>מעבירים מייל של פרויקט והוא הופך למשימה עם מבקש, תאריך יעד והפרויקט הנכון. תשובות והמשך התכתבות מקושרים לאותה משימה, וכך כל ההיסטוריה של בקשה נשארת במקום אחד.</p>
-<h3>מאגר ידע לכל פרויקט</h3>
-<p>לכל פרויקט כרטיס נתונים מתוארכים (כמויות, קבלנים, מצב חוזים, אבני דרך) וארכיון מסמכים והתכתבות שניתן לחפש בו, כך שהמצב העדכני תמיד במרחק חיפוש אחד.</p>
-<h3>פרוטוקולים של ישיבות</h3>
-<p>פרוטוקולים נשמרים עם ההחלטות וסעיפי הפעולה. הסעיפים החשובים עוברים ללוח המשימות, והשאר נשארים זמינים לחיפוש.</p>
-<h3>יומן</h3>
-<p>ישיבות ומועדי יעד מופיעים ביומן אחד שאפשר להירשם אליו מאאוטלוק ומאפליקציות יומן אחרות.</p>
-<a class="btn" href="/login">Sign in / כניסה</a>
+<p class="sub">מערכת אינטרנטית פרטית למנהל בנייה או הנדסה שמנהל הרבה פרויקטים במקביל. עוזר בשם אלכס קורא את המיילים, שומר על סדר במשימות ובתיקי הפרויקטים, ועושה את מה שמבקשים ממנו בצ׳אט. הממשק בעברית ועובד בטלפון ובמחשב.</p>
+<div class="grid">
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>מדברים עם אלכס</h3><p>כותבים או שולחים הודעה קולית באפליקציה או בטלגרם. אלכס פותח ומעדכן משימות, עונה על שאלות על כל פרויקט ומוצא מסמכים. לכל משימה ולכל פרויקט יש צ׳אט משלו.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>ממייל למשימה</h3><p>התוכנה Alex Link במחשב Windows מביאה את המיילים מאאוטלוק. בקשות הופכות למשימות עם המבקש, תאריך היעד והפרויקט הנכון; תשובות מצטרפות לאותה משימה, ומייל שנמחק באאוטלוק יוצא גם מכאן.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>הידע של כל פרויקט</h3><p>לכל פרויקט תעודת זהות עם נתונים מתוארכים והמצב העדכני של תכנון, היתר, ביצוע ושיווק. אפשר לחפש במסמכים ובהתכתבות, והתשובות מגיעות עם המקור.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l1 2h3v15H5V6h3z"/><path d="M9 12h6M9 16h4"/></svg></span>פרוטוקולים</h3><p>פרוטוקולים נשמרים עם ההחלטות וסעיפי הפעולה. הסעיפים החשובים עוברים ללוח המשימות, והשאר נשארים זמינים לחיפוש.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>יומן</h3><p>ישיבות, מועדי יעד ופגישות מאאוטלוק ביומן אחד, שאפשר גם להירשם אליו מאאוטלוק או מהטלפון.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>מיילים בסגנון שלך</h3><p>אלכס מנסח מיילים כמו שאתה כותב לכל אדם. אתה רואה את הנוסח המדויק ומאשר בלחיצה אחת, ורק אז אאוטלוק שולח.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></span>שום דבר לא הולך לאיבוד</h3><p>מה שנמחק נשמר בסל המחזור 60 יום. כל שינוי נרשם ואפשר לבטל אותו, ומחיקה סופית תמיד מחכה לאישור שלך.</p></div>
+<div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>בטלפון</h3><p>מתקינים כאפליקציה בטלפון ומקבלים התראות שם או בטלגרם: משימה דחופה חדשה, ישיבה, שאלה מאלכס.</p></div>
+</div>
+<ol class="steps">
+<li><b>מיילים והודעות נכנסים</b><span>מאאוטלוק, מהצ׳אט, מטלגרם ומקבצים שמצרפים.</span></li>
+<li><b>אלכס ממיין ומקשר</b><span>משימות, פרויקטים, אנשים, תאריכים ומסמכים, כל דבר במקומו.</span></li>
+<li><b>אתה מחליט</b><span>אלכס שואל כשמשהו לא ברור ומבצע את מה שאישרת.</span></li>
+</ol>
+<div class="trust"><b>פרטיות מהיסוד</b><p>המערכת רצה על השרת שלך. מסד הנתונים, הקבצים והגיבוי הלילי מחוץ לשרת מוצפנים. אלכס עובד עם מנוי הבינה המלאכותית שלך: Claude, Codex או Gemini. בלי מעקב ובלי פרסומות.</p></div>
+<p class="signin"><a href="/login">Sign in / כניסה</a></p>
 </section>
 
 </div></main>
