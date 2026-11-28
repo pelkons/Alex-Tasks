@@ -36,6 +36,9 @@
     </nav>
     <span class="spacer"></span>
     <span class="agent-status" :class="{busy: busy()}" x-text="statusText()" aria-live="polite"></span>
+    <button class="icon-btn" :class="{on: route.name==='trash'}" @click="go('/trash')" aria-label="סל מחזור" title="סל מחזור" data-test="top-trash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+    </button>
     <button class="icon-btn" :class="{on: route.name==='settings'}" @click="go('/settings')" aria-label="הגדרות" title="הגדרות">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
@@ -334,7 +337,7 @@
           </form>
         </div>
 
-        <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">מחק לצמיתות</button></div>
+        <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">העבר לסל</button></div>
 
         <p class="stamps muted" x-show="detail.created_at"><span x-text="'נוצרה: '+fmtDateTime(detail.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(detail.updated_at || detail.created_at)"></span></p>
       </div>
@@ -477,6 +480,29 @@
   </div>
   <p class="muted" x-show="!arc.items.length && !arc.loading">אין משימות בארכיון שמתאימות לסינון.</p>
   <button class="btn" x-show="arc.items.length < arc.total" @click="loadArchive(true)">עוד…</button>
+</div>
+</template>
+
+<template x-if="route.name==='trash'">
+<div class="bin-page">
+  <div class="page-h"><h1>סל מחזור</h1><button class="btn small danger" x-show="bin.total" @click="emptyBin()" data-test="bin-empty">רוקן את הסל</button></div>
+  <p class="muted sm" x-text="bin.days > 0 ? 'מה שנמחק נשמר כאן '+bin.days+' ימים ואז נמחק סופית. אפשר לשחזר כל פריט עם כל מה שהיה בו.' : 'מה שנמחק נשמר כאן עד שמוחקים אותו ידנית. אפשר לשחזר כל פריט עם כל מה שהיה בו.'"></p>
+  <div class="bin-kinds" x-show="bin.total" role="tablist" aria-label="סוג">
+    <button class="chip" :class="{on: !bin.kind}" @click="bin.kind=''" x-text="'הכל ('+bin.total+')'"></button>
+    <template x-for="k in binKinds()" :key="k"><button class="chip" :class="{on: bin.kind===k}" @click="bin.kind=k" x-text="binKindPl(k)+' ('+bin.counts[k]+')'"></button></template>
+  </div>
+  <div class="bin-list">
+    <template x-for="it in binItems()" :key="it.id">
+      <div class="bin-row" data-test="bin-row">
+        <div class="bin-main">
+          <div class="bin-title" x-text="it.title"></div>
+          <div class="bin-meta"><span class="bin-kind" :class="'k-'+it.kind" x-text="it.kind_he"></span><span x-text="'נמחק '+dayOf(it.deleted_at)"></span><span x-show="it.summary" x-text="it.summary"></span><span class="bin-left" :class="{soon: it.days_left !== null && it.days_left <= 3}" x-text="binLeftText(it)"></span></div>
+        </div>
+        <div class="bin-acts"><button class="btn small" @click="restoreBin(it)" data-test="bin-restore">שחזר</button><button class="btn small danger" @click="destroyBin(it)" data-test="bin-destroy">מחק סופית</button></div>
+      </div>
+    </template>
+  </div>
+  <p class="bin-empty muted" x-show="!bin.loading && !bin.total">הסל ריק. מה שנמחק יגיע לכאן ואפשר יהיה לשחזר אותו.</p>
 </div>
 </template>
 
@@ -941,7 +967,7 @@
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
-          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
       </div>
     </template>
@@ -1012,7 +1038,7 @@
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
-          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
       </div>
     </template>
@@ -1127,7 +1153,7 @@
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
-          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
       </div>
     </template>
@@ -1356,6 +1382,8 @@
       </template>
       <label class="field"><span>גודל קובץ מרבי להעלאה (מ״ב)</span><input type="number" min="1" max="4096" :value="st.max_file_mb" @change="saveSet({max_file_mb: $event.target.value})"></label>
       <p class="muted sm">קבצים גדולים עולים באתר בחלקים ואפשר להמשיך אחרי ניתוק. את הטקסט של קבצים ענקיים קוראים ברקע ובמגבלה (למשל 300 העמודים הראשונים של PDF), ווידאו ואודיו נשמרים בלי אינדקס. בטלגרם המגבלה היא <span x-text="st.telegram_max_mb >= 1000 ? '2 ג״ב' : '20 מ״ב'"></span>.</p>
+      <label class="field"><span>ימים בסל המחזור לפני מחיקה סופית</span><input type="number" min="0" max="3650" :value="st.trash_days" @change="saveSet({trash_days: $event.target.value}).then(() => loadBoot())" data-test="trash-days"></label>
+      <p class="muted sm">כל מה שנמחק (משימות, פרויקטים, אנשים, פרוטוקולים, פריטי יומן, הודעות, כללי דואר) עובר קודם ל<a href="/trash" @click.prevent="go('/trash')">סל המחזור</a> ונמחק סופית אחרי מספר הימים הזה. 0 = לא לרוקן אוטומטית. השינוי חל גם על מה שכבר בסל.</p>
       <label class="field"><span>השמר בתיבה (ימים)</span><input type="number" min="1" max="3650" :value="st.mailbox_keep_days" @change="saveSet({mailbox_keep_days: $event.target.value})"></label>
       <p class="muted sm">מיילים שטופלו ונשמרו אצלנו במלואם (כולל הקבצים המצורפים) נמחקים מתיבת הדוא״ל של המערכת אחרי מספר הימים הזה. קבצים בארכיון לא נמחקים אוטומטית. הניקוי רץ בכל לילה.</p>
     </section>
@@ -1438,7 +1466,7 @@
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
-          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחק לצמיתות.</b></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
       </div>
     </template>
@@ -1498,7 +1526,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>פרויקטים</button>
   <button :class="{on: route.name==='calendar'}" @click="go('/calendar')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>יומן</button>
-  <button :class="{on: ['search','protocols','archive','activity','people','settings'].includes(route.name) || moreOpen}" @click="moreOpen=!moreOpen">
+  <button :class="{on: ['search','protocols','archive','trash','activity','people','settings'].includes(route.name) || moreOpen}" @click="moreOpen=!moreOpen">
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>עוד</button>
 </nav>
 <div class="more-bg" x-show="moreOpen" @click="moreOpen=false">
@@ -1506,6 +1534,7 @@
     <button @click="moreOpen=false; go('/search')">חיפוש</button>
     <button @click="moreOpen=false; go('/protocols')">פרוטוקולים</button>
     <button @click="moreOpen=false; go('/archive')">📦 ארכיון</button>
+    <button @click="moreOpen=false; go('/trash')" data-test="more-trash" x-text="'🗑 סל מחזור'+(boot.trash_total ? ' ('+boot.trash_total+')' : '')"></button>
     <button @click="moreOpen=false; go('/activity')">פעילות</button>
     <button @click="moreOpen=false; go('/people')">אנשים</button>
     <button @click="moreOpen=false; go('/settings')">הגדרות</button>
@@ -1604,7 +1633,7 @@
           <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
-          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b>נמחקה לצמיתות.</b> <button class="btn small" x-show="undoLeft(m.confirm) > 0" @click="undoPurge(m.confirm)" x-text="'בטל ('+undoLeft(m.confirm)+')'"></button></p>
+          <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
         <div class="prop-card" x-show="m.proposal_batch" x-cloak x-init="m.proposal_batch && loadProposals(m.proposal_batch)">
           <template x-if="m.proposal_batch && proposalCards[m.proposal_batch]">
@@ -1706,20 +1735,21 @@
 
 <div class="picker-bg" x-show="purgeDlg" x-cloak @click.self="purgeDlg=null" @keydown.escape.window="purgeDlg=null">
   <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="purgeDlg">
-    <div class="pk-head"><b>מחיקה לצמיתות</b><button class="icon-btn" @click="purgeDlg=null" aria-label="סגירה">✕</button></div>
-    <p x-text="purgeDlg ? '״'+purgeDlg.t.title+'״' : ''"></p>
-    <p class="muted sm">המשימה, ההערות, הקישורים למיילים והשיחה עליה יימחקו לצמיתות (לא לארכיון). אפשר לבטל תוך 30 שניות.</p>
-    <div class="btnrow"><button class="btn danger" @click="confirmPurge()">מחק לצמיתות</button><button class="btn" @click="purgeDlg=null">ביטול</button></div>
+    <div class="pk-head"><b>העברה לסל המחזור</b><button class="icon-btn" @click="purgeDlg=null" aria-label="סגירה">✕</button></div>
+    <p class="del-title" x-text="purgeDlg ? '״'+purgeDlg.t.title+'״' : ''"></p>
+    <p class="muted sm" x-text="'המשימה, ההערות, הקישורים למיילים והשיחה עליה יועברו לסל המחזור (לא לארכיון). '+binKeepText()"></p>
+    <div class="btnrow"><button class="btn danger" @click="confirmPurge()">העבר לסל</button><button class="btn" @click="purgeDlg=null">ביטול</button></div>
   </div>
 </div>
-<div class="purge-undo" x-show="purgeUndo && purgeLeft()>0" x-cloak role="status" aria-live="polite"><span x-text="'נמחקה לצמיתות: '+(purgeUndo ? clipText(purgeUndo.title, 90) : '')"></span><button class="btn small" @click="undoPurge(purgeUndo)" x-text="'בטל ('+purgeLeft()+')'"></button></div>
+<div class="purge-undo" x-show="purgeUndo && purgeLeft()>0" x-cloak role="status" aria-live="polite"><span x-text="'הועבר לסל: '+(purgeUndo ? clipText(purgeUndo.title, 90) : '')"></span><button class="btn small" @click="undoPurge(purgeUndo)">בטל</button></div>
 
 <div class="picker-bg" x-show="delDlg" x-cloak @click.self="delDlg=null" @keydown.escape.window="delDlg=null">
   <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="delDlg">
     <div class="pk-head"><b>מחיקת הודעה</b><button class="icon-btn" @click="delDlg=null" aria-label="סגירה">✕</button></div>
     <p class="muted" x-text="delDlg ? clipText(delDlg.m.text, 120) : ''"></p>
+    <p class="muted sm" x-text="'ההודעה תועבר לסל המחזור. '+binKeepText()"></p>
     <template x-if="delDlg && delDlg.m && delDlg.m.author==='owner'"><label class="switch-row"><input type="checkbox" x-model="delDlg.undo"><span>בטל גם את מה שאלכס עשה בעקבות ההודעה</span></label></template>
-    <div class="btnrow"><button class="btn danger" @click="confirmDelete()">מחק</button><button class="btn" @click="delDlg=null">ביטול</button></div>
+    <div class="btnrow"><button class="btn danger" @click="confirmDelete()">העבר לסל</button><button class="btn" @click="delDlg=null">ביטול</button></div>
   </div>
 </div>
 

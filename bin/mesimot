@@ -99,7 +99,8 @@ const USAGE = `mesimot <command>
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   connector publish <AlexLink-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
-  confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete   (asks the owner with two buttons; only his answer deletes)
+  confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete | person-delete <id> | protocol-delete <id>   (asks the owner with two buttons; his "yes" moves it to the recycle bin)
+  trash list [--kind task|project|person|protocol|calendar|chat|filter] | restore <trash id> | delete <trash id> | empty   (recycle bin; delete and empty are PERMANENT: they ask the owner like confirm)
   filter list|add|preview|delete|enable|disable   (owner mail filters: --sender/--domain/--text/--regex --action skip|fyi|relevant [--project P])
   ask "<question>" [--project P]   (Q&A retrieval: synonyms + keyword + semantic, with file/page)
   search "<query>" [--archive 1 (closed tasks too)] [--mail_archive 0|only (old Outlook mail: excluded / only; default included)] [--project --person --kind --from --to --limit --mode keyword|semantic|hybrid]
@@ -343,6 +344,12 @@ async function main() {
       if (sub === 'project-delete') { if (!arg) fail('usage: confirm project-delete <project> --tasks move:<project>|unassign|delete'); return out(await api('POST', '/api/confirm', { kind: 'project_delete', id: arg, payload: { tasks: opt.tasks || 'unassign', ...(opt.facts ? { facts: opt.facts } : {}), ...(opt.protocols ? { protocols: opt.protocols } : {}) } })); }
       if (sub === 'person-delete') { if (!arg) fail('usage: confirm person-delete <person id>'); return out(await api('POST', '/api/confirm', { kind: 'person_delete', id: arg })); }
       if (sub === 'protocol-delete') { if (!arg) fail('usage: confirm protocol-delete <protocol id>'); return out(await api('POST', '/api/confirm', { kind: 'protocol_delete', id: arg })); }
+      break;
+    case 'trash': // the recycle bin: list and restore are free; delete and empty are permanent and go through the owner's confirmation
+      if (sub === 'list') return out(await api('GET', '/api/trash' + qs(opt, ['kind', 'limit'])));
+      if (sub === 'restore') { if (!arg) fail('usage: trash restore <trash id>'); return out(await api('POST', `/api/trash/${arg}/restore`, {})); }
+      if (sub === 'delete') { if (!arg) fail('usage: trash delete <trash id>'); return out(await api('POST', '/api/confirm', { kind: 'trash_delete', id: arg })); }
+      if (sub === 'empty') return out(await api('POST', '/api/confirm', { kind: 'trash_empty' }));
       break;
     case 'filter':
       if (sub === 'list') return out(await api('GET', '/api/filters'));

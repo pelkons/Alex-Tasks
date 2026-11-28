@@ -24,7 +24,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, undoTokens: {}, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, restoredBins: {}, bin: { items: [], counts: {}, total: 0, days: 60, kind: '', loading: false }, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false, mailArchive: true }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '', mailThreadOpen: null, _emailTpl: null,
     mail: { f: { q: '', folder: 'all', project: '', person: '', personName: '', from: '', to: '', att: false, linked: '', archive: '1', noise: '', mode: 'threads' }, range: '', pq: '', sug: [], showF: false, items: [], next: null, total: null, newCount: 0, since: null, capped: false, loading: false, loaded: false, err: '', openId: null, open: {}, sub: {}, seq: 0, urlKey: null, visited: false, scroll: 0 },
@@ -118,6 +118,7 @@ function app() {
       if (path === '/search') return { name: 'search', id: null };
       if (path === '/mail') return { name: 'mail', id: null };
       if (path === '/archive') return { name: 'archive', id: null };
+      if (path === '/trash') return { name: 'trash', id: null };
       return { name: 'home', id: null };
     },
     go(path, replace) {
@@ -146,6 +147,7 @@ function app() {
         }
         else if (r.name === 'activity') { await this.loadBoot(); await this.loadActivity(); }
         else if (r.name === 'archive') { await this.loadBoot(); await this.loadArchive(); }
+        else if (r.name === 'trash') { await this.loadBoot(); await this.loadBin(); }
         else if (r.name === 'search') { const q = new URLSearchParams(location.search).get('q'); if (q) this.sq.q = q; await this.loadBoot(); if (this.sq.q) this.runSearch(); }
         else if (r.name === 'mail') await this.mailEnter(prev);
         else if (r.name === 'email') { this.mailThreadOpen = null; await this.loadEmail(r.id); }
@@ -393,22 +395,44 @@ function app() {
         if (ev && ev.target) ev.target.value = this.fmtReceivedFull(this.detail);
       }
     },
-    // ---- permanent deletion with a 30-second undo; destructive requests from the assistant arrive as a confirmation with two buttons
+    // ---- deleting moves things to the RECYCLE BIN: a short "הועבר לסל · בטל" bar after the owner's own deletion; destructive requests from the assistant arrive as a
+    // confirmation with two buttons (its card then offers "שחזר"); permanent deletion only inside the bin (/trash) and by expiry (Settings, trash_days)
     purgeLeft() { void this.purgeTick; return this.purgeUndo ? Math.max(0, Math.ceil((this.purgeUndo.until - Date.now()) / 1000)) : 0; },
-    undoLeft(c) { void this.purgeTick; const u = c && c.result && c.result.token ? this.undoTokens[c.result.token] || { until: Date.parse(c.decided_at || 0) + (c.result.undo_seconds || 30) * 1000 } : null; return u ? Math.max(0, Math.ceil((u.until - Date.now()) / 1000)) : 0; },
-    startPurgeTimer() { if (this._pt) return; this._pt = setInterval(() => { this.purgeTick++; }, 1000); },
+    startPurgeTimer() { if (this._pt) return; this._pt = setInterval(() => { this.purgeTick++; if (!this.purgeLeft()) { clearInterval(this._pt); this._pt = null; } }, 1000); },
+    showBinBar(r, title) { if (!r || !r.trash_id) return; this.purgeUndo = { token: r.trash_id, title: title || r.title || '', until: Date.now() + 12000 }; this.startPurgeTimer(); },
+    binKeepText() { const d = this.boot && this.boot.trash_days !== undefined ? +this.boot.trash_days : 60; return d > 0 ? `אפשר לשחזר מהסל במשך ${d} ימים.` : 'אפשר לשחזר מהסל.'; },
+    confirmDone(c) { const r = c && c.result; if (!r) return 'בוצע.'; if (r.trash_id) return this.restoredBins[r.trash_id] ? 'הועבר לסל ושוחזר.' : 'הועבר לסל.'; if (r.purged !== undefined) return 'נמחק סופית.'; return 'בוצע.'; },
+    canRestore(c) { return !!(c && c.status === 'yes' && c.result && c.result.trash_id && !this.restoredBins[c.result.trash_id]); },
     async confirmPurge() {
       const t = this.purgeDlg?.t; if (!t) return;
-      try { const r = await this.api('DELETE', '/api/tasks/' + t.id); this.purgeDlg = null; this.purgeUndo = { token: r.token, title: r.title, until: Date.now() + (r.undo_seconds || 30) * 1000 }; this.startPurgeTimer(); this.go('/'); await Promise.all([this.loadLists(), this.loadBoot()]); } catch (e) { this.fail(e); }
+      try { const r = await this.api('DELETE', '/api/tasks/' + t.id); this.purgeDlg = null; this.showBinBar(r); this.go('/'); await Promise.all([this.loadLists(), this.loadBoot()]); } catch (e) { this.fail(e); }
     },
     async undoPurge(x) {
-      const token = x.token || (x.result && x.result.token); if (!token) return;
-      try { const r = await this.api('POST', '/api/purge/undo', { token }); this.purgeUndo = null; this.toast('המחיקה בוטלה: ' + r.title); await Promise.all([this.loadLists(), this.loadBoot(), this.loadChat()]); } catch (e) { this.fail(e); }
+      const id = x && (x.token || x.trash_id || (x.result && x.result.trash_id)); if (!id) return;
+      try {
+        const r = await this.api('POST', `/api/trash/${id}/restore`, {}); this.restoredBins[id] = true; this.purgeUndo = null;
+        this.toast((r.renamed ? 'שוחזר בשם: ' : 'שוחזר: ') + r.title);
+        await Promise.all([this.loadLists(), this.loadBoot(), this.loadChat(), this.route.name === 'trash' ? this.loadBin() : null, this.route.name === 'settings' && this.loadFilters ? this.loadFilters() : null]);
+      } catch (e) { this.fail(e); }
+    },
+    // ---- the recycle bin page
+    async loadBin() { this.bin.loading = true; try { const r = await this.api('GET', '/api/trash'); Object.assign(this.bin, r, { loading: false }); if (this.bin.kind && !this.bin.counts[this.bin.kind]) this.bin.kind = ''; } catch (e) { this.bin.loading = false; this.fail(e); } },
+    binKinds() { return ['task', 'project', 'person', 'protocol', 'calendar', 'chat', 'filter'].filter((k) => this.bin.counts[k]); },
+    binKindPl(k) { return { task: 'משימות', project: 'פרויקטים', person: 'אנשים', protocol: 'פרוטוקולים', calendar: 'יומן', chat: 'הודעות', filter: 'כללי דואר' }[k] || k; },
+    binItems() { return this.bin.kind ? this.bin.items.filter((x) => x.kind === this.bin.kind) : this.bin.items; },
+    binLeftText(it) { const n = it.days_left; if (n === null || n === undefined) return 'לא יימחק אוטומטית'; if (n <= 0) return 'יימחק סופית הלילה'; if (n === 1) return 'יימחק סופית מחר'; return `יימחק סופית בעוד ${n} ימים`; },
+    async restoreBin(it) { await this.undoPurge({ trash_id: it.id }); },
+    async destroyBin(it) {
+      if (!(await this.ask(`למחוק סופית את "${this.clipText(it.title, 80)}"? אי אפשר לשחזר אחרי זה.`, 'מחק סופית'))) return;
+      try { await this.api('DELETE', '/api/trash/' + it.id); this.toast('נמחק סופית'); await Promise.all([this.loadBin(), this.loadBoot()]); } catch (e) { this.fail(e); }
+    },
+    async emptyBin() {
+      if (!(await this.ask(`לרוקן את הסל? ${this.bin.total} פריטים יימחקו סופית, ואי אפשר לשחזר אותם.`, 'רוקן את הסל'))) return;
+      try { const r = await this.api('POST', '/api/trash/empty', {}); this.toast(`הסל רוקן (${r.purged} פריטים)`); await Promise.all([this.loadBin(), this.loadBoot()]); } catch (e) { this.fail(e); }
     },
     async answerConfirm(m, yes) {
       try {
         const r = await this.api('POST', `/api/confirm/${m.confirm.id}/answer`, { yes });
-        if (r.status === 'yes' && r.result && r.result.token) { this.undoTokens[r.result.token] = { until: Date.now() + (r.result.undo_seconds || 30) * 1000 }; this.startPurgeTimer(); }
         await this.loadChat(); await Promise.all([this.loadLists(), this.loadBoot()]);
         if (r.status === 'yes' && this.route.name === 'projects' && this.route.id && !this.boot.projects.some((p) => p.id === this.route.id)) this.go('/projects');
         if (r.status === 'yes' && this.route.name === 'protocols' && this.route.id) { try { await this.loadProtocol(this.route.id); } catch (e) { this.go('/protocols'); } await this.loadProtocols(); }
@@ -449,7 +473,7 @@ function app() {
       try {
         const r = await this.api('DELETE', `/api/chat/${d.m.id}?undo=${d.m.author === 'owner' && d.undo ? 1 : 0}`);
         this.delDlg = null;
-        this.toast(r.undone ? `נמחק. בוטלו ${r.undone} פעולות` : 'נמחק');
+        this.showBinBar(r, this.clipText(d.m.text || 'הודעה', 60) + (r.undone ? ` (בוטלו ${r.undone} פעולות)` : ''));
         await this.refreshAfterEdit();
       } catch (err) { this.fail(err); }
     },
@@ -1390,7 +1414,7 @@ function app() {
     async previewFilter() { try { this.fprev = await this.api('POST', '/api/filters/preview', { ...this.fform, project: this.fform.project || null }); } catch (e) { this.fail(e); } },
     async addFilter() { try { await this.api('POST', '/api/filters', { ...this.fform, project: this.fform.project || null }); this.fform.pattern = ''; this.fprev = null; this.toast('הכלל נוסף'); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async toggleFilter(f) { try { await this.api('PATCH', '/api/filters/' + f.id, { enabled: !f.enabled }); await this.loadFilters(); } catch (e) { this.fail(e); } },
-    async deleteFilter(f) { try { await this.api('DELETE', '/api/filters/' + f.id); await this.loadFilters(); } catch (e) { this.fail(e); } },
+    async deleteFilter(f) { try { const r = await this.api('DELETE', '/api/filters/' + f.id); this.showBinBar(r); await Promise.all([this.loadFilters(), this.loadBoot()]); } catch (e) { this.fail(e); } },
     async loadSettings() { this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
     async saveSet(b) { try { await this.api('PATCH', '/api/settings', b); this.toast('נשמר'); await this.loadSettings(); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async renameItem(table, s, name) { try { await this.api('PATCH', `/api/${table}/${s.id}`, { name_he: name }); this.toast('נשמר'); await Promise.all([this.loadSettings(), this.loadBoot()]); } catch (e) { this.fail(e); await this.loadSettings(); } },

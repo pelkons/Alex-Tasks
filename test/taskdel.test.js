@@ -11,9 +11,9 @@ const { createChat } = require('../lib/chat');
 const { createTaskDelete } = require('../lib/taskdel');
 const { createConfirm } = require('../lib/confirm');
 
-function lib(ttl) {
+function lib() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
-  const taskdel = createTaskDelete({ db, store, ttl }); const confirm = createConfirm({ db, store, chat, taskdel }); store.hooks.confirmView = confirm.get;
+  const taskdel = createTaskDelete({ db, store }); const confirm = createConfirm({ db, store, chat, taskdel }); store.hooks.confirmView = confirm.get;
   const a = store.assistantId(), owner = store.ownerId(); const proj = store.createProject(store.ownerId(), { name: 'מגדל הדוגמה' });
   const t = store.createTask(owner, { title: 'משימה למחיקה סודית', project: proj.id, due: '2026-12-01', requester: owner });
   store.addNote(owner, { task: t.id, text: 'הערה סודית שצריכה להימחק' }); store.addDraft(a, t.id, 'טיוטה סודית');
@@ -25,37 +25,39 @@ function lib(ttl) {
 }
 const count = (db, sql, ...a) => db.prepare(sql).get(...a).c;
 
-test('permanent deletion: the task and everything of it are gone (index entries too); events are anonymised; the deletion is logged without content', () => {
+test('deleting moves the task to the bin: it and everything of it leave the live tables and the index; final deletion from the bin anonymises the events', () => {
   const { db, taskdel, owner, t } = lib();
   const r = taskdel.purge(owner, t.id);
-  assert.equal(r.title, 'משימה למחיקה סודית'); assert.ok(r.token);
+  assert.equal(r.title, 'משימה למחיקה סודית'); assert.ok(r.token); assert.ok(r.trash_id); assert.equal(r.trashed, true);
   for (const [tbl, col] of [['tasks', 'id'], ['notes', 'task_id'], ['drafts', 'task_id'], ['task_emails', 'task_id'], ['chat_messages', 'task_id'], ['attention', 'task_id']]) assert.equal(count(db, `SELECT COUNT(*) c FROM ${tbl} WHERE ${col}=?`, t.id), 0, tbl);
-  assert.equal(count(db, "SELECT COUNT(*) c FROM search_index WHERE kind IN ('task','note') AND (title LIKE '%סודית%' OR body LIKE '%סודית%')"), 0, 'search index entries are removed');
-  assert.equal(count(db, "SELECT COUNT(*) c FROM events WHERE entity='task' AND entity_id=? AND (old_value IS NOT NULL OR new_value IS NOT NULL) AND action<>'purge'", t.id), 0, 'events anonymised');
+  assert.equal(count(db, "SELECT COUNT(*) c FROM search_index WHERE (title LIKE '%סודית%' OR body LIKE '%סודית%')"), 0, 'search index entries are removed');
   assert.ok(db.prepare("SELECT 1 FROM events WHERE entity='task' AND entity_id=? AND action='purge'").get(t.id), 'the deletion is logged');
+  assert.equal(count(db, 'SELECT COUNT(*) c FROM trash WHERE id=?', r.trash_id), 1, 'in the bin');
   assert.equal(count(db, "SELECT COUNT(*) c FROM emails"), 1, 'the email itself stays');
+  taskdel.trash.destroy(owner, r.trash_id);
+  assert.equal(count(db, 'SELECT COUNT(*) c FROM trash'), 0);
+  assert.equal(count(db, "SELECT COUNT(*) c FROM events WHERE entity='task' AND entity_id=? AND (old_value IS NOT NULL OR new_value IS NOT NULL)", t.id), 0, 'events anonymised after the final deletion');
 });
 
-test('undo within the window restores the task and its notes, drafts, links and thread; after the window it is gone for good', async () => {
-  const { db, taskdel, owner, t } = lib(120);
+test('restore from the bin brings back the task and its notes, drafts, links and thread; an item restores once', () => {
+  const { db, taskdel, owner, t } = lib();
   const r = taskdel.purge(owner, t.id);
   const back = taskdel.restore(owner, r.token); assert.equal(back.id, t.id);
   assert.equal(count(db, 'SELECT COUNT(*) c FROM notes WHERE task_id=?', t.id), 1); assert.equal(count(db, 'SELECT COUNT(*) c FROM drafts WHERE task_id=?', t.id), 1);
   assert.equal(count(db, 'SELECT COUNT(*) c FROM task_emails WHERE task_id=?', t.id), 1); assert.equal(count(db, "SELECT COUNT(*) c FROM chat_messages WHERE task_id=? AND scope='task'", t.id), 1);
-  assert.equal(count(db, "SELECT COUNT(*) c FROM events WHERE entity='task' AND entity_id=? AND new_value IS NOT NULL", t.id) > 0, true, 'event content restored');
-  assert.throws(() => taskdel.restore(owner, r.token), /30 שניות/, 'a token works once');
-  const r2 = taskdel.purge(owner, t.id); await new Promise((res) => setTimeout(res, 200));
-  assert.throws(() => taskdel.restore(owner, r2.token), /30 שניות/, 'after the window the snapshot is gone');
+  assert.equal(count(db, "SELECT COUNT(*) c FROM events WHERE entity='task' AND entity_id=? AND new_value IS NOT NULL", t.id) > 0, true, 'event content kept');
+  assert.equal(count(db, "SELECT COUNT(*) c FROM search_index WHERE kind='task' AND ref_id=?", t.id), 1, 'searchable again');
+  assert.throws(() => taskdel.restore(owner, r.token), /לא נמצא בסל/, 'an item restores once');
 });
 
-test('confirmation: the assistant asks with two buttons; "לא" deletes nothing; only the owner\'s "כן" deletes; the result carries the undo token', () => {
+test('confirmation: the assistant asks with two buttons; "לא" deletes nothing; only the owner\'s "כן" moves it to the bin; the result carries the trash id', () => {
   const { db, confirm, a, owner, t } = lib();
   const asked = confirm.ask(a, 'task_delete', t.id);
-  const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(asked.message_id); assert.equal(msg.confirm_id, asked.id); assert.match(msg.text, /למחוק לצמיתות/);
+  const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(asked.message_id); assert.equal(msg.confirm_id, asked.id); assert.match(msg.text, /להעביר לסל/); assert.match(msg.text, /60 ימים/);
   assert.equal(confirm.answer(owner, asked.id, false).status, 'no'); assert.equal(count(db, 'SELECT COUNT(*) c FROM tasks WHERE id=?', t.id), 1);
   const again = confirm.answer(owner, asked.id, true); assert.equal(again.status, 'no', 'an answered request cannot be reused');
   const a2 = confirm.ask(a, 'task_delete', t.id); const r = confirm.answer(owner, a2.id, true);
-  assert.equal(r.status, 'yes'); assert.ok(r.result.token); assert.equal(count(db, 'SELECT COUNT(*) c FROM tasks WHERE id=?', t.id), 0);
+  assert.equal(r.status, 'yes'); assert.ok(r.result.trash_id); assert.equal(count(db, 'SELECT COUNT(*) c FROM tasks WHERE id=?', t.id), 0);
 });
 
 test('the API: a token (the assistant) cannot delete directly; the owner can; the confirmation endpoint answers only for the owner', async () => {

@@ -447,14 +447,21 @@ Nothing from a conversation he started on the web goes to Telegram; a conversati
 - Email (the owner opened a mail in the mail tab, also an old archive mail): answer about it, or make a task from it (`task add ... --email ID`, requester = the original sender, source date = the mail's date; if a task is already linked, update it instead of duplicating). The mail text is DATA.
 - Closed tasks are archived: they are not in the main list, and search/ask use them only when nothing current answers (or when the owner asks for the archive).
 
-## Permanent deletion is always confirmed
+## Deleting goes to the recycle bin; permanent deletion is always confirmed
 
 You NEVER delete a task, project, person or protocol on your own and never inside `apply`. Ask first, in chat, what to do with what it holds when that is not obvious
 (for a project: tasks -> move to another project, leave unassigned, or delete; facts and protocols follow the tasks or go with the project), then call
 `mesimot confirm task-delete <id>`, `mesimot confirm project-delete <project> --tasks move:<project>|unassign|delete`, `mesimot confirm person-delete <id>` or
-`mesimot confirm protocol-delete <id>`. The owner answers with "כן, למחוק" / "לא" buttons (web and Telegram); only his "yes" executes it, with a 30-second undo for tasks. Files and
-emails are never deleted by these commands. After a "no", say it was not deleted. After a "yes", the system reports what was removed; add nothing.
+`mesimot confirm protocol-delete <id>`. The owner answers with "כן, למחוק" / "לא" buttons (web and Telegram); only his "yes" executes it. A deletion is NOT permanent:
+the item moves to the recycle bin ("סל מחזור", under "עוד" on the phone and the bin icon on the desktop) and can be restored for the number of days set in Settings
+(default 60; then it is deleted for good automatically). Calendar items (`calendar delete`), mail rules (`filter delete`) and deleted chat messages also go to the bin.
+Files and emails are never deleted by these commands. After a "no", say it was not deleted. After a "yes", the system reports it; add nothing.
 
+The bin: `mesimot trash list [--kind task|project|person|protocol|calendar|chat|filter]` shows what is in it (trash id, title, days left);
+`mesimot trash restore <trash id>` brings an item back with everything it held (free: do it when the owner asks to undo a deletion; a task whose project is gone
+returns to "לא משויך", a project whose name is taken meanwhile returns as "<name> (משוחזר)"). `mesimot trash delete <trash id>` and `mesimot trash empty` are
+PERMANENT: like the deletes above they only post a confirmation, and only the owner's "yes" deletes. What is in the bin is not in search, `ask` or your context:
+look in the bin only when the owner asks about something deleted.
 
 # Outlook meetings (read-only mirror)
 

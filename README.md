@@ -34,6 +34,8 @@ reopenable); permanent deletion exists, but only after a one-question confirmati
 * **Validation gate**: the code checks every run (project, requester, dates, people, language, attachments, facts) and re-prompts the agent.
 * People and projects mentioned casually are resolved later and everything that referred to them is re-linked.
 * Meeting minutes tab, calendar feed (subscribe from Outlook), voice messages (local speech-to-text), Telegram bot, web research command (`/s`).
+* **Recycle bin**: everything deleted (tasks, projects, people, minutes, calendar items, chat messages, mail rules) can be restored for 60 days by default
+  (configurable, `docs/TRASH.md`); permanent deletion only from the bin, always confirmed by the owner.
 * Usage measurement (tokens, API-equivalent cost, rate-limit back-off) and a weekly summary.
 * A resizable desktop layout (list | card | chat), PWA, dark mode.
 
