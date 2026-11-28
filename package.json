@@ -25,6 +25,7 @@
     "nodemailer": "^10.6.1",
     "sanitize-html": "^2.17.0",
     "sqlite-vec": "^0.1.9",
+    "web-push": "^4.0.0",
     "xlsx": "^0.18.5"
   },
   "private": true,
