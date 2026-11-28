@@ -1,0 +1,1 @@
+{"tools":{"core":["run_shell_command(mesimot)","read_file","read_many_files","list_directory","glob","search_file_content","write_file","replace"]},"telemetry":{"enabled":false}}

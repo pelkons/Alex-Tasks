@@ -101,6 +101,7 @@ test('an unknown tool, and a tool of another profile, give an error result (no c
   const imp = createMcpServer({ profile: 'apply_only', api: createApi({ token: 't', fetchImpl: fakeFetch({}) }) });
   assert.match((await imp.handle(rpc(1, 'tools/call', { name: 'chat_send', arguments: { text: 'x' } }))).result.content[0].text, /Unknown tool "chat_send"/);
   assert.match((await call(s, undefined, undefined)).result.content[0].text, /Unknown tool/);
+  assert.match((await call(s, 'task_get', { id: 1 })).result.content[0].text, /use the tool "show" with kind "task"/);
 });
 
 test('a handler that throws becomes an error result', async () => {
