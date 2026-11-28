@@ -107,3 +107,24 @@ The chat shows ONE card for the whole archive ("ארכיון Outlook: n/N נקל
   Example: 20,000 mails of which a quarter are from the last year: 15,000 x 0.09 MB + 5,000 x 1.9 MB = about 11 GB. If ALL 20,000 were complete: about 38 GB.
   `mesimot archive estimate --emails 20000 --full_share 0.3` prints the projection against the free space. The daily local database backups multiply the database size, which is the real cost of a larger database: `deploy/backup.sh` therefore also caps the copies in `backups/` at `BACKUP_MAX_GB` (default 40, oldest first, the newest 3 always stay) and `scripts/deploy.sh` keeps only the 5 newest `pre-deploy` copies. The nightly Proton Drive copy needs room in `/dev/shm` for the plain snapshot of the database while it is built (about the database size, twice). Keep the free space above the 20 GB floor: below it the listener answers 507, the health check turns red and the owner is alerted.
 * The raw queue directory `data/archive-queue/` is encrypted like every stored file and is covered by `mesimot rekey`.
+
+## Mail presence: deletions made in Outlook (contract, Alex Link 1.2.0)
+Until now the server only learned about NEW mail; a mail the owner deleted in Outlook stayed on the site. The connector now also reports what is currently in the mailbox, so the server can move vanished mail to the trash.
+
+`POST /ingest/mail-presence` (same Bearer as the other ingest routes; a standby device gets `409 {"error":"standby"}`):
+```
+{ "store": "mailbox/store name", "scope": "recent" | "full",
+  "since": "ISO 8601 with offset: every mail RECEIVED OR SENT on/after this moment, in every folder listed, is reported",
+  "complete": true,
+  "folders": [ { "folder": "inbox | sent | <path>", "mails": [ { "entry_id": "...", "internet_message_id": "<...>" } ] } ],
+  "deleted_items": [ { "entry_id": "...", "internet_message_id": "<...>" } ] }
+```
+* `folders` = every normal folder of the store (Inbox, Sent, all subfolders), NOT Outlook's "Deleted Items", Junk, Drafts, Outbox or sync-issue folders. Items of "Deleted Items" go to `deleted_items` (ids only, same `since`).
+* `complete` must be `true` only if every folder was enumerated without an error. On any COM error send nothing (the server then changes nothing).
+* A mail the server holds whose `entry_id` AND `internet_message_id` appear in no folder of `folders` is "gone from Outlook". If it appears in `folders` under another folder or another entry id, it was only MOVED: nothing happens (the server updates its folder).
+* The server looks only at mail with a date >= `since` and older than 10 minutes (so a just-arrived mail is never judged). Mail without an Outlook entry id (forwarded by hand, imported from a file) is never touched.
+* Safety: if more than 30% of the covered stored mails (and at least 20) would be removed, the server removes nothing and tells the owner instead.
+* Response `200`: `{ "checked": 812, "removed": 3, "moved": 1, "held": false }`.
+* Size: ids only; about 60 bytes a mail (a full year is about 1 MB); one request per run, gzip allowed.
+
+Schedule in the program: `scope: "recent"` with `since` = now minus 14 days every 10 minutes, right after the normal mail push (enumerating 14 days is cheap, Outlook is queried by date with `Restrict`); `scope: "full"` with `since` = the archive start (`archive_full_since` from `GET /ingest/status`, 2025-11-27) once after start/update and then once a night (around 03:00). Never while Outlook is closed.
