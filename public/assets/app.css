@@ -752,7 +752,7 @@ h2.tc-title { margin: 0; flex: 1; font-size: 1.35rem; line-height: 1.35; font-we
 .gate-row.resolved .gdot, .gate-row.autofixed .gdot { background: #16a34a; }
 .gate-row.accepted .gdot { background: #dc2626; }
 .gate-row.raised .gdot { background: #f59e0b; }
-.upload-panel { position: fixed; inset-inline-start: 12px; bottom: 76px; z-index: 60; width: min(360px, calc(100vw - 24px)); display: grid; gap: 8px; }
+.upload-panel { position: fixed; z-index: 60; width: min(360px, calc(100vw - 32px)); display: grid; gap: 8px; }
 .up-item { background: var(--surface, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 12px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
 .up-item.err { border-color: #dc2626; }
 .up-top { display: flex; justify-content: space-between; gap: 8px; font-size: .9rem; overflow-wrap: anywhere; }
@@ -1024,7 +1024,6 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
 
 /* confirmations and permanent deletion */
 .cf-card { min-width: 240px; } .purge-row { margin: 14px 0 4px; text-align: start; } .linkbtn { border: 0; background: none; padding: 0; font-size: .78rem; text-decoration: underline; cursor: pointer; color: var(--muted); } .linkbtn.danger { color: var(--danger); }
-.purge-undo { position: fixed; z-index: 90; inset-inline-start: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: var(--text); color: var(--bg); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .sc-chat { margin-top: 12px; }
 .sc-feed { max-height: 280px; }
 
@@ -1433,3 +1432,17 @@ a.src[href] { cursor: pointer; } a.src[href]:hover { background: var(--surface-2
 .proc-b { flex-direction: column; align-items: flex-start; gap: 2px; }
 .proc-t { flex: none; width: 100%; }
 @container pj (max-width: 480px) { .pj-head .po-w { display: none; } .pj-head { gap: 8px; } .pj-head .btn.small { padding: 0 12px; } }
+
+/* FLOATING NOTIFICATION BARS (toast, "done" undo, "moved to the bin" undo, upload progress): centred on the screen in RTL and LTR alike (no translateX, which RTL
+   mirrors), never wider than the screen minus 16px each side, the text wraps instead of being cut, and on phones they sit ABOVE the bottom nav and the chat bar */
+.toast, .purge-undo, .upload-panel { position: fixed; left: 0; right: 0; margin-inline: auto; width: fit-content; max-width: calc(100% - 32px); box-sizing: border-box;
+  bottom: calc(var(--nav-h) + 76px + env(safe-area-inset-bottom)); }
+.toast { z-index: 80; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; pointer-events: none; }
+.toast span, .toast .dt-undo { max-width: min(480px, 100%); overflow-wrap: anywhere; text-align: center; line-height: 1.4; }
+.toast.done-toast .dt-msg { border-radius: 0; border-start-start-radius: 10px; border-end-start-radius: 10px; }
+.toast.done-toast .dt-undo { border-radius: 0; border-start-end-radius: 10px; border-end-end-radius: 10px; }
+.purge-undo { z-index: 90; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 12px; align-items: center; padding: 10px 14px; background: var(--text); color: var(--bg);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); text-align: center; line-height: 1.4; }
+.purge-undo > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.purge-undo .btn { flex: none; background: transparent; color: var(--bg); border-color: color-mix(in srgb, var(--bg) 45%, transparent); }
+@media (min-width: 900px) { .toast, .purge-undo, .upload-panel { bottom: 24px; } .toast span, .purge-undo { max-width: min(560px, calc(100% - 32px)); } }

@@ -1712,7 +1712,7 @@
     <div class="btnrow"><button class="btn danger" @click="confirmPurge()">מחק לצמיתות</button><button class="btn" @click="purgeDlg=null">ביטול</button></div>
   </div>
 </div>
-<div class="purge-undo" x-show="purgeUndo && purgeLeft()>0" x-cloak><span x-text="'נמחקה לצמיתות: '+(purgeUndo ? clipText(purgeUndo.title, 40) : '')"></span><button class="btn small" @click="undoPurge(purgeUndo)" x-text="'בטל ('+purgeLeft()+')'"></button></div>
+<div class="purge-undo" x-show="purgeUndo && purgeLeft()>0" x-cloak role="status" aria-live="polite"><span x-text="'נמחקה לצמיתות: '+(purgeUndo ? clipText(purgeUndo.title, 90) : '')"></span><button class="btn small" @click="undoPurge(purgeUndo)" x-text="'בטל ('+purgeLeft()+')'"></button></div>
 
 <div class="picker-bg" x-show="delDlg" x-cloak @click.self="delDlg=null" @keydown.escape.window="delDlg=null">
   <div class="picker del-dlg" role="dialog" aria-modal="true" x-show="delDlg">
@@ -1789,7 +1789,7 @@
   </div>
 </div>
 
-<div class="toast done-toast" x-show="doneUndo" x-cloak x-transition.opacity><span class="dt-msg">✔ הושלם</span> · <button type="button" class="dt-undo" @click="undoDoneNow()">ביטול</button></div>
+<div class="toast done-toast" x-show="doneUndo" x-cloak x-transition.opacity><span class="dt-msg">✔ הושלם</span><button type="button" class="dt-undo" @click="undoDoneNow()">ביטול</button></div>
 <div class="toast" :class="{err: toastErr}" x-show="toastMsg" x-transition.opacity><span x-text="toastMsg"></span></div>
 
 <!-- project settings: a real dialog on document.body level (fixed, centered, backdrop), never inside a pane -->
