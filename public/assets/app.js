@@ -34,6 +34,7 @@ const SET_ICONS = {
 
 function app() {
   return {
+    push: MesimotPush.state(), ...MesimotPush.methods, // web push on this device (assets/push.js)
     ready: false, boot: { statuses: [], priorities: [], people: [], projects: [], today: '' },
     route: { name: 'home', id: null }, tasks: [], overdue: [], openTasks: [], attention: [], detail: null, detailError: '',
     filters: { q: '', project: null, assignee: null, status: null, requester: null, group: false }, showAttn: false, showFilters: false, 
@@ -64,6 +65,7 @@ function app() {
       } catch (e) { /* storage unavailable */ }
 
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+      this.pushListen(); this.pushPresence();
       window.addEventListener('popstate', () => this.onRoute());
       window.addEventListener('scroll', () => this.mailNearEnd(), { passive: true });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (Date.now() - (this._escGuard || 0) < 200 || this.picker || this.menuOpen || this.dlg) return; if (this.route.name === 'task') this.closeTask(); else if (this.chatOpen) this.closeChat(); } });
