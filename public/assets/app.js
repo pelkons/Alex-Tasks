@@ -58,6 +58,8 @@ function app() {
         this[k] = (...a) => { try { return f.apply(this, a); } catch (e) { console.warn('render helper', k, e.message); return d; } };
       }
       this.density = MesimotLayout.density();
+      // phone: while the chat sheet is open the page behind it must not scroll (a swipe on the sheet used to move the task list)
+      this.$watch('chatOpen', (v) => document.documentElement.classList.toggle('chat-lock', !!v));
       // never let the browser open a dropped file (it would leave the app): dragging files over anything that is not a drop zone does nothing
       for (const t of ['dragover', 'drop']) window.addEventListener(t, (e) => { if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) { e.preventDefault(); if (t === 'drop') this.dropping = null; } });
       window.addEventListener('dragend', () => { this.dropping = null; });
