@@ -100,7 +100,7 @@ const USAGE = `mesimot <command>
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   connector publish <AlexLink-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
   style for --to "a@b.com, Name" [--reply-email ID] [--task ID]   (BEFORE any mail: the owner's style for them, the guide, his real mails to them, his edits) | check --to .. --body .. | feedback --to .. | list | show <key> | suggest <key> --reason ..
-  style analyse [--person "A,B"] [--group G [--classify "what the group is"] [--domains a.com,b.com]] [--role boss|unknown|pm|internal|external] [--default] [--force] [--dry]   (PROPOSED styles from your own sent mail; owner only)   style try --to .. --say ..   (a dry draft)
+  style analyse [--person "A,B"] [--group G [--classify "what the group is"] [--domains a.com,b.com]] [--role boss|unknown|pm|internal|external] [--default] [--force] [--dry]   (PROPOSED styles from your own sent mail; owner only)   style try --to .. --say .. [--style KEY]   (a dry draft, also in a proposed style)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete | person-delete <id> | protocol-delete <id>   (asks the owner with two buttons; his "yes" moves it to the recycle bin)
   trash list [--kind task|project|person|protocol|calendar|chat|filter] | restore <trash id> | delete <trash id> | empty   (recycle bin; delete and empty are PERMANENT: they ask the owner like confirm)
@@ -364,7 +364,7 @@ async function main() {
         return out(await api('PATCH', `/api/styles/${encodeURIComponent(arg)}`, { rules, reason: opt.reason, ...(typeof opt.description === 'string' ? { description_he: opt.description } : {}) })); }
       if (sub === 'analyse' || sub === 'analyze' || sub === 'try') { // background runs of the assistant on the owner's SENT mail: owner / developer only
         if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
-        const args = sub === 'try' ? ['--style-try', JSON.stringify({ to: opt.to, say: opt.say, cc: opt.cc })] : ['--style-analyse', JSON.stringify({ person: opt.person, group: opt.group, role: opt.role, classify: opt.classify, domains: opt.domains, default: !!opt.default, force: !!opt.force, dry: !!opt.dry, budget: opt.budget, all: !opt.person && !opt.group && !opt.role && !opt.default })];
+        const args = sub === 'try' ? ['--style-try', JSON.stringify({ to: opt.to, say: opt.say, cc: opt.cc, styleKey: typeof opt.style === 'string' ? opt.style : null })] : ['--style-analyse', JSON.stringify({ person: opt.person, group: opt.group, role: opt.role, classify: opt.classify, domains: opt.domains, default: !!opt.default, force: !!opt.force, dry: !!opt.dry, budget: opt.budget, all: !opt.person && !opt.group && !opt.role && !opt.default })];
         if (sub === 'try' && (!opt.to || !opt.say)) fail('usage: style try --to "..." --say "what the mail should say"   (a dry run: nothing is saved or sent)');
         const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, 'mesimot-runner'), ...args], { stdio: 'inherit' });
         process.exit(r.status ?? 2); }
