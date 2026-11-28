@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+'use strict';
+// MCP server for the assistant (stdio). Started by Claude Code for one run: see docs/MCP.md.
+const server = require('../lib/mcp/server').createMcpServer({ profile: process.env.MESIMOT_MCP_PROFILE || 'full' });
+process.on('uncaughtException', (e) => process.stderr.write(`mesimot-mcp: ${e && e.message}\n`));
+process.on('unhandledRejection', (e) => process.stderr.write(`mesimot-mcp: ${e && e.message}\n`));
+server.serve().then(() => process.exit(0));
