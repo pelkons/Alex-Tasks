@@ -96,6 +96,7 @@ const USAGE = `mesimot <command>
   pending     ack <id...>        attention add|list|update
   usage [--days N] [--by kind|model] [--json]   (agent usage, API-equivalent cost)
   chat send --text "..." [--file FILEID[,FILEID]]   (--file sends the document(s) to the owner: web chip + Telegram document)
+  push status | push test   (web push to the owner's phone: subscribed devices, one test notification)
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   connector publish <AlexLink-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
@@ -309,6 +310,14 @@ async function main() {
         } else { if (!write) fail('this statement changes data: add --write'); out(st.run()); }
       } catch (e) { fail(e.message); } finally { try { db.close(); } catch { /* ignore */ } }
       return; }
+    case 'push': { // web push to the owner's installed web app (docs/PUSH.md): `push status` (devices), `push test` (one test notification to every device)
+      if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+      if (!['status', 'test'].includes(sub)) fail('usage: push status | push test');
+      const pdb = require('../lib/db').open(process.env.MESIMOT_DB || require('path').join(__dirname, '..', 'data', 'mesimot.db'));
+      const p = require('../lib/push').createPush(pdb, { notify: require('../lib/notify').createNotify(pdb, require('../lib/store').createStore(pdb)) });
+      if (sub === 'status') return out({ devices: p.devices().map((d) => ({ id: d.id, label: d.label, created_at: d.created_at, last_ok_at: d.last_ok_at, last_error: d.last_error })), categories: p.settings() });
+      const r = await p.test(); if (!r.devices) fail('no device is subscribed yet: switch on notifications in Settings on the phone first');
+      return out(r); }
     case 'rekey': { // rotate the encryption key: database, stored files, backups (scripts/rekey.js)
       if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
       const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, '..', 'scripts', 'rekey.js'), ...process.argv.slice(3)], { stdio: 'inherit' });
