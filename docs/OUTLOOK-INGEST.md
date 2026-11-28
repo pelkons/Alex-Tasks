@@ -108,23 +108,34 @@ The chat shows ONE card for the whole archive ("ארכיון Outlook: n/N נקל
   `mesimot archive estimate --emails 20000 --full_share 0.3` prints the projection against the free space. The daily local database backups multiply the database size, which is the real cost of a larger database: `deploy/backup.sh` therefore also caps the copies in `backups/` at `BACKUP_MAX_GB` (default 40, oldest first, the newest 3 always stay) and `scripts/deploy.sh` keeps only the 5 newest `pre-deploy` copies. The nightly Proton Drive copy needs room in `/dev/shm` for the plain snapshot of the database while it is built (about the database size, twice). Keep the free space above the 20 GB floor: below it the listener answers 507, the health check turns red and the owner is alerted.
 * The raw queue directory `data/archive-queue/` is encrypted like every stored file and is covered by `mesimot rekey`.
 
-## Mail presence: deletions made in Outlook (contract, Alex Link 1.2.0)
-Until now the server only learned about NEW mail; a mail the owner deleted in Outlook stayed on the site. The connector now also reports what is currently in the mailbox, so the server can move vanished mail to the trash.
+## Mail presence: deletions made in Outlook (implemented, Alex Link 1.2.0)
+Until now the server only learned about NEW mail; a mail the owner deleted in Outlook stayed on the site. The connector now also reports what is currently in the mailbox, so the server moves vanished mail to the recycle bin.
+Server code: `lib/presence.js` (the decision), `lib/trash.js` (bin kind `email`), route in `lib/ingest.js`, tests in `test/presence.test.js`.
 
-`POST /ingest/mail-presence` (same Bearer as the other ingest routes; a standby device gets `409 {"error":"standby"}`):
+`POST /ingest/mail-presence` (same Bearer as the other ingest routes: a device token or the legacy token; a standby device gets `409 {"error":"standby"}`):
 ```
 { "store": "mailbox/store name", "scope": "recent" | "full",
   "since": "ISO 8601 with offset: every mail RECEIVED OR SENT on/after this moment, in every folder listed, is reported",
   "complete": true,
-  "folders": [ { "folder": "inbox | sent | <path>", "mails": [ { "entry_id": "...", "internet_message_id": "<...>" } ] } ],
+  "folders": [ { "folder": "inbox | inbox/<sub>/... | sent | sent/<sub> | <other top-level folder name>", "mails": [ { "entry_id": "...", "internet_message_id": "<...> or null" } ] } ],
   "deleted_items": [ { "entry_id": "...", "internet_message_id": "<...>" } ] }
 ```
-* `folders` = every normal folder of the store (Inbox, Sent, all subfolders), NOT Outlook's "Deleted Items", Junk, Drafts, Outbox or sync-issue folders. Items of "Deleted Items" go to `deleted_items` (ids only, same `since`).
-* `complete` must be `true` only if every folder was enumerated without an error. On any COM error send nothing (the server then changes nothing).
-* A mail the server holds whose `entry_id` AND `internet_message_id` appear in no folder of `folders` is "gone from Outlook". If it appears in `folders` under another folder or another entry id, it was only MOVED: nothing happens (the server updates its folder).
-* The server looks only at mail with a date >= `since` and older than 10 minutes (so a just-arrived mail is never judged). Mail without an Outlook entry id (forwarded by hand, imported from a file) is never touched.
-* Safety: if more than 30% of the covered stored mails (and at least 20) would be removed, the server removes nothing and tells the owner instead.
-* Response `200`: `{ "checked": 812, "removed": 3, "moved": 1, "held": false }`.
-* Size: ids only; about 60 bytes a mail (a full year is about 1 MB); one request per run, gzip allowed.
+* `folders` = every normal folder of the store (Inbox, Sent, all subfolders), NOT Outlook's "Deleted Items", Junk, Drafts, Outbox or sync-issue folders; empty folders may be omitted. Items of "Deleted Items" go to `deleted_items` (ids only, same `since`).
+  `deleted_items` is informational: a mail that is only there counts as gone (it is in Outlook's trash).
+* `complete` must be `true` (anything else is `400` and nothing changes). On any COM error send nothing.
+* Body: JSON, optionally `Content-Encoding: gzip` (or `deflate`); at most 5 MB after inflating (`413` above that). Bad input: `400 {"error": "..."}` (not JSON, `since` not a time or in the future,
+  `complete` not true, `folders` not an array of `{folder, mails[]}`, a mail without `entry_id`/`internet_message_id`, more than 400,000 mails).
+* What is judged: stored mail with an Outlook entry id (an `ingest_mail` record, live or archive, also a hand-imported mail the connector later met as a duplicate) of the same store (a record without
+  a store name counts as the same mailbox), whose date (`received_or_sent_at`) is >= `since`, and which is at least 10 minutes old by its date and by the time the server stored it.
+  Mail without an Outlook entry id (forwarded by hand, imported from a file) is never touched. Listed mail older than `since` (the connector lists one day more) is never judged, but it is used to recognise moves.
+* A judged mail whose entry ids AND message ids appear in no folder of `folders` is "gone from Outlook" and goes to the recycle bin (one bin item per mail, see docs/TRASH.md).
+  If it appears under another folder (by entry id, or under another entry id by its message id) it was only MOVED: the server updates its folder and nothing else.
+* Safety: if more than 30% of the judged mails AND at least 20 would go, the server removes nothing and answers `held: true` (with `held_count`). The owner is asked ONCE (a confirmation in the chat
+  and in Telegram, button "כן, העבר לסל"): his yes moves the mails of the latest held pass to the bin. Later held passes only refresh that list; a later normal pass closes the question (status `expired`).
+* A mail restored from the bin by hand stays on the site even though it is gone from Outlook. A mail this check moved to the bin that shows up again in a listed folder (restored in Outlook) comes back from the bin by itself (`restored` in the response).
+* Response `200`: `{ "checked": 812, "removed": 3, "moved": 1, "held": false }` (plus `restored` and `held_count` when not zero). Idempotent: the same list again gives `removed: 0, moved: 0`.
+* One activity line per pass that removed something ("Outlook: N מיילים נמחקו ב-Outlook והועברו לסל"). The last pass of each device is kept (`connector_devices.presence_at` / `presence_detail`, in
+  `GET /api/connector/devices` as `presence_at` and `presence`) for the Settings line "סנכרון מחיקות: לפני N דקות"; for the legacy token in the setting `presence_last`.
+* Size: ids only; about 60 bytes a mail, 200 bytes with Exchange entry ids (a full year is a few MB, a few hundred KB gzipped); one request per run.
 
 Schedule in the program: only `scope: "recent"` with `since` = now minus 14 days, every 10 minutes right after the normal mail push (enumerating 14 days is cheap, Outlook is queried by date with `Restrict`), and once right after start/update. No year-long pass is needed: the whole mailbox was synchronised on 2026-11-27, so everything deleted before that is already absent from the server and everything deleted since falls inside the 14-day window. Never while Outlook is closed.

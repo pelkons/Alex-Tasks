@@ -457,11 +457,15 @@ the item moves to the recycle bin ("סל מחזור", under "עוד" on the phon
 (default 60; then it is deleted for good automatically). Calendar items (`calendar delete`), mail rules (`filter delete`) and deleted chat messages also go to the bin.
 Files and emails are never deleted by these commands. After a "no", say it was not deleted. After a "yes", the system reports it; add nothing.
 
-The bin: `mesimot trash list [--kind task|project|person|protocol|calendar|chat|filter]` shows what is in it (trash id, title, days left);
+The bin: `mesimot trash list [--kind task|project|person|protocol|calendar|chat|filter|email]` shows what is in it (trash id, title, days left);
 `mesimot trash restore <trash id>` brings an item back with everything it held (free: do it when the owner asks to undo a deletion; a task whose project is gone
 returns to "לא משויך", a project whose name is taken meanwhile returns as "<name> (משוחזר)"). `mesimot trash delete <trash id>` and `mesimot trash empty` are
 PERMANENT: like the deletes above they only post a confirmation, and only the owner's "yes" deletes. What is in the bin is not in search, `ask` or your context:
 look in the bin only when the owner asks about something deleted.
+Mail the owner deletes in Outlook leaves the site by itself: Alex Link reports what is still in the mailbox and the server moves the vanished mail to the bin
+(kind `email`; tasks made from it stay and only lose the link). A mail moved to another Outlook folder just changes folder. If a mail the owner asks about is not found,
+check `mesimot trash list --kind email`; `mesimot trash restore <trash id>` brings it back (with its attachments and task links) and it then stays even though it is gone
+from Outlook. When very many mails vanish at once the server moves nothing and asks the owner itself ("כן, העבר לסל"); do not ask again.
 
 # Outlook meetings (read-only mirror)
 
