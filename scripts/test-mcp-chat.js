@@ -28,7 +28,7 @@ const BASE = 'http://127.0.0.1:8111';
   const login = await fetch(`${BASE}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'test-password-1234' }) });
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const H = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' };
-  const api = async (m, u, b) => { const r = await fetch(BASE + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.json().catch(() => ({})); };
+  const api = async (m, u, b) => { const r = await fetch(BASE + u, { method: m, headers: b ? H : { Cookie: cookie, 'X-Mesimot': '1' }, body: b ? JSON.stringify(b) : undefined }); return r.json().catch(() => ({})); };
   const proj = store.createProject(owner, { name: 'מגדל הדוגמה', aliases: 'Example Tower' });
   const park = store.createProject(owner, { name: 'פארק הדוגמה' });
   const ron = store.createPerson(assistant, { name: 'רון ברק', role: 'contact', company: 'חברת הדוגמה', emails: ['ron@buildco.example'] });
