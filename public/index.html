@@ -1405,6 +1405,9 @@
             <div class="set-row"><span class="set-l"><b>סוכן</b><template x-for="o in st.agent.options.filter(x => x.name===st.agent.name)" :key="o.name"><small dir="auto" x-text="o.ready ? '✔ מותקן ומחובר' : '✖ '+o.setup"></small></template></span>
               <select class="set-sel" @change="saveSet({agent_provider: $event.target.value})" aria-label="סוכן" data-test="set-agent">
                 <template x-for="o in st.agent.options" :key="o.name"><option :value="o.name" :selected="o.name===st.agent.name" x-text="o.label+(o.ready ? '' : ' (לא מותקן)')"></option></template></select></div>
+            <div class="set-row" x-show="st.agent.mcp"><span class="set-l"><b>כלים מובנים (MCP)</b><small x-text="st.agent.mcp && st.agent.mcp.source==='env' ? 'נקבע במשתנה סביבה (MESIMOT_MCP), לא ניתן לשינוי כאן' : 'הדרך שבה העוזר מפעיל את המערכת: כלים במקום פקודות. נכנס לתוקף בהרצה הבאה'"></small></span>
+              <select class="set-sel" @change="saveSet({agent_mcp: $event.target.value})" :disabled="st.agent.mcp && st.agent.mcp.source==='env'" aria-label="כלים מובנים (MCP)" data-test="set-mcp">
+                <template x-for="o in (st.agent.mcp ? st.agent.mcp.options : [])" :key="o.value"><option :value="o.value" :selected="o.value===st.agent.mcp.value" x-text="o.label"></option></template></select></div>
             <div class="set-row"><span class="set-l"><b>מודל ברירת מחדל</b></span>
               <span class="set-v set-pair">
                 <select class="set-sel" @change="pickModel('default', $event.target.value, (v) => saveSet({agent_model: v}))" aria-label="מודל ברירת מחדל"><template x-for="o in modelOpts(st.agent.model)" :key="o[0]"><option :value="o[0]" :selected="o[0]===(setOther==='default' ? '__other' : (st.agent.model||''))" x-text="o[1]"></option></template></select>
