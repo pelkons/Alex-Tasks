@@ -222,12 +222,13 @@ test('show needs a numeric id except for project and person (names work there)',
   assert.equal(api.calls[0].url, '/api/projects/%D7%9E%D7%92%D7%93%D7%9C/show');
 });
 
-test('profiles: full has every tool; import and apply_only are small and always have apply and run_summary', () => {
+test('profiles: full has every tool; import and apply_only are small, have apply, run_summary, the read tools and the writes the background jobs use, and nothing that talks to the owner', () => {
   assert.equal(forProfile('full').length, TOOLS.length);
   const imp = forProfile('import').map((t) => t.name), ao = forProfile('apply_only').map((t) => t.name);
-  for (const n of ['apply', 'run_summary', 'show', 'search']) { assert.ok(imp.includes(n) && ao.includes(n), n); }
-  assert.ok(imp.includes('person_find') && imp.includes('project_list') && !ao.includes('person_find'));
-  for (const bad of ['outbox_draft', 'confirm', 'chat_send', 'task_update', 'calendar_delete', 'trash_restore']) assert.ok(!imp.includes(bad) && !ao.includes(bad), bad);
+  assert.deepEqual(imp, ao);
+  for (const n of ['apply', 'run_summary', 'show', 'search', 'style_for', 'style_check', 'draft_add', 'person_merge', 'person_find', 'project_list']) assert.ok(imp.includes(n), n);
+  assert.ok(imp.length <= 25 && imp.length < TOOLS.length / 2, `${imp.length} tools`);
+  for (const bad of ['outbox_draft', 'confirm', 'chat_send', 'task_update', 'calendar_delete', 'trash_restore', 'filter_add', 'project_propose']) assert.ok(!imp.includes(bad), bad);
   assert.deepEqual(forProfile('nothing'), []);
 });
 

@@ -33,8 +33,10 @@ Jobs without commands (triage, audit, style, style_draft, the isolated web run) 
 | Profile | Jobs | Tools |
 |---|---|---|
 | `full` | chat, batch, reconcile, curator, pulse, gate | all |
-| `import` | import, import_lite, import_fyi | `show`, `task_list`, `search`, `ask`, `file_list`, `project_list`, `person_find`, `apply`, `run_summary` |
-| `apply_only` | profile backfill, names, facts | `show`, `task_list`, `search`, `ask`, `file_list`, `apply`, `run_summary` |
+| `import` | import, import_lite, import_fyi | the 14 read tools (`show`, `task_list`, `search`, `ask`, `project_list`, `person_find`, `chat_list`, `pending`, `attention_list`, `calendar_list`, `outbox_list`, `trash_list`, `file_list`, `style_for`), `apply`, `run_summary`, and the writes these jobs were seen to use: `draft_add`, `note_add`, `person_add`, `person_update`, `person_merge`, `style_check` |
+| `apply_only` | profile backfill, names, facts | the same 22 tools |
+
+(The first version of the two small profiles had only 9 and 7 tools; the scenario run showed an import job asking for `style_for`, and the CLI log showed `draft add` and `person merge`, so they were widened. The lists are `READ_TOOLS` and `BACKGROUND_TOOLS` in `lib/mcp/tools.js`.)
 
 The runner chooses the profile from the job name (`JOB_PROFILE` in `lib/mcp/mode.js`) and passes it to the server in `MESIMOT_MCP_PROFILE`.
 

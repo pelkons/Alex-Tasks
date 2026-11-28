@@ -222,12 +222,12 @@ test('the real MCP server against the real API: every tool is called for real', 
   } finally { await env.stop(); }
 });
 
-test('profiles over the real process: import gets 9 tools and cannot call a mail or chat tool', async () => {
+test('profiles over the real process: import gets 22 tools and cannot call a mail or chat tool', async () => {
   const env = await start('import');
   try {
     await env.rpc('initialize', { protocolVersion: '2025-06-18' });
     const names = (await env.rpc('tools/list', {})).result.tools.map((t) => t.name);
-    assert.equal(names.length, 9);
+    assert.equal(names.length, 22);
     const r = await env.callTool('chat_send', { text: 'x' });
     assert.equal(r.isError, true); assert.match(r.text, /Unknown tool "chat_send"/);
     assert.match((await env.callTool('run_summary', { text: 'x' })).text, /The server refused \(HTTP 400\)/); // a real call: the server says there is no open run
