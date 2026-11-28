@@ -127,4 +127,4 @@ Until now the server only learned about NEW mail; a mail the owner deleted in Ou
 * Response `200`: `{ "checked": 812, "removed": 3, "moved": 1, "held": false }`.
 * Size: ids only; about 60 bytes a mail (a full year is about 1 MB); one request per run, gzip allowed.
 
-Schedule in the program: `scope: "recent"` with `since` = now minus 14 days every 10 minutes, right after the normal mail push (enumerating 14 days is cheap, Outlook is queried by date with `Restrict`); `scope: "full"` with `since` = the archive start (`archive_full_since` from `GET /ingest/status`, 2025-11-27) once after start/update and then once a night (around 03:00). Never while Outlook is closed.
+Schedule in the program: only `scope: "recent"` with `since` = now minus 14 days, every 10 minutes right after the normal mail push (enumerating 14 days is cheap, Outlook is queried by date with `Restrict`), and once right after start/update. No year-long pass is needed: the whole mailbox was synchronised on 2026-11-27, so everything deleted before that is already absent from the server and everything deleted since falls inside the 14-day window. Never while Outlook is closed.
