@@ -1536,3 +1536,15 @@ label.set-row { cursor: pointer; }
   .fform-g { grid-template-columns: 1fr; }
   .set-sel { min-width: 0; }
 }
+.cn-err { color: var(--danger); overflow-wrap: anywhere; }
+.bk-card .bk-bad { color: var(--danger); }
+
+/* ---- web push on this device (Settings → התראות; assets/push.js) */
+.push-sw { display: inline-flex; align-items: center; gap: 10px; }
+.push-word { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.push-word.on { color: var(--primary); font-weight: 500; }
+.push-word.off { color: var(--danger); }
+.push-msg small { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.push-msg b { color: var(--text); font-weight: 500; }
+.push-err small { color: var(--danger); }
+.set-note { margin: 8px 4px 0; }

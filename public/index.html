@@ -1214,6 +1214,39 @@
                 <select :aria-label="'סיום שעות שקט'" @change="saveSet({quiet_end: $event.target.value})"><template x-for="o in timeOpts(st.quiet_end)" :key="o[0]"><option :value="o[0]" :selected="o[0]===st.quiet_end" x-text="o[1]"></option></template></select>
               </span></div>
           </div>
+          <!-- web push on THIS device (assets/push.js, docs/PUSH.md): permission is asked only from this switch -->
+          <h3 class="set-h">התראות במכשיר זה</h3>
+          <div class="set-group push-set" x-init="pushLoad()" data-test="push-set">
+            <label class="set-row"><span class="set-l"><b>התראות בדפדפן / במכשיר זה</b><small>גם כשהמסך כבוי והאתר סגור. הקשה על התראה פותחת את המשימה, המייל או הצ׳אט</small></span>
+              <span class="set-v push-sw"><span class="push-word" :class="{on: push.subscribed, off: push.loaded && (!push.supported || push.perm==='denied')}" x-text="pushWord()" data-test="push-word"></span>
+                <input type="checkbox" class="tgl" :checked="push.subscribed" :disabled="push.busy || !push.loaded || push.perm==='denied' || (!push.supported && !push.ios)" @change="pushToggle($event.target.checked)" aria-label="התראות במכשיר זה" data-test="push-toggle"></span></label>
+            <template x-if="push.subscribed">
+              <div class="set-row"><span class="set-l"><b>בדיקה</b><small x-text="push.devices === 1 ? 'מכשיר אחד רשום להתראות' : push.devices + ' מכשירים רשומים להתראות'"></small></span>
+                <button class="btn small" @click="pushTest()" :disabled="push.busy" data-test="push-test">שלח התראת בדיקה</button></div>
+            </template>
+            <div class="set-row set-col push-msg push-err" x-show="push.err" role="alert" data-test="push-err"><small x-text="push.err"></small></div>
+            <template x-if="push.loaded && push.perm==='denied'">
+              <div class="set-row set-col push-msg" data-test="push-blocked"><small><b>ההתראות חסומות בדפדפן.</b> כדי לפתוח: לחיצה על סמל המנעול ליד הכתובת ← הרשאות ← התראות ← לאפשר. באנדרואיד אפשר גם: הגדרות הטלפון ← אפליקציות ← Alex Tasks (או Chrome) ← התראות ← לאפשר. אחר כך לרענן את הדף.</small></div>
+            </template>
+            <template x-if="push.loaded && !push.supported">
+              <div class="set-row set-col push-msg" data-test="push-unsupported"><small x-text="push.ios ? 'באייפון (iOS 16.4 ומעלה) התראות עובדות רק מהאפליקציה המותקנת: בספארי שיתוף ← „הוסף למסך הבית”, ואז לפתוח את Alex Tasks ממסך הבית ולהפעיל כאן.' : 'הדפדפן הזה לא תומך בהתראות. בטלפון אנדרואיד: Chrome או Samsung Internet.'"></small></div>
+            </template>
+            <template x-if="push.loaded && push.supported && !push.standalone">
+              <div class="set-row set-col push-msg" data-test="push-install"><small><b>מומלץ להתקין את האפליקציה במסך הבית.</b> באנדרואיד: תפריט ⋮ ← „התקנת האפליקציה” או „הוספה למסך הבית”. באייפון: שיתוף ← „הוסף למסך הבית”.</small></div>
+            </template>
+          </div>
+          <template x-if="push.subscribed">
+            <div>
+              <h3 class="set-h">מה יגיע כהתראה</h3>
+              <div class="set-group" data-test="push-cats">
+                <template x-for="c in push.cats" :key="'pc'+c.id">
+                  <label class="set-row"><span class="set-l"><b x-text="c.label"></b><small x-text="c.hint"></small></span>
+                    <input type="checkbox" class="tgl" :checked="c.on" @change="pushCat(c.id, $event.target.checked)" :data-test="'push-cat-'+c.id"></label>
+                </template>
+              </div>
+              <p class="muted sm set-note">שעות השקט והשבת חלות גם על ההתראות. תקלות במערכת ותשובה להודעה שכתבת עכשיו מגיעות גם בשעות השקט, כמו בטלגרם. טלגרם ממשיך לעבוד כרגיל.</p>
+            </div>
+          </template>
           <h3 class="set-h">טלגרם</h3>
           <div class="set-group">
             <div class="set-row"><span class="set-l"><b x-text="st.telegram.bound ? 'הבוט מחובר' : (st.telegram.configured ? 'ממתין לחיבור' : 'הבוט לא הוגדר')"></b>
