@@ -20,7 +20,7 @@ const { createSearch } = require('../lib/search');
 const { createSemantic } = require('../lib/semantic');
 const { buildMsg } = require('./helpers/msg-builder');
 
-const TOKEN = 'test-ingest-token-0123456789'; const TS = '100.106.52.82';
+const TOKEN = 'test-ingest-token-0123456789'; const TS = '100.64.0.9';
 // a deterministic fake embedder: a bag-of-words hash into 384 dimensions (no model download)
 const fakeEmbed = async (texts) => texts.map((t) => { const v = new Array(384).fill(0); for (const w of String(t).toLowerCase().split(/\W+/).filter(Boolean)) { let h = 0; for (const c of w) h = (h * 31 + c.charCodeAt(0)) >>> 0; v[h % 384] += 1; } const n = Math.sqrt(v.reduce((a, x) => a + x * x, 0)) || 1; return v.map((x) => x / n); });
 function lib({ semantic = false } = {}) {

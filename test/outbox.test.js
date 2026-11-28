@@ -18,7 +18,7 @@ const { createIngest, createIngestApp } = require('../lib/ingest');
 const { createCalendar } = require('../lib/calendar');
 const { createImporter } = require('../lib/importer');
 
-const TOKEN = 'agent-token-123'; const ITOKEN = 'ingest-token-0123456789'; const PW = 'correct horse battery'; const TS = '100.106.52.82';
+const TOKEN = 'agent-token-123'; const ITOKEN = 'ingest-token-0123456789'; const PW = 'correct horse battery'; const TS = '100.64.0.9';
 function lib() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const outbox = createOutbox({ db, store }); store.hooks.outboxView = outbox.cardView; store.hooks.outbox = outbox;

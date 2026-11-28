@@ -15,7 +15,7 @@ const { createIngest, createIngestApp, inTailnet } = require('../lib/ingest');
 const { buildMsg } = require('./helpers/msg-builder');
 
 const TOKEN = 'test-ingest-token-0123456789';
-const TS = '100.106.52.82';
+const TS = '100.64.0.9';
 function lib() {
   const db = open(':memory:'); const store = createStore(db); const knowledge = createKnowledge(db, store); const chat = createChat(db, store, knowledge);
   const calendar = createCalendar(db, store); const importer = createImporter({ db, store, knowledge, chat });
@@ -34,7 +34,7 @@ const post = (L, meta, file, over = {}) => { const m = multipart(meta, file); re
 
 test('access: only Tailscale source addresses with the right Bearer token', async () => {
   const L = lib();
-  assert.ok(inTailnet('100.64.0.1') && inTailnet('100.127.255.254') && inTailnet('::ffff:100.106.52.82'));
+  assert.ok(inTailnet('100.64.0.1') && inTailnet('100.127.255.254') && inTailnet('::ffff:100.64.0.9'));
   assert.ok(!inTailnet('100.63.0.1') && !inTailnet('100.128.0.1') && !inTailnet('127.0.0.1') && !inTailnet('8.8.8.8') && !inTailnet('10.0.0.214'));
   const get = (headers, ip) => L.app.inject({ method: 'GET', url: '/ingest/status', headers, remoteAddress: ip });
   assert.equal((await get({ authorization: `Bearer ${TOKEN}` }, TS)).statusCode, 200);

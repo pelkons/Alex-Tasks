@@ -19,7 +19,7 @@ const { createMailList } = require('../lib/maillist');
 const { seedMail } = require('./helpers/mailseed');
 
 const TOKEN = 'test-ingest-token-presence-0123';
-const TS = '100.106.52.82';
+const TS = '100.64.0.9';
 const STORE = 'owner@example.test';
 const HOUR = 3600000, DAY = 86400000;
 const c = (db, sql, ...a) => db.prepare(sql).get(...a).c;
