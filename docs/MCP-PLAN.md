@@ -1,5 +1,61 @@
 # Plan: a built-in MCP server for the assistant
 
+## Amendment 1 (owner's decision; overrides the sections below where they differ)
+
+The goal is that anyone who downloads the project from GitHub and turns on any of the three agents gets a working assistant through MCP, with no extra setup.
+
+* **A1. Every adapter uses MCP: Claude Code, Codex and Gemini.**
+  * **One tool server.** The tool set and the MCP server are the same for all adapters (`lib/mcp/`, `bin/mesimot-mcp`). Each adapter only builds its own way of attaching it:
+    * Claude Code: `--mcp-config` plus `--allowedTools mcp__mesimot`.
+    * Codex: config overrides such as `-c mcp_servers.mesimot.command=...` / `args` / `env`, or a per-run `CODEX_HOME` config file. Use whatever `codex exec` 0.148 really honours; find it in phase 0.
+    * Gemini: the per-run system settings file the adapter already writes gets `mcpServers.mesimot`, and its tool allowlist gets the MCP server.
+  * **Phase 0 tests all three:**
+    * Claude Code (2.1.321): an end-to-end call with model haiku.
+    * Codex (0.148, already logged in on this server): an end-to-end call with the cheapest model.
+    * Gemini: install the CLI with `npm i -g @google/gemini-cli`. There is no Google login on this server, so prove that the CLI loads the server and lists its tools (for example `gemini mcp list` with the generated settings), then write that the end-to-end call is unverified until someone signs in.
+  * Record the exact working configuration for each adapter in `docs/MCP.md`.
+  * `deniedCommands` and the tool-call parsing (`toolCalls`) must recognise MCP calls in each adapter's output format, so `scripts/mcp-report.js` counts them for every adapter.
+* **A2. Tool parity, not a subset.** Every CLI command the assistant is allowed to use becomes a tool in version 1. This includes what section 4 left on the CLI:
+  * protocol add/list/show and item add/update/promote/done/dismiss;
+  * filter list/add/preview/delete/enable/disable;
+  * fact set/list/topic;
+  * knowledge list/add/update/supersede;
+  * file list/classify;
+  * project profile and status;
+  * archive status/failed/retry/estimate;
+  * telegram status;
+  * push status;
+  * usage;
+  * health (quick, read-only);
+  * attention update;
+  * the remaining show kinds;
+  * style list/show/suggest/try.
+
+  Only owner and administrator commands stay CLI-only: sql, web-password, rekey, backup, vault, connector publish, style analyse, project add, init-config and render-agent. A test asserts parity. It parses the list of commands from `bin/mesimot` and fails when an assistant-usable command has no tool and is not on the CLI-only list. A new CLI command then cannot silently miss a tool.
+* **A3. The switch, with one more value.**
+  * The values of `agent_mcp`:
+    * `off`: CLI only, as today.
+    * `chat`: tools for the `full` profile jobs only.
+    * `all`: tools for every job; the shell `mesimot` stays as a fallback.
+    * `only`: tools only. The assistant gets NO shell:
+      * Claude Code: no Bash in `--tools`.
+      * Codex: no shell tool, if `codex exec` allows that. If it does not, say so in the docs and keep the sandbox.
+      * Gemini: no `run_shell_command`.
+
+      The file tools keep exactly what they have today (Read of the agent dir, the files and the vault views; Write and Edit of `agent/memory` and `agent/tmp`).
+  * The Settings dropdown shows all four: כבוי / צ'אט בלבד / הכול / כלים בלבד.
+  * The instruction variant for `only` contains no CLI vocabulary at all. The CLI→tool table stays, because gate messages and code texts still name CLI commands.
+* **A4. Works out of the box.**
+  * A fresh install needs no extra step: the server is in the repo, its dependency is in `package.json`, and the configuration is generated for each run.
+  * Default: when the setting is absent, a NEW install (a database with no rows in `claude_runs`) uses `all`.
+  * On THIS existing install, the first start after the deploy writes `agent_mcp=off` once if the setting is absent. The live system therefore stays on the CLI until the owner or the reviewer switches it.
+  * Do the same for the env override.
+  * README (both languages) and `docs/MCP.md`: one short paragraph saying the assistant works through built-in tools and nothing needs to be configured.
+  * Check `deploy/install.sh` on a clean checkout. The test instance counts as a fresh install: with no setting it must use `all`.
+* **A5. Rollout, unchanged in spirit.**
+  * The implementer deploys with the live switch `off`. The reviewer then switches the live system to `chat`, then `all`.
+  * After a week with no use of the shell fallback, the live system goes to `only`. The fresh-install default then becomes `only` in a later change.
+
 Status: approved for implementation. Phases 0 to 5 are implemented and deployed with the switch OFF. Turning it on (phase 6) is a separate step after review.
 
 ## 1. Why
