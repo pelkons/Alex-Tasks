@@ -443,8 +443,8 @@ function app() {
     },
     // ---- the recycle bin page
     async loadBin() { this.bin.loading = true; try { const r = await this.api('GET', '/api/trash'); Object.assign(this.bin, r, { loading: false }); if (this.bin.kind && !this.bin.counts[this.bin.kind]) this.bin.kind = ''; } catch (e) { this.bin.loading = false; this.fail(e); } },
-    binKinds() { return ['task', 'project', 'person', 'protocol', 'calendar', 'chat', 'filter'].filter((k) => this.bin.counts[k]); },
-    binKindPl(k) { return { task: 'משימות', project: 'פרויקטים', person: 'אנשים', protocol: 'פרוטוקולים', calendar: 'יומן', chat: 'הודעות', filter: 'כללי דואר' }[k] || k; },
+    binKinds() { return ['task', 'project', 'person', 'protocol', 'calendar', 'chat', 'filter', 'email'].filter((k) => this.bin.counts[k]); },
+    binKindPl(k) { return { task: 'משימות', project: 'פרויקטים', person: 'אנשים', protocol: 'פרוטוקולים', calendar: 'יומן', chat: 'הודעות', filter: 'כללי דואר', email: 'מיילים' }[k] || k; },
     binItems() { return this.bin.kind ? this.bin.items.filter((x) => x.kind === this.bin.kind) : this.bin.items; },
     binLeftText(it) { const n = it.days_left; if (n === null || n === undefined) return 'לא יימחק אוטומטית'; if (n <= 0) return 'יימחק סופית הלילה'; if (n === 1) return 'יימחק סופית מחר'; return `יימחק סופית בעוד ${n} ימים`; },
     async restoreBin(it) { await this.undoPurge({ trash_id: it.id }); },

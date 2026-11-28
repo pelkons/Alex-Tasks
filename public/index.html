@@ -964,7 +964,7 @@
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
-          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)" x-text="(m.confirm && m.confirm.yes_label) || 'כן, למחוק'"></button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
@@ -1035,7 +1035,7 @@
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
-          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)" x-text="(m.confirm && m.confirm.yes_label) || 'כן, למחוק'"></button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
@@ -1150,7 +1150,7 @@
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
-          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)" x-text="(m.confirm && m.confirm.yes_label) || 'כן, למחוק'"></button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
@@ -1244,6 +1244,7 @@
                 <div class="cn-top"><b x-text="d.name || ('מחשב '+d.id)"></b> <span class="muted sm" dir="ltr" x-text="d.app_version ? 'v'+d.app_version : ''"></span> <span class="cn-tag" x-show="d.revoked">נותק</span> <span class="cn-tag cn-active" x-show="!d.revoked && d.role === 'active'">פעיל</span><span class="cn-tag" x-show="!d.revoked && d.role !== 'active'">במצב המתנה</span></div>
                 <div class="muted sm" x-text="'קשר אחרון: '+(d.last_contact_at ? fmtDateTime(d.last_contact_at) : 'אין')"></div>
                 <div class="muted sm" x-show="!d.revoked" x-text="'Outlook: '+(d.outlook_ok === null ? 'לא ידוע' : d.outlook_ok ? 'פתוח' : 'סגור')+(d.paused_ingest ? ' · קליטה מושהית' : '')+(d.paused_send ? ' · שליחה מושהית' : '')"></div>
+                <div class="muted sm" x-show="!d.revoked && d.role === 'active'" x-text="'סנכרון מחיקות: '+(d.presence_at ? fmtDateTime(d.presence_at) : 'עדיין לא בוצע')"></div>
                 <div class="sm cn-err" x-show="!d.revoked && d.hb_last_error" x-text="'שגיאה אחרונה: '+d.hb_last_error"></div>
                 <div class="btnrow" x-show="!d.revoked"><button class="btn small" x-show="d.role !== 'active'" @click="cnActivate(d)">הפוך לפעיל</button><button class="btn small danger" @click="cnRevoke(d)">ניתוק</button></div>
               </div>
@@ -1559,7 +1560,7 @@
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
-          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)" x-text="(m.confirm && m.confirm.yes_label) || 'כן, למחוק'"></button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
@@ -1726,7 +1727,7 @@
         </div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
-          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)">כן, למחוק</button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
+          <div class="btnrow" x-show="m.confirm && m.confirm.status==='open'"><button class="btn danger" @click="answerConfirm(m, true)" x-text="(m.confirm && m.confirm.yes_label) || 'כן, למחוק'"></button><button class="btn" @click="answerConfirm(m, false)">לא</button></div>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='no'">בסדר, לא נמחק.</p>
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
