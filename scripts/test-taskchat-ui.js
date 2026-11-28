@@ -16,7 +16,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); i
     await p.goto(`http://127.0.0.1:8111/task/${t.id}`); await p.waitForTimeout(1800);
     ok(await p.isVisible('.tchat h3'), tag + ': "שיחה על המשימה" block');
     ok(!(await p.$('.note-form')), tag + ': the add-note box is gone');
-    ok(/הערה ישנה/.test(await p.textContent('.tchat')), tag + ': old notes are read-only history in the conversation');
+    ok(/הערה ישנה/.test(await p.textContent('.tc-notes')) && !/הערה ישנה/.test(await p.textContent('.tchat')), tag + ': old notes are a read-only timeline of their own, not in the conversation');
     const ph = await p.getAttribute('.tc-in', 'placeholder'); ok(/על המשימה/.test(ph), tag + ': placeholder ' + ph);
     ok(await p.isVisible('.tc-form button[aria-label="הקלטה קולית"]') && await p.isVisible('.tc-form button[aria-label="צירוף קובץ"]'), tag + ': mic and paperclip');
     await p.fill('.tc-in', 'שורה ראשונה ' + tag); await p.keyboard.press('Shift+Enter'); await p.keyboard.type('שורה שנייה'); await p.waitForTimeout(300);
@@ -30,7 +30,7 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); i
     require('../lib/chat').createChat(db, store, require('../lib/knowledge').createKnowledge(db, store)).sendChat(a, { text: 'סידרתי: הסיור נקבע ליום חמישי.' });
     db.prepare('UPDATE claude_runs SET finished_at=? WHERE finished_at IS NULL').run(new Date().toISOString());
     await p.waitForFunction(() => /הסיור נקבע/.test(document.querySelector('.tc-feed').textContent), null, { timeout: 15000 }).then(() => ok(true, tag + ': the assistant reply shows in the card thread live'), () => ok(false, tag + ': reply did not appear'));
-    const scrolled = await p.evaluate(() => { const f = document.querySelector('.tc-feed'); return f.scrollHeight - f.scrollTop - f.clientHeight < 8; }); ok(scrolled, tag + ': the thread auto-scrolls');
+    await p.waitForTimeout(800); const scrolled = await p.evaluate(() => { const its = document.querySelectorAll('.tchat .tc-item'); const r = its[its.length - 1].getBoundingClientRect(); const box = (document.querySelector('.split.has-task .pane-card') || document.documentElement).getBoundingClientRect(); return r.top < Math.min(innerHeight, box.bottom) && r.bottom > Math.max(0, box.top); }); ok(scrolled, tag + ': the newest message is brought into view');
     await p.screenshot({ path: `screenshots/resize/taskchat-${tag}.png` });
     if (tag === 'desktop') {
       await p.goto('http://127.0.0.1:8111/'); await p.waitForTimeout(2000);
