@@ -314,6 +314,7 @@
             </template>
           </ol>
           <button type="button" class="tc-more" x-show="notesView().length < (detail.notes || []).length" @click="unfold('notes:'+detail.id)" x-text="'עוד '+((detail.notes || []).length - notesView().length)+' הערות'"></button>
+          <button type="button" class="tc-more" x-show="fold['notes:'+detail.id] && (detail.notes || []).length > 1" @click="refold('notes:'+detail.id)">הסתר הערות</button>
         </section>
 
         <section class="cs tchat" data-sec="chat">

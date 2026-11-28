@@ -509,6 +509,7 @@ function app() {
     fold: {}, // conversations / timelines the owner unfolded, by key ('task:5', 'notes:5', 'project:3' ...)
     FOLD_AT: 8, FOLD_SHOW: 6,
     unfold(k) { this.fold = { ...this.fold, [k]: true }; },
+    refold(k) { this.fold = { ...this.fold, [k]: false }; },
     // the emails of the task as compact cards: the source email first, then the later ones, newest first
     mailCards() {
       const d = this.detail; if (!d) return [];
@@ -523,7 +524,7 @@ function app() {
     notesView() {
       const d = this.detail; if (!d) return [];
       const all = [...(d.notes || [])].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-      return this.fold['notes:' + d.id] || all.length <= 4 ? all : all.slice(0, 3);
+      return this.fold['notes:' + d.id] ? all : all.slice(0, 1);
     },
     // a conversation as rows with a day separator where the day changes; a long one shows only its last messages until unfolded
     convHidden(list, k) { const n = (list || []).length; return !this.fold[k] && n > this.FOLD_AT ? n - this.FOLD_SHOW : 0; },

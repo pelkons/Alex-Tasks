@@ -78,7 +78,11 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); i
       const heads = await p.$$eval('.tcard .cs-h', (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
       ok(heads.length >= 3 && heads.every((x) => /\d/.test(x) || /שיחה/.test(x)), `${tag}: section headings with counts ${JSON.stringify(heads)}`);
       // the notes are a separate timeline, not inside the conversation
-      ok(await p.$$eval('.tc-notes .tl-item', (els) => els.length) >= 3, `${tag}: notes are a timeline`);
+      ok(await p.$$eval('.tc-notes .tl-item', (els) => els.length) === 1, `${tag}: only the latest note shows at first`);
+      await p.click('.tc-notes .tc-more'); await p.waitForTimeout(250);
+      ok(await p.$$eval('.tc-notes .tl-item', (els) => els.length) >= 3, `${tag}: notes are a timeline once unfolded`);
+      await p.click('.tc-notes .tc-more:has-text("הסתר")'); await p.waitForTimeout(250);
+      ok(await p.$$eval('.tc-notes .tl-item', (els) => els.length) === 1, `${tag}: the notes fold back to one`);
       ok(!/עודכנה: המייל נשלח/.test(await p.textContent('.tchat')), `${tag}: no notes inside the conversation`);
       // email card: collapsed original, attachments, expands in place
       ok(!(await p.isVisible('.email-src .es-body')), `${tag}: the original email is collapsed`);
