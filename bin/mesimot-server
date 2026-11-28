@@ -4,6 +4,7 @@ const { build, readEnvFile } = require('../lib/server.js');
 require('../lib/vault').sweepTmp(); // plaintext leftovers of a crashed run (in /dev/shm)
 const port = +(process.env.MESIMOT_PORT || 8110);
 const app = build({ dbPath: process.env.MESIMOT_DB });
+try { require('../lib/mcp/mode').ensureDefault(require('../lib/db').open(process.env.MESIMOT_DB)); } catch (e) { console.warn('MCP default not set:', e.message); } // new install: tools on (all); existing install: off, once
 if (!process.env.MESIMOT_TOKEN && !readEnvFile().MESIMOT_TOKEN) console.warn('warning: no API token configured');
 // the Outlook connector's listener: a separate Fastify instance, bound to the Tailscale address ONLY (never 0.0.0.0, never the tunnel), Bearer token + 100.64.0.0/10 source check
 function startIngest() {

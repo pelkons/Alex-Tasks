@@ -49,7 +49,8 @@ test('profileFor: off = never; chat = the full-profile jobs; all = every job wit
   for (const job of ['import', 'import_lite', 'import_fyi']) { assert.equal(p('chat', job), null); assert.equal(p('all', job), 'import'); }
   for (const job of ['profile', 'names', 'facts']) { assert.equal(p('chat', job), null); assert.equal(p('all', job), 'apply_only'); }
   for (const job of ['triage', 'audit', 'style', 'style_draft', 'web', 'unknown']) assert.equal(p('all', job), null, job);
-  assert.equal(p('all', 'chat', { adapter: 'codex' }), null); assert.equal(p('all', 'chat', { adapter: 'gemini' }), null);
+  assert.equal(p('all', 'chat', { adapter: 'codex' }), 'full'); assert.equal(p('all', 'chat', { adapter: 'gemini' }), 'full'); assert.equal(p('all', 'chat', { adapter: 'other' }), null);
+  for (const job of ['chat', 'import', 'names']) assert.equal(p('only', job), p('all', job), job + ': only has the same profiles as all');
   assert.equal(p('all', 'chat', { allowedCommands: [] }), null);
 });
 
@@ -159,4 +160,66 @@ test('a refused mesimot tool call is retried like a refused command, and the MCP
   assert.deepEqual(deniedCommands({ raw }), ['mcp__mesimot__task_update {"id":1}'], 'only the mesimot server, never another one');
   assert.deepEqual(parseStream(raw).mcpServers, [{ name: 'mesimot', status: 'failed' }]);
   assert.equal(parseStream('').mcpServers, null);
+});
+
+test('only: the assistant gets the tools and NO shell, in Claude Code, Codex and Gemini', () => {
+  const mcp = mode.spec({ profile: 'full', runId: 5 });
+  // Claude Code: no Bash among the tools, no Bash allow rule, the MCP rule stays
+  const c = buildArgs({ prompt: 'P', allowedCommands: [], readPaths: ['/a'], writePaths: ['/a/memory'], mcp });
+  assert.equal(c[c.indexOf('--tools') + 1], 'Read,Edit,Write');
+  assert.ok(!c.some((x) => /^Bash\(mesimot/.test(x)) && c.includes('mcp__mesimot'));
+  assert.ok(buildArgs({ prompt: 'P', readPaths: ['/a'], mcp })[buildArgs({ prompt: 'P', readPaths: ['/a'], mcp }).indexOf('--tools') + 1].startsWith('Bash'), 'all keeps the shell fallback');
+  // Codex: -c overrides for the server, shell tools off
+  const cx = require('../lib/agents/codex');
+  const a = cx.buildArgs({ prompt: 'P', workdir: '/w', mcp, noShell: true }, '/l').join('\n');
+  assert.match(a, /mcp_servers\.mesimot\.command="/); assert.match(a, /mcp_servers\.mesimot\.args=\["[^"]*mesimot-mcp"\]/); assert.match(a, /features\.shell_tool=false/); assert.match(a, /default_tools_approval_mode="approve"/);
+  assert.ok(!cx.buildArgs({ prompt: 'P', workdir: '/w', mcp }, '/l').join('\n').includes('shell_tool'));
+  assert.ok(!cx.buildArgs({ prompt: 'P', workdir: '/w' }, '/l').join('\n').includes('mcp_servers'), 'without mcp the Codex arguments are unchanged');
+  assert.throws(() => cx.buildArgs({ prompt: 'P', workdir: '/w', mcp: { command: 'x', env: { MESIMOT_TOKEN: 't' } } }, '/l'), /secret/);
+  const ev = [{ type: 'item.completed', item: { type: 'mcp_tool_call', server: 'mesimot', tool: 'task_list', arguments: { open: true }, status: 'completed' } }, { type: 'item.completed', item: { type: 'command_execution', command: 'ls' } }, { type: 'item.completed', item: { type: 'agent_message', text: 'ok' } }].map((x) => JSON.stringify(x)).join('\n');
+  assert.deepEqual(cx.parseEvents(ev).toolCalls, [{ name: 'mcp__mesimot__task_list', input: { open: true } }, { name: 'shell', input: { command: 'ls' } }]);
+  // Gemini: the server in the settings, trusted; no run_shell_command when only
+  const gm = require('../lib/agents/gemini');
+  const g = gm.settingsFor({ allowedCommands: ['mesimot'], mcp, noShell: false });
+  assert.ok(g.tools.core.includes('run_shell_command(mesimot)')); assert.equal(g.mcpServers.mesimot.trust, true); assert.deepEqual(g.mcpServers.mesimot.env, mcp.env);
+  assert.ok(!gm.settingsFor({ allowedCommands: ['mesimot'], mcp, noShell: true }).tools.core.some((x) => x.startsWith('run_shell_command')));
+  assert.equal(gm.settingsFor({ allowedCommands: ['mesimot'] }).mcpServers, undefined);
+  assert.throws(() => gm.settingsFor({ mcp: { command: 'x', env: { SECRET_X: '1' } } }), /secret/);
+  assert.equal(gm.parseOutput(JSON.stringify({ response: 'x', stats: { tools: { byName: { mcp_mesimot_task_list: { count: 2 }, run_shell_command: { count: 1 } } } } })).toolCalls.filter((t) => t.name === 'mcp__mesimot__task_list').length, 2);
+});
+
+test('runner, switch only: no shell for the job, the tools-only instruction file; and for Codex the AGENTS.md is the tool variant', async () => {
+  const { db, store, runner } = world();
+  mode.setSwitch(db, 'only');
+  assert.equal(await chatRun(db, store, runner), true);
+  const { text, cfg } = argv();
+  assert.ok(cfg.mcpServers.mesimot);
+  assert.match(text, /--tools Read,Edit,Write /); assert.ok(!text.includes('Bash(mesimot'));
+  const md = fs.readFileSync(path.join(process.env.MESIMOT_AGENT_DIR, 'CLAUDE.md'), 'utf8');
+  assert.ok(md.includes('you have no shell') && !md.includes('# CLI cheat sheet'));
+  assert.ok((md.match(/`mesimot [a-z]/g) || []).length <= 3, 'no CLI vocabulary left in the tools-only instructions apart from the table');
+  // a name-fix job under `only` is a tools job as well
+  assert.equal(mode.profileFor({ mode: 'only', job: 'names' }), 'apply_only');
+  // Codex reads AGENTS.md: it becomes the tool variant, CLAUDE.md goes back to a plain CLI copy
+  agentdoc.sync(process.env.MESIMOT_AGENT_DIR, 'codex', 'mcp', { cfg: require('./fixtures/config.json') });
+  const dir = process.env.MESIMOT_AGENT_DIR;
+  assert.match(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8'), /# Tools \(mesimot MCP\)/);
+  assert.ok(!fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8').includes('# Tools (mesimot MCP)'));
+  assert.equal(agentdoc.state(dir), 'codex:mcp');
+  assert.equal(agentdoc.sync(dir, 'codex', 'mcp'), false, 'nothing to do twice');
+  agentdoc.sync(dir, 'claude-code', 'cli', { cfg: require('./fixtures/config.json') });
+  assert.ok(fs.lstatSync(path.join(dir, 'CLAUDE.md')).isSymbolicLink());
+});
+
+test('the default: a fresh install starts on `all`, an install that already has runs starts on `off`; nothing is overwritten', () => {
+  const fresh = open(':memory:');
+  assert.equal(mode.getSwitch(fresh, {}).value, 'off', 'absent = off until the first start decides');
+  assert.equal(mode.ensureDefault(fresh), 'all');
+  assert.deepEqual(mode.getSwitch(fresh, {}), { value: 'all', source: 'setting' });
+  const used = open(':memory:');
+  used.prepare('INSERT INTO claude_runs (started_at, trigger, events_count) VALUES (?,?,?)').run(new Date().toISOString(), 'chat', 0);
+  assert.equal(mode.ensureDefault(used), 'off');
+  mode.setSwitch(used, 'chat');
+  assert.equal(mode.ensureDefault(used), 'chat', 'an existing choice stays');
+  assert.equal(mode.getSwitch(used, { MESIMOT_MCP: 'only' }).value, 'only', 'the env override still wins');
 });
