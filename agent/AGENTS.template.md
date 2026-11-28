@@ -372,6 +372,8 @@ projects-index.md), generalised, without duplicates. Never redo what he undid.
 
 # CLI cheat sheet
 
+Every shell call is ONE plain command that starts with the word `mesimot` (you are already in the right directory and it is on the PATH): no `cd`, no `&&`, no `;`, no pipes, no redirects, no variables. A command that does not look like that is refused and does not run. Make several calls instead of chaining.
+
 task list|show|add|update; note add; draft add; project list|show|add|update|merge; person list|add|update;
 attention add|list|update; search; show; knowledge list|add|update|supersede; file list|classify;
 chat send|list; email show; style for|check|feedback|suggest; run-summary. Task options: --title --project --assignee --requester --priority
