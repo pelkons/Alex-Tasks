@@ -86,6 +86,7 @@ test('validator: every rule, with a Hebrew message', () => {
   // the parts of a mail
   const m = metrics('בוקר טוב ניק,\n\nהגיוס בוטל.\n\nבברכה,\nדנה לוי', ['דנה', 'דנה לוי']); assert.equal(m.greeting, 'בוקר טוב ניק,'); assert.equal(m.closing, null); assert.ok(m.signature, '"בברכה" above the name is the signature block'); assert.equal(m.sentences, 1);
   assert.equal(greetingForm('בוקר טוב ניק,'), 'בוקר טוב {first_name}'); assert.equal(greetingForm('גיל, היי'), '{first_name}, היי');
+  assert.equal(ownText('From: Office <o@example.com>\nSent: Tuesday\nשלום רב,\nנשמח לקבל מענה.'), '', 'a bare forward is not his text');
   assert.equal(ownText('הי חנה,\nמצורף.\n\nGet Outlook for Android\n________________________________\nFrom: X\nשלום'), 'הי חנה,\nמצורף.');
 });
 
