@@ -99,6 +99,8 @@ const USAGE = `mesimot <command>
   push status | push test   (web push to the owner's phone: subscribed devices, one test notification)
   health [--quick] [--json] [--no-alert]   (every system check; --quick = UI smoke test + APIs, the post-deploy gate)
   connector publish <AlexLink-Setup-<version>.exe>   (copies the installer to data/connector/ and writes latest.json)
+  style for --to "a@b.com, Name" [--reply-email ID] [--task ID]   (BEFORE any mail: the owner's style for them, the guide, his real mails to them, his edits) | check --to .. --body .. | feedback --to .. | list | show <key> | suggest <key> --reason ..
+  style analyse [--person "A,B"] [--group G [--classify "what the group is"] [--domains a.com,b.com]] [--role boss|unknown|pm|internal|external] [--default] [--force] [--dry]   (PROPOSED styles from your own sent mail; owner only)   style try --to .. --say ..   (a dry draft)
   outbox draft --to "a@b.com, Name (c@d.com)" --subject S --body TEXT [--kind new|reply|reply_all|forward] [--reply-email EMAILID] [--cc ..] [--bcc ..] [--attach FILEID,..] [--task ID] | update <id> ... | cancel <id> | list | show <id>   (DRAFTS only: the owner approves with a button)
   confirm task-delete <id> | project-delete <project> --tasks move:<project>|unassign|delete | person-delete <id> | protocol-delete <id>   (asks the owner with two buttons; his "yes" moves it to the recycle bin)
   trash list [--kind task|project|person|protocol|calendar|chat|filter] | restore <trash id> | delete <trash id> | empty   (recycle bin; delete and empty are PERMANENT: they ask the owner like confirm)
@@ -260,7 +262,7 @@ async function main() {
       }
       break;
     case 'draft':
-      if (sub === 'add') { if (!opt.task) fail('--task required'); return out(await api('POST', `/api/tasks/${opt.task}/drafts`, { text: opt.text })); }
+      if (sub === 'add') { if (!opt.task) fail('--task required'); return out(await api('POST', `/api/tasks/${opt.task}/drafts`, { text: opt.text, ...(opt.long ? { long: true } : {}) })); }
       break;
     case 'project':
       if (sub === 'list') return out(await api('GET', '/api/projects'));
@@ -340,7 +342,7 @@ async function main() {
     case 'outbox': { // outgoing mail: DRAFTS only. There is no approve and no send command: the owner approves the exact content with a button on the card.
       const flds = () => { const b = {}; if (opt.json) { try { Object.assign(b, JSON.parse(opt.json)); } catch { fail('--json is not valid JSON'); } }
         for (const k of ['kind', 'to', 'cc', 'bcc', 'subject', 'body', 'attach', 'task']) if (opt[k] !== undefined && opt[k] !== true) b[k] = opt[k];
-        if (opt['reply-email'] !== undefined) b.reply_email = opt['reply-email']; if (opt['no-card']) b.submit = false; return b; };
+        if (opt['reply-email'] !== undefined) b.reply_email = opt['reply-email']; if (opt['no-card']) b.submit = false; if (opt.long) b.long = true; return b; };
       if (sub === 'draft') return out(await api('POST', '/api/outbox', flds()));
       if (sub === 'update') { if (!arg) fail('usage: outbox update <id> [--to ...] [--subject ...] [--body ...]'); return out(await api('PATCH', `/api/outbox/${arg}`, flds())); }
       if (sub === 'submit') { if (!arg) fail('missing id'); return out(await api('POST', `/api/outbox/${arg}/submit`, {})); }
@@ -348,6 +350,25 @@ async function main() {
       if (sub === 'list') return out(await api('GET', '/api/outbox' + qs(opt, ['status', 'limit'])));
       if (sub === 'show') { if (!arg) fail('missing id'); return out(await api('GET', `/api/outbox/${arg}`)); }
       break; }
+    case 'style': { // WRITING STYLES (docs/WRITING-STYLES.md): `style for` before any mail; the outbox / draft commands enforce the result
+      const ctx = () => pick(opt, ['to', 'cc', 'task']); const re = opt['reply-email'] !== undefined ? { reply_email: opt['reply-email'] } : {};
+      if (sub === 'for') { if (!opt.to && !opt['reply-email'] && !opt.task) fail('usage: style for --to "a@b.com, Name" [--cc ..] [--reply-email ID] [--task ID]'); return out(await api('GET', '/api/styles/for' + qs({ ...ctx(), ...re }, ['to', 'cc', 'task', 'reply_email']))); }
+      if (sub === 'check') { if (!opt.body) fail('usage: style check --to "..." --body "..." [--reply-email ID] [--long]'); return out(await api('POST', '/api/styles/check', { ...ctx(), ...re, body: opt.body, long: !!opt.long })); }
+      if (sub === 'feedback') { if (!opt.to) fail('usage: style feedback --to "a@b.com, Name"'); return out(await api('GET', '/api/styles/feedback' + qs({ ...ctx(), limit: opt.limit }, ['to', 'cc', 'limit']))); }
+      if (sub === 'list') return out(await api('GET', '/api/styles'));
+      if (sub === 'show') { if (!arg) fail('usage: style show <key|id>'); return out(await api('GET', `/api/styles/${encodeURIComponent(arg)}`)); }
+      if (sub === 'suggest') { // the assistant cannot change rules: this becomes a suggestion the owner accepts in Settings
+        if (!arg) fail('usage: style suggest <key|id> --reason "..." [--max-sentences N] [--max-words N] [--greeting "..."] [--closing "..."] [--formality casual|neutral|formal] [--forbid "a,b"]');
+        const rules = {}; if (opt['max-sentences']) rules.max_sentences = opt['max-sentences']; if (opt['max-words']) rules.max_words = opt['max-words']; for (const k of ['greeting', 'closing', 'formality', 'language']) if (typeof opt[k] === 'string') rules[k] = opt[k];
+        const cur = await api('GET', `/api/styles/${encodeURIComponent(arg)}`); if (opt.forbid) rules.forbidden_phrases = [...cur.rules.forbidden_phrases, ...String(opt.forbid).split(',').map((x) => x.trim())];
+        return out(await api('PATCH', `/api/styles/${encodeURIComponent(arg)}`, { rules, reason: opt.reason, ...(typeof opt.description === 'string' ? { description_he: opt.description } : {}) })); }
+      if (sub === 'analyse' || sub === 'analyze' || sub === 'try') { // background runs of the assistant on the owner's SENT mail: owner / developer only
+        if (process.env.MESIMOT_AGENT_MODE) fail('this command is not available to the assistant');
+        const args = sub === 'try' ? ['--style-try', JSON.stringify({ to: opt.to, say: opt.say, cc: opt.cc })] : ['--style-analyse', JSON.stringify({ person: opt.person, group: opt.group, role: opt.role, classify: opt.classify, domains: opt.domains, default: !!opt.default, force: !!opt.force, dry: !!opt.dry, budget: opt.budget, all: !opt.person && !opt.group && !opt.role && !opt.default })];
+        if (sub === 'try' && (!opt.to || !opt.say)) fail('usage: style try --to "..." --say "what the mail should say"   (a dry run: nothing is saved or sent)');
+        const r = require('child_process').spawnSync(process.execPath, [require('path').join(__dirname, 'mesimot-runner'), ...args], { stdio: 'inherit' });
+        process.exit(r.status ?? 2); }
+      fail('usage: style for|check|feedback|list|show|suggest|analyse|try'); }
     case 'confirm':
       if (sub === 'task-delete') { if (!arg) fail('usage: confirm task-delete <task id>'); return out(await api('POST', '/api/confirm', { kind: 'task_delete', id: arg })); }
       if (sub === 'project-delete') { if (!arg) fail('usage: confirm project-delete <project> --tasks move:<project>|unassign|delete'); return out(await api('POST', '/api/confirm', { kind: 'project_delete', id: arg, payload: { tasks: opt.tasks || 'unassign', ...(opt.facts ? { facts: opt.facts } : {}), ...(opt.protocols ? { protocols: opt.protocols } : {}) } })); }
