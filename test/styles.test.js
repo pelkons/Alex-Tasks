@@ -174,3 +174,8 @@ test('analysis of the sent mail: measured in code, saved as PROPOSED, never over
   A.mark(t.key, { done: true }); assert.equal(A.progress()[t.key].done, true, 'progress is kept for a resumed run');
 });
 
+
+test('a long signature block under the name (title, phones, links) is not part of what he wrote', () => {
+  const m = metrics('דנה, היי\nנצטרך לעדכן את המפרט.\nדנה\nלוי\nמנהלת פרויקטים\n050-0000000 <tel:0500000000>\n|\ndana@example.com <mailto:dana@example.com>\n|\nwww.example.com\nexample', ['דנה', 'דנה לוי']);
+  assert.equal(m.body, 'נצטרך לעדכן את המפרט.'); assert.ok(m.signature);
+});
