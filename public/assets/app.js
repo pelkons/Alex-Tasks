@@ -15,7 +15,7 @@ const todayISO = () => { const p = jerusalemParts(new Date()); return `${p.year}
 
 // the settings categories (order = the order on the screen) and their icons
 const SET_CATS = [
-  { id: 'notify', title: 'התראות וטלגרם' }, { id: 'outlook', title: 'מחשב Outlook' }, { id: 'mail', title: 'דואר' },
+  { id: 'notify', title: 'התראות וטלגרם' }, { id: 'outlook', title: 'מחשב Outlook' }, { id: 'mail', title: 'דואר' }, { id: 'styles', title: 'סגנונות כתיבה' },
   { id: 'calendar', title: 'יומן באאוטלוק' }, { id: 'ai', title: 'מודלים ועלויות' }, { id: 'tasks', title: 'סטטוסים ודחיפויות' },
   { id: 'trash', title: 'סל מחזור ושמירה' }, { id: 'backup', title: 'גיבוי והצפנה' }, { id: 'account', title: 'חשבון ואבטחה' }, { id: 'system', title: 'מצב המערכת' },
 ];
@@ -23,6 +23,7 @@ const SET_ICONS = {
   notify: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   outlook: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  styles: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   ai: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>',
   tasks: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/>',
@@ -44,7 +45,7 @@ function app() {
     toastMsg: '', toastErr: false, _toastT: null, dlg: null,
     // stage 2
     chatMsgs: [], lastMsgId: 0, chatText: '', chatFiles: [], sending: false, listening: false, awaitingId: 0, status: { working: false, pending_chat: 0, last_run: null, last_message_id: 0 },
-    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, restoredBins: {}, bin: { items: [], counts: {}, total: 0, days: 60, kind: '', loading: false }, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
+    showManual: false, listScroll: null, ed: null, picker: null, noteFocus: false, seenId: 0, nowTick: Date.now(), chatOpen: false, act: null, sem: null, moreOpen: false, storage: null, health: null, dropping: null, chatTask: null, density: 'regular', uploads: [], personCard: null, usage: null, usageDays: 7, fbStats: null, fb: { open: false, reason: '', text: '', sent: null, fixes: false, mergeInto: '', id: null }, fbReasons: ['לא משימה', 'משימה של מישהו אחר', 'פרויקט שגוי', 'תאריך שגוי', 'היה צריך משימה', 'כפילות'], mailFilters: [], fform: { kind: 'sender', pattern: '', action: 'skip', project: '', field: 'any' }, fprev: null, purgeDlg: null, purgeUndo: null, purgeTick: 0, restoredBins: {}, bin: { items: [], counts: {}, total: 0, days: 60, kind: '', loading: false }, proposalCards: {}, propSel: {}, ingest: null, doneUndo: null, enterId: null, replyTo: null, sysHealth: null, cn: { devices: [], code: null, latest: null }, bk: { st: null, ask: false, pw: '', key: null, busy: false, err: '' }, obSet: null, obEdit: null, sty: { list: [], sugg: [], groups: [], roles: {}, people: [], ed: null, add: { kind: 'person', ref: '' }, newPh: '', memberQ: {} }, tcText: '', tcSending: false, sc: { text: '', sending: false, waiting: '' }, msgMenu: null, editing: null, delDlg: null, chatTaskMsgs: true, listeningTask: false, newBelow: 0, calView: 'month', calProject: 'all', calFilterOpen: false, calPopStyle: '', calDate: null, calSel: null, calItems: [], st: null, allowText: '', pw: { old: '', new: '' }, protos: [], proto: null, protoErr: '', protoProject: '', selItems: [],
     sq: { q: '', kind: '', project: '', person: '', from: '', to: '', archive: false, mailArchive: true }, arc: { q: '', project: '', person: '', from: '', to: '', items: [], total: 0, loading: false },  sres: null, sErr: '',
     emailView: null, emailErr: '', mailThreadOpen: null, _emailTpl: null,
     mail: { f: { q: '', folder: 'all', project: '', person: '', personName: '', from: '', to: '', att: false, linked: '', archive: '1', noise: '', mode: 'threads' }, range: '', pq: '', sug: [], showF: false, items: [], next: null, total: null, newCount: 0, since: null, capped: false, loading: false, loaded: false, err: '', openId: null, open: {}, sub: {}, seq: 0, urlKey: null, visited: false, scroll: 0 },
@@ -1490,6 +1491,35 @@ function app() {
     async addFilter() { try { await this.api('POST', '/api/filters', { ...this.fform, project: this.fform.project || null }); this.fform.pattern = ''; this.fprev = null; this.toast('הכלל נוסף'); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async toggleFilter(f) { try { await this.api('PATCH', '/api/filters/' + f.id, { enabled: !f.enabled }); await this.loadFilters(); } catch (e) { this.fail(e); } },
     async deleteFilter(f) { try { const r = await this.api('DELETE', '/api/filters/' + f.id); this.showBinBar(r); await Promise.all([this.loadFilters(), this.loadBoot()]); } catch (e) { this.fail(e); } },
+    // ---- writing styles (Settings → סגנונות כתיבה)
+    async loadStyles() { try { const r = await this.api('GET', '/api/styles'); this.sty.list = r.styles; this.sty.sugg = r.suggestions; this.sty.groups = r.groups; this.sty.roles = r.roles; } catch (e) { /* optional */ } },
+    styStatus(s) { return s.status === 'active' ? (s.is_default ? 'פעיל · ברירת מחדל' : 'פעיל') : s.status === 'proposed' ? 'הצעה' : 'כבוי'; },
+    styKind(k) { return { person: 'אדם', group: 'קבוצה', domain: 'דומיין', role: 'תפקיד' }[k] || k; },
+    styEdit(v) { const r = v.rules; return { ...JSON.parse(JSON.stringify(v)), sig: r.signature === true ? 'yes' : r.signature === false ? 'no' : 'any', len: `${r.max_sentences || ''}|${r.max_words || ''}` }; },
+    async styOpen(s) {
+      try { const v = await this.api('GET', '/api/styles/' + s.id); this.sty.ed = this.styEdit(v); this.sty.add = { kind: 'person', ref: '' }; if (!this.sty.people.length) this.sty.people = (await this.api('GET', '/api/people')).filter((p) => p.role !== 'assistant' && p.role !== 'owner'); this.$nextTick(() => { const el = document.querySelector('.set-panel'); if (el) el.scrollIntoView({ block: 'start' }); }); } catch (e) { this.fail(e); }
+    },
+    styClose() { this.sty.ed = null; this.loadStyles(); },
+    styGreetOpts() { const l = [['any', 'לא משנה'], ['none', 'בלי פנייה'], ['{first_name}, היי', '„שם, היי”'], ['היי {first_name}', '„היי שם”'], ['הי {first_name}', '„הי שם”'], ['שלום {first_name}', '„שלום שם”'], ['בוקר טוב {first_name}', '„בוקר טוב שם”'], ['שלום רב', '„שלום רב”']]; const c = this.sty.ed && this.sty.ed.rules.greeting; return c && !l.some((o) => o[0] === c) ? [...l, [c, '„' + c.replace(/\{first_name\}/g, 'שם') + '”']] : l; },
+    styCloseOpts() { const l = [['any', 'לא משנה'], ['none', 'בלי'], ['תודה', '„תודה”'], ['תודה רבה', '„תודה רבה”'], ['בברכה', '„בברכה”'], ['בכבוד רב', '„בכבוד רב”']]; const c = this.sty.ed && this.sty.ed.rules.closing; return c && !l.some((o) => o[0] === c) ? [...l, [c, '„' + c + '”']] : l; },
+    styLenOpts() { const l = [['2|40', 'קצר מאוד (עד 2 משפטים)'], ['3|60', 'קצר (עד 3 משפטים)'], ['5|100', 'בינוני (עד 5 משפטים)'], ['8|160', 'ארוך (עד 8 משפטים)'], ['|220', 'עד כ-220 מילים'], ['|', 'בלי הגבלה']]; const c = this.sty.ed && this.sty.ed.len; if (c && !l.some((o) => o[0] === c)) { const [a, b] = c.split('|'); l.unshift([c, [a ? 'עד ' + a + ' משפטים' : '', b ? 'כ-' + b + ' מילים' : ''].filter(Boolean).join(', ') || 'בלי הגבלה']); } return l; },
+    styPreview() {
+      const e = this.sty.ed; if (!e) return ''; const r = e.rules; const name = 'דנה'; const L = [];
+      if (r.greeting && r.greeting !== 'any' && r.greeting !== 'none') L.push(r.greeting.replace(/\{first_name\}/g, name));
+      L.push(r.formality === 'casual' ? 'תזכירי לי מה עם התוכניות?' : r.formality === 'formal' ? 'נבקש לקבל את התוכניות המעודכנות עד יום חמישי.' : 'אפשר לקבל את התוכניות המעודכנות עד חמישי?');
+      if (r.closing && r.closing !== 'any' && r.closing !== 'none') L.push(r.closing);
+      if (e.sig === 'yes') L.push('(השם שלך)');
+      return L.filter(Boolean).join('\n');
+    },
+    async stySave(status) {
+      const e = this.sty.ed; const [ms, mw] = String(e.len || '|').split('|');
+      const rules = { ...e.rules, signature: e.sig === 'yes' ? true : e.sig === 'no' ? false : 'any', max_sentences: ms ? +ms : null, max_words: mw ? +mw : null };
+      try { const v = await this.api('PATCH', '/api/styles/' + e.id, { name_he: e.name_he, description_he: e.description_he, rules, ...(status ? { status } : {}) }); this.sty.ed = this.styEdit(v); this.toast(status === 'active' ? 'הסגנון הופעל' : status === 'disabled' ? 'הסגנון הושבת' : 'נשמר'); this.loadStyles(); } catch (err) { this.fail(err); }
+    },
+    async styAssign() { const e = this.sty.ed; let ref = this.sty.add.ref; if (this.sty.add.kind === 'person') { const p = this.sty.people.find((x) => x.name_he === ref); if (p) ref = p.id; } try { const v = await this.api('POST', `/api/styles/${e.id}/assign`, { kind: this.sty.add.kind, ref }); this.sty.ed.who = v.who; this.sty.add.ref = ''; } catch (err) { this.fail(err); } },
+    async styUnassign(w) { try { const v = await this.api('DELETE', `/api/styles/${this.sty.ed.id}/assign/${w.id}`); this.sty.ed.who = v.who; } catch (err) { this.fail(err); } },
+    async styMember(person, group) { if (!person) return; const p = typeof person === 'number' ? person : (this.sty.people.find((x) => x.name_he === person) || {}).id; if (!p) { this.toast('האדם לא נמצא', true); return; } try { await this.api('POST', '/api/styles/group-member', { person: p, group }); if (group) this.sty.memberQ[group] = ''; const v = await this.api('GET', '/api/styles/' + this.sty.ed.id); this.sty.ed.who = v.who; } catch (err) { this.fail(err); } },
+    async styDecide(g, accept) { try { await this.api('POST', `/api/style-suggestions/${g.id}/${accept ? 'accept' : 'dismiss'}`, {}); this.toast(accept ? 'הסגנון עודכן' : 'ההצעה נדחתה'); this.loadStyles(); } catch (e) { this.fail(e); } },
     // ---- the settings screen: a list of categories, one panel per category
     setCats() { return SET_CATS; },
     setLast() { let c = null; try { c = localStorage.getItem('mesimot.set.cat'); } catch (e) { /* no storage */ } return SET_CATS.some((x) => x.id === c) ? c : SET_CATS[0].id; },
@@ -1509,6 +1539,7 @@ function app() {
         case 'notify': return 'דוא״ל ' + on(st.notify_email) + ' · טלגרם ' + on(st.notify_telegram) + ' · שקט ' + st.quiet_start + '–' + st.quiet_end;
         case 'outlook': { const act = this.cn.devices.filter((d) => !d.revoked).length; return (this.ingest ? this.ingestState() : '') + (act ? ' · ' + act + ' מחשבים' : ''); }
         case 'mail': return (this.obSet ? (this.obSet.enabled ? 'שליחה פעילה' : 'שליחה מושבתת') + ' · ' : '') + this.mailFilters.length + ' כללי סינון';
+        case 'styles': { const a = this.sty.list.filter((x) => x.status === 'active').length, pr = this.sty.list.filter((x) => x.status === 'proposed').length; return a + ' פעילים' + (pr ? ' · ' + pr + ' הצעות' : '') + (this.sty.sugg.length ? ' · ' + this.sty.sugg.length + ' לעדכון' : ''); }
         case 'calendar': return 'קישור מנוי לאאוטלוק';
         case 'ai': { const o = st.agent && st.agent.options.find((x) => x.name === st.agent.name); return (o ? o.label : '') + (st.daily_budget_usd ? ' · תקרה ' + this.usd(st.daily_budget_usd) : ''); }
         case 'tasks': return st.statuses.length + ' סטטוסים · ' + st.priorities.length + ' דחיפויות';
@@ -1538,7 +1569,7 @@ function app() {
     },
     setOther: null,
     pickModel(key, v, save) { if (v === '__other') { this.setOther = key; this.$nextTick(() => { const el = document.querySelector('[data-other="' + key + '"]'); if (el) el.focus(); }); return; } this.setOther = null; save(v); },
-    async loadSettings() { this.loadSysHealth(); this.loadOutbox(); this.loadIngest(); this.loadConnector(); this.loadBackup(); this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
+    async loadSettings() { this.loadStyles(); this.loadSysHealth(); this.loadOutbox(); this.loadIngest(); this.loadConnector(); this.loadBackup(); this.loadFilters(); this.api('GET', '/api/health').then((h) => { this.health = h; }).catch(() => {}); this.api('GET', '/api/storage').then((s) => { this.storage = s; }).catch(() => {}); this.st = await this.api('GET', '/api/settings'); this.allowText = this.st.email_allowlist.join('\n'); },
     async saveSet(b) { try { await this.api('PATCH', '/api/settings', b); this.toast('נשמר'); await this.loadSettings(); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async renameItem(table, s, name) { try { await this.api('PATCH', `/api/${table}/${s.id}`, { name_he: name }); this.toast('נשמר'); await Promise.all([this.loadSettings(), this.loadBoot()]); } catch (e) { this.fail(e); await this.loadSettings(); } },
     async copyText(t) {

@@ -1465,6 +1465,97 @@
         </div>
       </template>
 
+      <!-- סגנונות כתיבה: lib/writingstyle.js; the rules are checked by code on every draft -->
+      <template x-if="setCat()==='styles'">
+        <div class="set-body sty" data-test="styles">
+          <template x-if="!sty.ed">
+            <div>
+              <template x-if="sty.sugg.length">
+                <div>
+                  <h3 class="set-h set-h1">הצעות לעדכון</h3>
+                  <div class="set-group">
+                    <template x-for="g in sty.sugg" :key="'sg'+g.id">
+                      <div class="set-row sty-sugg" data-test="sty-sugg"><span class="set-l"><b dir="auto" x-text="g.text_he"></b><small x-text="g.style_name + (g.source==='assistant' ? ' · ביקש אלכס' : ' · לפי התיקונים שלך')"></small></span>
+                        <span class="set-v"><button class="btn small primary" @click="styDecide(g, true)">לעדכן</button><button class="btn small" @click="styDecide(g, false)">לא</button></span></div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <h3 class="set-h" :class="{'set-h1': !sty.sugg.length}">הסגנונות</h3>
+              <div class="set-group">
+                <template x-for="s in sty.list" :key="'sty'+s.id">
+                  <button class="set-row sty-row" @click="styOpen(s)" :data-key="s.key">
+                    <span class="set-l"><b dir="auto" x-text="s.name_he"></b><small dir="auto" x-text="s.who_he"></small></span>
+                    <span class="sty-st" :class="s.status" x-text="styStatus(s)"></span>
+                  </button>
+                </template>
+              </div>
+              <p class="set-hint">כל טיוטת מייל של אלכס נבדקת מול הסגנון של הנמען לפני שמגיעה לאישור.</p>
+            </div>
+          </template>
+
+          <template x-if="sty.ed">
+            <div class="sty-ed" data-test="sty-editor">
+              <div class="sty-top"><button class="btn small" @click="styClose()">→ כל הסגנונות</button><span class="sty-st" :class="sty.ed.status" x-text="styStatus(sty.ed)"></span></div>
+              <div class="set-group">
+                <div class="set-row set-col"><span class="set-l"><b>שם</b></span><input type="text" x-model="sty.ed.name_he" dir="auto" aria-label="שם הסגנון"></div>
+                <div class="set-row set-col"><span class="set-l"><b>תיאור קצר</b><small>אלכס קורא אותו לפני שהוא כותב</small></span><textarea rows="3" x-model="sty.ed.description_he" dir="auto" aria-label="תיאור"></textarea></div>
+              </div>
+              <h3 class="set-h">כללים</h3>
+              <div class="set-group">
+                <div class="set-row"><span class="set-l"><b>רשמיות</b></span><select class="set-sel" x-model="sty.ed.rules.formality" aria-label="רשמיות"><option value="casual">קליל</option><option value="neutral">עסקי-ענייני</option><option value="formal">רשמי</option></select></div>
+                <div class="set-row"><span class="set-l"><b>שפה</b></span><select class="set-sel" x-model="sty.ed.rules.language" aria-label="שפה"><option value="same-as-thread">כמו בשרשור</option><option value="he">עברית</option><option value="en">אנגלית</option><option value="ru">רוסית</option></select></div>
+                <div class="set-row"><span class="set-l"><b>פתיחה</b></span><select class="set-sel" x-model="sty.ed.rules.greeting" aria-label="פתיחה"><template x-for="o in styGreetOpts()" :key="o[0]"><option :value="o[0]" :selected="o[0]===sty.ed.rules.greeting" x-text="o[1]"></option></template></select></div>
+                <div class="set-row"><span class="set-l"><b>סיום</b></span><select class="set-sel" x-model="sty.ed.rules.closing" aria-label="סיום"><template x-for="o in styCloseOpts()" :key="o[0]"><option :value="o[0]" :selected="o[0]===sty.ed.rules.closing" x-text="o[1]"></option></template></select></div>
+                <div class="set-row"><span class="set-l"><b>חתימה</b><small>בדרך כלל נוספת אוטומטית</small></span><select class="set-sel" x-model="sty.ed.sig" aria-label="חתימה"><option value="no">בלי</option><option value="yes">בשם</option><option value="any">לא משנה</option></select></div>
+                <div class="set-row"><span class="set-l"><b>אורך</b></span><select class="set-sel" x-model="sty.ed.len" aria-label="אורך"><template x-for="o in styLenOpts()" :key="o[0]"><option :value="o[0]" :selected="o[0]===sty.ed.len" x-text="o[1]"></option></template></select></div>
+                <label class="set-row"><span class="set-l"><b>תבליטים</b></span><input type="checkbox" class="tgl" x-model="sty.ed.rules.allow_bullets"></label>
+              </div>
+              <h3 class="set-h">למי</h3>
+              <div class="set-group">
+                <div class="set-row set-col">
+                  <div class="sty-chips"><template x-for="w in sty.ed.who" :key="'w'+w.id"><span class="sty-chip" :data-kind="w.kind"><small x-text="styKind(w.kind)"></small><span dir="auto" x-text="w.label"></span><button type="button" @click="styUnassign(w)" :aria-label="'הסרה: '+w.label">×</button></span></template>
+                    <span class="muted sm" x-show="!sty.ed.who.length" x-text="sty.ed.is_default ? 'כל מי שאין לו סגנון אחר' : 'עדיין לא משויך'"></span></div>
+                  <form class="sty-add" @submit.prevent="styAssign()">
+                    <select x-model="sty.add.kind" aria-label="סוג"><option value="person">אדם</option><option value="group">קבוצה</option><option value="domain">דומיין</option><option value="role">תפקיד</option></select>
+                    <template x-if="sty.add.kind==='role'"><select x-model="sty.add.ref" aria-label="תפקיד"><option value="">בחירה…</option><template x-for="(v, k) in sty.roles" :key="k"><option :value="k" x-text="v"></option></template></select></template>
+                    <template x-if="sty.add.kind!=='role'"><input type="text" x-model="sty.add.ref" :list="sty.add.kind==='person' ? 'sty-people' : sty.add.kind==='group' ? 'sty-groups' : null" :dir="sty.add.kind==='domain' ? 'ltr' : 'auto'" :placeholder="sty.add.kind==='person' ? 'שם' : sty.add.kind==='group' ? 'שם הקבוצה' : 'example.com'" aria-label="למי"></template>
+                    <button class="btn small" type="submit" :disabled="!sty.add.ref">הוספה</button>
+                  </form>
+                </div>
+                <template x-for="w in sty.ed.who.filter(x => x.kind==='group')" :key="'gm'+w.id">
+                  <div class="set-row set-col"><span class="set-l"><b x-text="'בקבוצה „'+w.label+'”'"></b></span>
+                    <div class="sty-chips"><template x-for="p in (w.members||[])" :key="'m'+p.id"><span class="sty-chip"><span dir="auto" x-text="p.name_he"></span><button type="button" @click="styMember(p.id, null)" :aria-label="'הוצאה מהקבוצה: '+p.name_he">×</button></span></template></div>
+                    <form class="sty-add" @submit.prevent="styMember(sty.memberQ[w.ref], w.ref)"><input type="text" x-model="sty.memberQ[w.ref]" list="sty-people" placeholder="להוסיף אדם" aria-label="להוסיף אדם לקבוצה"><button class="btn small" type="submit">הוספה</button></form>
+                  </div>
+                </template>
+              </div>
+              <h3 class="set-h">ביטויים אסורים</h3>
+              <div class="set-group">
+                <div class="set-row set-col">
+                  <div class="sty-chips"><template x-for="(ph, i) in sty.ed.rules.forbidden_phrases" :key="'ph'+i+ph"><span class="sty-chip"><span dir="auto" x-text="ph"></span><button type="button" @click="sty.ed.rules.forbidden_phrases.splice(i, 1)" :aria-label="'הסרה: '+ph">×</button></span></template></div>
+                  <form class="sty-add" @submit.prevent="if (sty.newPh.trim()) { sty.ed.rules.forbidden_phrases.push(sty.newPh.trim()); sty.newPh=''; }"><input type="text" x-model="sty.newPh" dir="auto" placeholder="ביטוי" aria-label="ביטוי אסור"><button class="btn small" type="submit">הוספה</button></form>
+                  <small class="muted" x-show="sty.ed.forbidden_effective.length" x-text="'תמיד אסור ברמה הזו: '+sty.ed.forbidden_effective.filter(x => !sty.ed.rules.forbidden_phrases.includes(x)).join(', ')"></small>
+                </div>
+              </div>
+              <h3 class="set-h">תצוגה מקדימה</h3>
+              <div class="set-group"><div class="set-row set-col"><pre class="sty-prev" dir="auto" x-text="styPreview()" data-test="sty-preview"></pre></div></div>
+              <template x-if="sty.ed.examples && sty.ed.examples.length">
+                <div><h3 class="set-h">דוגמאות מהמיילים שלך</h3>
+                  <div class="set-group"><template x-for="e in sty.ed.examples" :key="'ex'+e.email_id"><div class="set-row set-col"><small class="muted" x-text="e.date + (e.subject ? ' · '+e.subject : '')"></small><p class="sty-ex" dir="auto" x-text="e.text"></p></div></template></div></div>
+              </template>
+              <div class="btnrow sty-actions">
+                <button class="btn primary" @click="stySave()" data-test="sty-save">שמירה</button>
+                <button class="btn" x-show="sty.ed.status!=='active'" @click="stySave('active')" data-test="sty-activate">הפעלה</button>
+                <button class="btn" x-show="sty.ed.status==='active' && !sty.ed.is_default" @click="stySave('disabled')">השבתה</button>
+              </div>
+              <datalist id="sty-people"><template x-for="p in sty.people" :key="'dp'+p.id"><option :value="p.name_he"></option></template></datalist>
+              <datalist id="sty-groups"><template x-for="g in sty.groups" :key="'dg'+g"><option :value="g"></option></template></datalist>
+            </div>
+          </template>
+        </div>
+      </template>
+
       <!-- גיבוי והצפנה -->
       <template x-if="setCat()==='backup'">
         <div class="set-body bk-card">
@@ -1755,6 +1846,7 @@
         <div class="ob-card" x-show="m.outbox" x-cloak>
           <template x-if="m.outbox">
             <div>
+              <span class="ob-style" x-show="m.outbox.style_name" x-text="'סגנון: '+m.outbox.style_name" data-test="ob-style"></span>
               <template x-if="!(obEdit && obEdit.id===m.outbox.id && !m.outbox.stale && m.outbox.status==='pending')">
                 <pre class="ob-text" dir="auto" x-text="m.text"></pre>
               </template>

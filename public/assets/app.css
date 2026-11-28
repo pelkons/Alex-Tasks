@@ -1615,3 +1615,26 @@ label.set-row { cursor: pointer; }
 .push-msg b { color: var(--text); font-weight: 500; }
 .push-err small { color: var(--danger); }
 .set-note { margin: 8px 4px 0; }
+
+/* ---- writing styles (Settings → סגנונות כתיבה) and the style tag on an outgoing-mail card */
+.sty-row { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--border); color: inherit; font: inherit; text-align: start; cursor: pointer; flex-wrap: nowrap; }
+.sty-row .set-l small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sty-st { flex: none; font-size: .75rem; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.sty-st.active { background: var(--primary-soft); color: var(--primary); border-color: transparent; font-weight: 500; }
+.sty-st.proposed { color: var(--text); border-style: dashed; }
+.sty-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.sty-ed input[type=text], .sty-ed textarea { width: 100%; min-width: 0; }
+.sty-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.sty-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 34px; padding: 0 4px 0 0; padding-inline: 12px 4px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface-2); font-size: .88rem; }
+.sty-chip > span { overflow-wrap: anywhere; min-width: 0; }
+.sty-chip small { color: var(--muted); font-size: .72rem; }
+.sty-chip button { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.sty-chip button:hover { background: var(--border); color: var(--text); }
+.sty-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.sty-add input, .sty-add select { flex: 1 1 140px; min-width: 0; min-height: 40px; width: auto !important; }
+.sty-add select:first-child { flex: 0 1 120px; }
+.sty-prev { margin: 0; white-space: pre-wrap; font: inherit; line-height: 1.6; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+.sty-ex { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92rem; line-height: 1.55; }
+.sty-sugg { flex-wrap: wrap; }
+.sty-actions { margin-top: 16px; justify-content: flex-start; flex-wrap: wrap; }
+.ob-style { display: inline-block; font-size: .75rem; padding: 1px 9px; margin-bottom: 6px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
