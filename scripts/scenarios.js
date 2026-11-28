@@ -117,7 +117,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
   db = open(process.env.MESIMOT_DB); store = createStore(db);
   const cli = (...a) => sh(path.join(root, 'bin', 'mesimot'), a);
   const knowledge0 = () => createKnowledge(db, store);
-  for (const [n, al] of [['חוזה מגדל הדוגמה', 'מגדל הדוגמה,100.2000'], ['מגדל הנוף', 'המגדל'], ['רחוב הנחל', 'הנחל']]) cli('project', 'add', '--name', n, '--aliases', al);
+  for (const [n, al] of [['חוזה מגדל הדוגמה', 'מגדל הדוגמה,100.2000'], ['מגדל הנוף', 'המגדל'], ['רחוב הנחל', 'הנחל']]) store.createProject(store.ownerId(), { name: n, aliases: al }); // the assistant's `project add` is only a proposal since the owner-approval change: the owner creates them
   const login = await fetch('http://127.0.0.1:8111/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'test-password-1234' }) });
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const ownerChat = (text) => fetch('http://127.0.0.1:8111/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Mesimot': '1' }, body: JSON.stringify({ text }) });
