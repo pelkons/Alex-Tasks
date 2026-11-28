@@ -367,7 +367,7 @@ textarea.tc-title { min-height: 56px; resize: none; overflow: hidden; line-heigh
 
 .composer { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 8px; margin-bottom: 10px; box-shadow: var(--shadow); }
 .comp-row { display: flex; align-items: flex-end; gap: 4px; }
-.comp-input { flex: 1; min-width: 0; min-height: 46px; max-height: 160px; border: 0 !important; box-shadow: none !important; background: transparent !important; resize: none; padding: 11px 6px; font-size: 1.05rem; }
+.comp-input { flex: 1; min-width: 0; min-height: 46px; max-height: 160px; overflow-y: hidden; border: 0 !important; box-shadow: none !important; background: transparent !important; resize: none; padding: 11px 6px; font-size: 1.05rem; }
 .comp-row .icon-btn { flex: none; }
 .comp-row .send { min-height: 46px; flex: none; }
 .icon-btn.rec { color: #fff; background: var(--danger); }
@@ -886,12 +886,15 @@ body.chat-collapsed .chat-bar .bar-chev { display: block; }
   .chat-panel .cp-composer { flex: none; }
   .chat-panel .feed { flex: 1 1 0; }
 }
-* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent; }
-@supports not (scrollbar-width: thin) {
-  ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 55%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+/* slim themed scrollbars only with a mouse; touch screens keep the system's thin overlay bar that fades out (a styled bar stays on screen as a grey stripe) */
+@media (hover: hover) and (pointer: fine) {
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent; }
+  @supports not (scrollbar-width: thin) {
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 55%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+  }
 }
 
 /* project and protocol lists: narrow (180px / 220px minimum), the page takes the rest; the list width is its own, persisted setting */

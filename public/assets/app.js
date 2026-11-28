@@ -60,6 +60,7 @@ function app() {
       this.density = MesimotLayout.density();
       // phone: while the chat sheet is open the page behind it must not scroll (a swipe on the sheet used to move the task list)
       this.$watch('chatOpen', (v) => document.documentElement.classList.toggle('chat-lock', !!v));
+      for (const k of ['chatText', 'tcText', 'sc.text']) this.$watch(k, () => this.resizeComposers());
       // never let the browser open a dropped file (it would leave the app): dragging files over anything that is not a drop zone does nothing
       for (const t of ['dragover', 'drop']) window.addEventListener(t, (e) => { if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) { e.preventDefault(); if (t === 'drop') this.dropping = null; } });
       window.addEventListener('dragend', () => { this.dropping = null; });
@@ -1011,7 +1012,9 @@ function app() {
       new MutationObserver(keep).observe(f, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
       f.addEventListener('load', keep, true); // images / late content
     },
-    autosize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; },
+    autosize(el) { if (!el) return; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'; },
+    // every composer follows its text however it changes (typing, dictation, a draft put in by code, cleared after sending)
+    resizeComposers() { this.$nextTick(() => document.querySelectorAll('textarea.comp-input').forEach((el) => { if (el.offsetParent !== null) this.autosize(el); })); },
     // quote a message: the next message is a REPLY to it (the assistant sees which message he answered)
     startReply(m) { this.msgMenu = null; this.replyTo = { id: m.id, text: String(m.text || '').replace(/\s+/g, ' ').slice(0, 140) }; this.$nextTick(() => { const t = document.querySelector('.chat-panel .comp-input'); if (t) t.focus(); }); },
     async sendChat() {
