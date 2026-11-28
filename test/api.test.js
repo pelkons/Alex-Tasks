@@ -31,7 +31,7 @@ test('auth is required', async () => {
   assert.equal(r.statusCode, 401);
   r = await app.inject({ method: 'GET', url: '/settings' });
   assert.equal(r.statusCode, 302);
-  assert.equal(r.headers.location, '/login');
+  assert.equal(r.headers.location, '/login?next=%2Fsettings', 'the login returns to the page that was asked for');
   r = await app.inject({ method: 'GET', url: '/' });
   assert.equal(r.statusCode, 200, 'the public landing page is served at /');
   r = await app.inject({ method: 'GET', url: '/api/tasks', headers: { authorization: 'Bearer wrong' } });

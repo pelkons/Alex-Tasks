@@ -27,6 +27,8 @@
   </form>
 </main>
 <script>
+// back to the page that was asked for (a notification's link): only a path on this site
+const next = (() => { const n = new URLSearchParams(location.search).get('next') || '/'; return /^\/(?![\/\\])[\w\-/]*$/.test(n) ? n : '/'; })();
 const f = document.getElementById('f'), err = document.getElementById('err'), go = document.getElementById('go');
 f.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -34,7 +36,7 @@ f.addEventListener('submit', async (e) => {
   try {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('pw').value }) });
     const d = await r.json().catch(() => ({}));
-    if (r.ok) { location.replace('/'); return; }
+    if (r.ok) { location.replace(next); return; }
     err.textContent = d.error || 'אירעה שגיאה. נסו שוב';
   } catch (x) { err.textContent = 'אין חיבור לשרת. נסו שוב'; }
   err.hidden = false; go.disabled = false; go.textContent = 'כניסה';

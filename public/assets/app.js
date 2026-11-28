@@ -106,7 +106,7 @@ function app() {
         method, headers: { 'X-Mesimot': '1', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
         body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'same-origin',
       });
-      if (res.status === 401) { location.href = '/login'; throw new Error('יש להתחבר מחדש'); }
+      if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent(location.pathname); throw new Error('יש להתחבר מחדש'); }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'אירעה שגיאה. נסו שוב');
       return data;
@@ -697,7 +697,7 @@ function app() {
           if (f.size > 30 * 1024 * 1024) { saved.push(await this.uploadBig(f, project)); continue; }
           const fd = new FormData(); fd.append('file', f); if (project) fd.append('project', project);
           const res = await fetch('/api/files', { method: 'POST', headers: { 'X-Mesimot': '1' }, body: fd, credentials: 'same-origin' });
-          if (res.status === 401) { location.href = '/login'; return saved; }
+          if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return saved; }
           const d = await res.json().catch(() => ({}));
           if (!res.ok) { this.toast(d.error || 'ההעלאה נכשלה', true); continue; }
           for (const x of d) {
@@ -719,7 +719,7 @@ function app() {
       const call = async (method, url, body, headers = {}) => {
         cancelled();
         const res = await fetch(url, { method, headers: { 'X-Mesimot': '1', ...headers }, body, credentials: 'same-origin', signal: opts.signal });
-        if (res.status === 401) { location.href = '/login'; throw new Error('נדרשת התחברות'); }
+        if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent(location.pathname); throw new Error('נדרשת התחברות'); }
         const d = await res.json().catch(() => ({}));
         if (!res.ok) { const e = new Error(d.error || 'ההעלאה נכשלה'); e.status = res.status; throw e; }
         return d;
@@ -1013,7 +1013,7 @@ function app() {
         const fd = new FormData(); fd.append('file', f); if (task) fd.append('task', task);
         x.open('POST', '/api/files'); x.setRequestHeader('X-Mesimot', '1'); x.withCredentials = true;
         x.upload.onprogress = (e) => { if (e.lengthComputable) { chip.pct = Math.round((e.loaded / e.total) * 100); chip.text = `מעלה… ${chip.pct}%`; } };
-        x.onload = () => { let d = []; try { d = JSON.parse(x.responseText); } catch (e) { /* ignore */ } if (x.status === 401) { location.href = '/login'; return; } if (x.status >= 200 && x.status < 300 && d[0]) resolve(d[0]); else reject(new Error((d && d.error) || 'ההעלאה נכשלה')); };
+        x.onload = () => { let d = []; try { d = JSON.parse(x.responseText); } catch (e) { /* ignore */ } if (x.status === 401) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; } if (x.status >= 200 && x.status < 300 && d[0]) resolve(d[0]); else reject(new Error((d && d.error) || 'ההעלאה נכשלה')); };
         x.onerror = () => reject(new Error('ההעלאה נכשלה, בדקו את החיבור'));
         chip.ctl.signal.addEventListener('abort', () => { x.abort(); reject(new Error('ההעלאה בוטלה')); });
         chip.text = 'מעלה…'; x.send(fd);
