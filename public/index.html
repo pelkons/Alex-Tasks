@@ -236,65 +236,67 @@
         </div>
 
         <button class="btn small ghost" x-show="detail.protocol" @click="openProtocol(detail.protocol.protocol_id)" x-text="'מתוך פרוטוקול: '+(detail.protocol ? clipText(detail.protocol.title, 50) : '')"></button>
-        <div class="fb-bar" x-show="detail.source_email_id && (!detail.feedback_given || fb.fixes) && !fb.done" x-transition.opacity.duration.400ms x-init="fbReset()">
-          <span class="muted sm">האם אלכס צדק כשפתח את המשימה הזו?</span>
-          <button type="button" class="icon-btn" :class="{on: fb.sent==='up'}" @click="fbVote('task', detail.id, 'up')" aria-label="מועיל" title="מועיל">👍</button>
-          <button type="button" class="icon-btn" :class="{on: fb.sent==='down' || fb.open}" @click="fb.open=true" aria-label="לא מועיל" title="לא מועיל">👎</button>
-          <span class="muted sm" x-show="fb.sent && !fb.open">תודה, זה נשמר ומשפר את העיבוד.</span>
-          <div class="fb-panel" x-show="fb.open" x-cloak>
-            <div class="fb-chips"><template x-for="r in fbReasons" :key="r"><button type="button" class="chip" :class="{on: fb.reason===r}" @click="fb.reason=r" x-text="r"></button></template></div>
-            <input type="text" x-model="fb.text" placeholder="הערה (לא חובה)" aria-label="הערה לא חובה">
-            <div class="btnrow"><button class="btn small primary" @click="fbVote('task', detail.id, 'down')" :disabled="!fb.reason && !fb.text.trim()">שליחה</button><button class="btn small ghost" @click="fb.open=false">ביטול</button></div>
-          </div>
-          <div class="fb-fix" x-show="fb.fixes">
-            <span class="muted sm">תיקון מיידי:</span>
-            <button class="btn small" x-show="['לא משימה','משימה של מישהו אחר'].includes(fb.reason)" @click="fbFix('info')">הפוך למידע בלבד</button>
-            <select x-show="fb.reason==='פרויקט שגוי'" @change="fbFix('project', $event.target.value)"><option value="">בחרו פרויקט…</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
-            <button class="btn small" x-show="fb.reason==='תאריך שגוי'" @click="openPicker('due', $event)">שינוי תאריך יעד</button>
-            <span x-show="fb.reason==='כפילות'"><input type="number" x-model="fb.mergeInto" placeholder="מספר משימה" style="width:110px"> <button class="btn small" @click="fbFix('merge', fb.mergeInto)" :disabled="!fb.mergeInto">מזג לתוכה</button></span>
-            <select x-show="fb.reason==='משימה של מישהו אחר'" @change="fbFix('assignee', $event.target.value)"><option value="">שייך ל…</option><template x-for="p in boot.people.filter(p=>p.role!=='assistant')" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
-          </div>
-        </div>
-        <div class="sect corr" x-show="detail.email || (detail.correspondence && detail.correspondence.length)">
-          <h3>התכתבות</h3>
-          <div x-show="detail.email" x-html="mailHeadHtml(detail.email)"></div>
-          <template x-for="c in (detail.correspondence || [])" :key="c.email_id">
-            <div class="corr-item">
-            <button class="corr-row" @click="go('/email/'+c.email_id)">
-              <span class="rel" :class="c.relation" x-text="relHe(c.relation)"></span>
-              <span class="c-main"><b x-text="c.from_name || nameOf(c.from)"></b> <span class="muted" x-text="'· '+fmtDateTime(c.date)"></span>
-                <span class="c-sum" x-text="c.summary || c.subject"></span></span>
-            </button>
-            <template x-for="f in (c.files || [])" :key="f.id">
-              <div class="att-row"><span class="att-ic" x-text="fileIcon(f)"></span>
-                <span class="att-main"><b x-text="f.name"></b>
-                  <span class="att-sum" x-show="f.summary" x-text="f.summary"></span>
-                  <span class="att-sum muted" x-show="!f.summary" x-text="f.chunks ? 'אלכס עדיין לא סיכם את הקובץ' : 'אין טקסט לקריאה בקובץ'"></span></span>
-                <a class="btn small ghost" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a></div>
-            </template>
-            </div>
-          </template>
-          <details class="email-src" x-show="detail.email">
-            <summary>המייל המקורי</summary>
-            <template x-if="detail.email">
-              <div class="es-body" x-data="{open: false, mode: detail.email.has_html ? 'html' : 'text', remote: false}">
-                <div class="muted" x-show="detail.email.original_subject" x-text="'נושא: '+detail.email.original_subject"></div>
-                <div class="muted" x-show="detail.email.attachments.length" x-text="'קבצים מצורפים: '+detail.email.attachments.map(a=>a.filename).join(', ')"></div>
-                <div class="mailview in-card" x-show="detail.email.has_html">
-                  <div class="mv-bar"><span class="seg"><button class="btn small ghost" :class="{on: mode==='html'}" @click="mode='html'">תצוגה מקורית</button><button class="btn small ghost" :class="{on: mode==='text'}" @click="mode='text'">טקסט</button></span>
-                    <span class="mv-remote muted sm" x-show="mode==='html' && detail.email.remote_images && !remote">התמונות החיצוניות חסומות · <a href="#" @click.prevent="remote=true">הצג</a></span></div>
-                  <iframe class="mv-frame" x-show="mode==='html'" :src="mode==='html' ? '/api/emails/'+detail.email.id+'/view'+(remote?'?remote=1':'') : 'about:blank'" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="המייל המקורי"></iframe>
-                </div>
-                <pre class="mailtext" x-show="mode==='text' || !detail.email.has_html" :class="{collapsed: !open}" dir="auto" x-text="open ? detail.email.body_clean : (detail.email.body_clean || '').split('\n').slice(0, 12).join('\n')"></pre>
-                <button class="btn small ghost" x-show="(mode==='text' || !detail.email.has_html) && (detail.email.body_clean || '').split('\n').length > 12" @click="open = !open" x-text="open ? 'הצג פחות' : 'הצג הכל'"></button>
-                <button class="btn small ghost" @click="go('/email/'+detail.email.id)">פתיחה בדף מלא</button>
+        <!-- the lower part of the card: 1) the emails, 2) drafts, 3) notes (what changed), 4) the conversation, 5) footer -->
+        <section class="cs corr" data-sec="mail" x-show="mailCards().length">
+          <h3 class="cs-h"><span>התכתבות</span><span class="cs-n" x-text="mailCards().length"></span></h3>
+          <template x-for="c in mailCards()" :key="c.id">
+            <article class="mail-card" :class="{'is-src': c.src}">
+              <button type="button" class="corr-row" @click="go('/email/'+c.id)" :title="'פתיחת המייל: '+c.subject">
+                <span class="mc-top"><b class="mc-from" x-text="c.from"></b><span class="rel" :class="c.relation" x-show="c.relation" x-text="relHe(c.relation)"></span><span class="mc-date" x-text="dayTime(c.date)" :title="fmtDateTime(c.date)"></span></span>
+                <span class="mc-subj" dir="auto" x-text="c.subject"></span>
+                <span class="c-sum" dir="auto" x-show="c.summary" x-text="c.summary"></span>
+              </button>
+              <div class="att-list" x-show="c.files.length">
+                <template x-for="f in c.files" :key="f.id">
+                  <div class="att-row" :title="f.summary ? '' : (f.chunks ? 'אלכס עדיין לא סיכם את הקובץ' : 'אין טקסט לקריאה בקובץ')"><span class="att-ic" x-text="fileIcon(f)"></span>
+                    <span class="att-main"><b dir="auto" x-text="f.name"></b>
+                      <span class="att-sum" x-show="f.summary" x-text="f.summary"></span></span>
+                    <a class="att-open" :href="'/api/files/'+f.id+'/download?inline=1'" target="_blank" rel="noopener">פתיחה</a></div>
+                </template>
               </div>
-            </template>
-          </details>
-        </div>
+              <template x-if="c.src && detail.email">
+                <details class="email-src">
+                  <summary>המייל המקורי</summary>
+                  <div class="es-head" x-html="mailHeadHtml(detail.email)"></div>
+                  <div class="es-body" x-data="{open: false, mode: detail.email.has_html ? 'html' : 'text', remote: false}">
+                    <div class="muted" x-show="detail.email.original_subject" x-text="'נושא: '+detail.email.original_subject"></div>
+                    <div class="muted" x-show="detail.email.attachments.length" x-text="'קבצים מצורפים: '+detail.email.attachments.map(a=>a.filename).join(', ')"></div>
+                    <div class="mailview in-card" x-show="detail.email.has_html">
+                      <div class="mv-bar"><span class="seg"><button class="btn small ghost" :class="{on: mode==='html'}" @click="mode='html'">תצוגה מקורית</button><button class="btn small ghost" :class="{on: mode==='text'}" @click="mode='text'">טקסט</button></span>
+                        <span class="mv-remote muted sm" x-show="mode==='html' && detail.email.remote_images && !remote">התמונות החיצוניות חסומות · <a href="#" @click.prevent="remote=true">הצג</a></span></div>
+                      <iframe class="mv-frame" x-show="mode==='html'" :src="mode==='html' ? '/api/emails/'+detail.email.id+'/view'+(remote?'?remote=1':'') : 'about:blank'" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="המייל המקורי"></iframe>
+                    </div>
+                    <pre class="mailtext" x-show="mode==='text' || !detail.email.has_html" :class="{collapsed: !open}" dir="auto" x-text="open ? detail.email.body_clean : (detail.email.body_clean || '').split('\n').slice(0, 12).join('\n')"></pre>
+                    <button class="btn small ghost" x-show="(mode==='text' || !detail.email.has_html) && (detail.email.body_clean || '').split('\n').length > 12" @click="open = !open" x-text="open ? 'הצג פחות' : 'הצג הכל'"></button>
+                    <button class="btn small ghost" @click="go('/email/'+detail.email.id)">פתיחה בדף מלא</button>
+                  </div>
+                </details>
+              </template>
+            </article>
+          </template>
+          <div class="fb-bar" x-show="detail.source_email_id && (!detail.feedback_given || fb.fixes) && !fb.done" x-transition.opacity.duration.400ms x-init="fbReset()">
+            <span class="muted sm">האם אלכס צדק כשפתח את המשימה הזו?</span>
+            <button type="button" class="icon-btn" :class="{on: fb.sent==='up'}" @click="fbVote('task', detail.id, 'up')" aria-label="מועיל" title="מועיל">👍</button>
+            <button type="button" class="icon-btn" :class="{on: fb.sent==='down' || fb.open}" @click="fb.open=true" aria-label="לא מועיל" title="לא מועיל">👎</button>
+            <span class="muted sm" x-show="fb.sent && !fb.open">תודה, זה נשמר ומשפר את העיבוד.</span>
+            <div class="fb-panel" x-show="fb.open" x-cloak>
+              <div class="fb-chips"><template x-for="r in fbReasons" :key="r"><button type="button" class="chip" :class="{on: fb.reason===r}" @click="fb.reason=r" x-text="r"></button></template></div>
+              <input type="text" x-model="fb.text" placeholder="הערה (לא חובה)" aria-label="הערה לא חובה">
+              <div class="btnrow"><button class="btn small primary" @click="fbVote('task', detail.id, 'down')" :disabled="!fb.reason && !fb.text.trim()">שליחה</button><button class="btn small ghost" @click="fb.open=false">ביטול</button></div>
+            </div>
+            <div class="fb-fix" x-show="fb.fixes">
+              <span class="muted sm">תיקון מיידי:</span>
+              <button class="btn small" x-show="['לא משימה','משימה של מישהו אחר'].includes(fb.reason)" @click="fbFix('info')">הפוך למידע בלבד</button>
+              <select x-show="fb.reason==='פרויקט שגוי'" @change="fbFix('project', $event.target.value)"><option value="">בחרו פרויקט…</option><template x-for="p in boot.projects.filter(p=>!p.is_default)" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+              <button class="btn small" x-show="fb.reason==='תאריך שגוי'" @click="openPicker('due', $event)">שינוי תאריך יעד</button>
+              <span x-show="fb.reason==='כפילות'"><input type="number" x-model="fb.mergeInto" placeholder="מספר משימה" style="width:110px"> <button class="btn small" @click="fbFix('merge', fb.mergeInto)" :disabled="!fb.mergeInto">מזג לתוכה</button></span>
+              <select x-show="fb.reason==='משימה של מישהו אחר'" @change="fbFix('assignee', $event.target.value)"><option value="">שייך ל…</option><template x-for="p in boot.people.filter(p=>p.role!=='assistant')" :key="p.id"><option :value="p.id" x-text="p.name_he"></option></template></select>
+            </div>
+          </div>
+        </section>
 
-        <div class="sect drafts" x-show="detail.drafts && detail.drafts.filter(d=>d.status!=='בוטל').length">
-          <h3>טיוטת תשובה</h3>
+        <section class="cs drafts" data-sec="drafts" x-show="detail.drafts && detail.drafts.filter(d=>d.status!=='בוטל').length">
+          <h3 class="cs-h"><span>טיוטת תשובה</span><span class="cs-n" x-text="detail.drafts.filter(x=>x.status!=='בוטל').length"></span></h3>
           <template x-for="d in detail.drafts.filter(x=>x.status!=='בוטל')" :key="d.id">
             <div class="draft">
               <pre class="draft-text" dir="auto" x-text="d.text"></pre>
@@ -302,25 +304,35 @@
                 <span class="muted sm" x-show="d.status==='הועתק'">הועתק</span></div>
             </div>
           </template>
-        </div>
+        </section>
 
-        <div class="sect tchat">
-          <h3 x-show="taskConv().length>0">שיחה על המשימה</h3>
-          <div class="tc-feed" x-ref="tcfeed" x-show="taskConv().length>0" x-effect="detail && detail.thread && scrollTaskFeed()">
-            <template x-for="it in taskConv()" :key="it.key">
-              <div>
-                <div class="bubble tc-b" :class="it.m.author" x-show="it.type==='msg'"><template x-if="it.type==='msg'"><div>
-                  <div class="b-head"><span class="actor" :class="{claude: it.m.author==='claude'}" x-text="it.m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(it.m.created_at)"></span></div>
-                  <span class="msg-act" x-show="!it.m.import_id" @click.outside="if(msgMenu===it.m.id) msgMenu=null"><button type="button" class="icon-btn msg-dots" @click.stop="msgMenu = (msgMenu===it.m.id ? null : it.m.id)" aria-label="פעולות להודעה" title="פעולות להודעה">⋯</button>
-                    <span class="msg-menu" x-show="msgMenu===it.m.id" x-cloak><button type="button" x-show="it.m.author==='owner'" @click="startEdit(it.m)">ערוך</button><button type="button" @click="askDelete(it.m)">מחק</button></span></span>
-                  <span class="edited-mark" x-show="it.m.edited">נערך</span>
-                  <template x-if="editing && editing.id===it.m.id"><div class="msg-edit"><textarea class="edit-in" x-model="editing.text" rows="3" @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); saveEdit(); }" @keydown.escape.stop="cancelEdit()" x-init="$nextTick(() => $el.focus())"></textarea><div class="muted sm">Enter לשמירה, Esc לביטול</div></div></template>
-                  <details class="sup-reply" x-show="it.m.superseded && !(editing && editing.id===it.m.id)"><summary>תשובה קודמת (הוחלפה)</summary><div class="b-text" x-html="chatHtml(it.m.text, it.m.refs)"></div></details>
-                  <div class="b-text" x-show="!it.m.superseded && !(editing && editing.id===it.m.id)" x-html="chatHtml(it.m.text, it.m.refs)"></div>
-                  <div class="b-files" x-show="it.m.files.length"><template x-for="f in it.m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
-                </div></template></div>
-                <div class="tc-note" x-show="it.type==='note'"><template x-if="it.type==='note'"><div><span class="muted">הערה · <span x-text="fmtDateTime(it.n.created_at)"></span> · <span x-text="it.n.author"></span>:</span> <span x-text="it.n.text"></span></div></template></div>
-                <div class="tc-ev" x-show="it.type==='ev'"><template x-if="it.type==='ev'"><div><span class="muted" x-text="fmtDateTime(it.e.created_at)"></span> <span x-text="it.e.actor"></span> <span x-text="describe(it.e)"></span></div></template></div>
+        <section class="cs tc-notes" data-sec="notes" x-show="(detail.notes || []).length">
+          <h3 class="cs-h"><span>הערות ועדכונים</span><span class="cs-n" x-text="(detail.notes || []).length"></span></h3>
+          <ol class="tl">
+            <template x-for="n in notesView()" :key="n.id">
+              <li class="tl-item"><div class="tl-meta"><span x-text="dayTime(n.created_at)" :title="fmtDateTime(n.created_at)"></span><span x-show="n.author" x-text="' · '+n.author"></span></div><div class="tl-text" dir="auto" x-text="n.text"></div></li>
+            </template>
+          </ol>
+          <button type="button" class="tc-more" x-show="notesView().length < (detail.notes || []).length" @click="unfold('notes:'+detail.id)" x-text="'עוד '+((detail.notes || []).length - notesView().length)+' הערות'"></button>
+        </section>
+
+        <section class="cs tchat" data-sec="chat">
+          <h3 class="cs-h"><span>שיחה על המשימה</span><span class="cs-n" x-show="(detail.thread || []).length" x-text="(detail.thread || []).length"></span></h3>
+          <p class="cs-empty muted sm" x-show="!(detail.thread || []).length && !busy()" x-text="'אפשר לשאול את '+assistantName()+' על המשימה, לבקש טיוטה או עדכון.'"></p>
+          <div class="tc-feed" x-ref="tcfeed" x-show="(detail.thread || []).length || busy()" x-effect="detail && detail.thread && scrollTaskFeed()">
+            <button type="button" class="tc-more" x-show="convHidden(detail.thread, 'task:'+detail.id)" @click="unfold('task:'+detail.id)" x-text="'הודעות קודמות ('+convHidden(detail.thread, 'task:'+detail.id)+')'"></button>
+            <template x-for="{m, day, key} in convItems(detail.thread, 'task:'+detail.id)" :key="key">
+              <div class="tc-item" :class="m.author">
+                <div class="day-sep" x-show="day"><span x-text="day"></span></div>
+                <div class="bubble tc-b" :class="m.author">
+                  <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span><span class="edited-mark" x-show="m.edited">נערך</span>
+                    <span class="msg-act" x-show="!m.import_id" @click.outside="if(msgMenu===m.id) msgMenu=null"><button type="button" class="icon-btn msg-dots" @click.stop="msgMenu = (msgMenu===m.id ? null : m.id)" aria-label="פעולות להודעה" title="פעולות להודעה">⋯</button>
+                      <span class="msg-menu" x-show="msgMenu===m.id" x-cloak><button type="button" x-show="m.author==='owner'" @click="startEdit(m)">ערוך</button><button type="button" @click="askDelete(m)">מחק</button></span></span></div>
+                  <template x-if="editing && editing.id===m.id"><div class="msg-edit"><textarea class="edit-in" x-model="editing.text" rows="3" @keydown.enter="if(!$event.shiftKey && !$event.isComposing){ $event.preventDefault(); saveEdit(); }" @keydown.escape.stop="cancelEdit()" x-init="$nextTick(() => $el.focus())"></textarea><div class="muted sm">Enter לשמירה, Esc לביטול</div></div></template>
+                  <details class="sup-reply" x-show="m.superseded && !(editing && editing.id===m.id)"><summary>תשובה קודמת (הוחלפה)</summary><div class="b-text" x-html="chatHtml(m.text, m.refs)"></div></details>
+                  <div class="b-text" x-show="!m.superseded && !(editing && editing.id===m.id)" x-html="chatHtml(m.text, m.refs)" @click="chatClick($event)"></div>
+                  <div class="b-files" x-show="m.files.length"><template x-for="f in m.files" :key="f.id"><a class="fchip" :href="'/api/files/'+f.id+'/download'" x-text="fileIcon(f)+' '+f.name"></a></template></div>
+                </div>
               </div>
             </template>
             <div class="bubble claude thinking-b" x-show="busy()"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
@@ -336,11 +348,12 @@
             <button type="button" class="icon-btn" :class="{rec: listeningTask}" @click="toggleMic('task')" aria-label="הקלטה קולית" title="הקלטה קולית"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
             <button type="submit" class="btn primary" :disabled="tcSending || uploading() || (!tcText.trim() && !chatFiles.some(f => f.done))">שליחה</button>
           </form>
-        </div>
+        </section>
 
-        <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">העבר לסל</button></div>
-
-        <p class="stamps muted" x-show="detail.created_at"><span x-text="'נוצרה: '+fmtDateTime(detail.created_at)"></span><br><span x-text="'עדכון אחרון: '+fmtDateTime(detail.updated_at || detail.created_at)"></span></p>
+        <footer class="cs cs-foot" data-sec="foot">
+          <p class="stamps muted" x-show="detail.created_at"><span x-text="'נוצרה '+dayTime(detail.created_at)" :title="fmtDateTime(detail.created_at)"></span><span class="sep">·</span><span x-text="'עדכון אחרון '+dayTime(detail.updated_at || detail.created_at)" :title="fmtDateTime(detail.updated_at || detail.created_at)"></span></p>
+          <div class="purge-row"><button type="button" class="linkbtn danger" @click="purgeDlg = {t: detail}">העבר לסל</button></div>
+        </footer>
       </div>
     </template>
   </section>
@@ -685,11 +698,13 @@
       <div class="sect sc-chat email-chat" x-data x-init="scLoad('email:'+emailView.id)">
         <h3>שיחה עם <span x-text="assistantName()"></span> על המייל</h3>
         <div class="tc-feed sc-feed" x-show="scMsgs('email:'+emailView.id).length>0" x-effect="scMsgs('email:'+emailView.id).length && scScroll()">
-          <template x-for="m in scMsgs('email:'+emailView.id)" :key="m.id">
+          <button type="button" class="tc-more" x-show="convHidden(scMsgs('email:'+emailView.id), 'email:'+emailView.id)" @click="unfold('email:'+emailView.id)" x-text="'הודעות קודמות ('+convHidden(scMsgs('email:'+emailView.id), 'email:'+emailView.id)+')'"></button>
+          <template x-for="{m, day, key} in convItems(scMsgs('email:'+emailView.id), 'email:'+emailView.id)" :key="key">
+            <div class="tc-item" :class="m.author"><div class="day-sep" x-show="day"><span x-text="day"></span></div>
             <div class="bubble tc-b" :class="m.author">
-              <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+              <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span></div>
               <div class="b-text" x-html="chatHtml(m.text, m.refs)" @click="chatClick($event)"></div>
-            </div>
+            </div></div>
           </template>
           <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('email:'+emailView.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
         </div>
@@ -959,9 +974,11 @@
 <section class="pj-card sc-chat pj-chat" x-data x-init="scLoad('project:'+pp.project.id)" aria-labelledby="pj-c-h">
   <div class="pj-ch"><h2 id="pj-c-h">שיחה עם <span x-text="assistantName()"></span> על הפרויקט</h2></div>
   <div class="tc-feed sc-feed" x-show="scMsgs('project:'+pp.project.id).length>0" x-effect="scMsgs('project:'+pp.project.id).length && scScroll()">
-    <template x-for="m in scMsgs('project:'+pp.project.id)" :key="m.id">
+    <button type="button" class="tc-more" x-show="convHidden(scMsgs('project:'+pp.project.id), 'project:'+pp.project.id)" @click="unfold('project:'+pp.project.id)" x-text="'הודעות קודמות ('+convHidden(scMsgs('project:'+pp.project.id), 'project:'+pp.project.id)+')'"></button>
+    <template x-for="{m, day, key} in convItems(scMsgs('project:'+pp.project.id), 'project:'+pp.project.id)" :key="key">
+      <div class="tc-item" :class="m.author"><div class="day-sep" x-show="day"><span x-text="day"></span></div>
       <div class="bubble tc-b" :class="m.author">
-        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span></div>
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
@@ -970,7 +987,7 @@
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
-      </div>
+      </div></div>
     </template>
     <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('project:'+pp.project.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
   </div>
@@ -1030,9 +1047,11 @@
 <div class="sect sc-chat" x-data x-init="scLoad('protocol:'+proto.id)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על הפרוטוקול</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('protocol:'+proto.id).length>0" x-effect="scMsgs('protocol:'+proto.id).length && scScroll()">
-    <template x-for="m in scMsgs('protocol:'+proto.id)" :key="m.id">
+    <button type="button" class="tc-more" x-show="convHidden(scMsgs('protocol:'+proto.id), 'protocol:'+proto.id)" @click="unfold('protocol:'+proto.id)" x-text="'הודעות קודמות ('+convHidden(scMsgs('protocol:'+proto.id), 'protocol:'+proto.id)+')'"></button>
+    <template x-for="{m, day, key} in convItems(scMsgs('protocol:'+proto.id), 'protocol:'+proto.id)" :key="key">
+      <div class="tc-item" :class="m.author"><div class="day-sep" x-show="day"><span x-text="day"></span></div>
       <div class="bubble tc-b" :class="m.author">
-        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span></div>
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
@@ -1041,7 +1060,7 @@
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
-      </div>
+      </div></div>
     </template>
     <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('protocol:'+proto.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
   </div>
@@ -1145,9 +1164,11 @@
 <div class="sect sc-chat" x-data x-effect="calSel && scLoad('day:'+calSel)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על היום הזה</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('day:'+calSel).length>0" x-effect="scMsgs('day:'+calSel).length && scScroll()">
-    <template x-for="m in scMsgs('day:'+calSel)" :key="m.id">
+    <button type="button" class="tc-more" x-show="convHidden(scMsgs('day:'+calSel), 'day:'+calSel)" @click="unfold('day:'+calSel)" x-text="'הודעות קודמות ('+convHidden(scMsgs('day:'+calSel), 'day:'+calSel)+')'"></button>
+    <template x-for="{m, day, key} in convItems(scMsgs('day:'+calSel), 'day:'+calSel)" :key="key">
+      <div class="tc-item" :class="m.author"><div class="day-sep" x-show="day"><span x-text="day"></span></div>
       <div class="bubble tc-b" :class="m.author">
-        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span></div>
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
@@ -1156,7 +1177,7 @@
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
-      </div>
+      </div></div>
     </template>
     <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('day:'+calSel)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
   </div>
@@ -1588,9 +1609,11 @@
 <div class="sect sc-chat" x-data x-init="scLoad('person:'+p.id)">
   <h3>שיחה עם <span x-text="assistantName()"></span> על איש הקשר</h3>
   <div class="tc-feed sc-feed" x-show="scMsgs('person:'+p.id).length>0" x-effect="scMsgs('person:'+p.id).length && scScroll()">
-    <template x-for="m in scMsgs('person:'+p.id)" :key="m.id">
+    <button type="button" class="tc-more" x-show="convHidden(scMsgs('person:'+p.id), 'person:'+p.id)" @click="unfold('person:'+p.id)" x-text="'הודעות קודמות ('+convHidden(scMsgs('person:'+p.id), 'person:'+p.id)+')'"></button>
+    <template x-for="{m, day, key} in convItems(scMsgs('person:'+p.id), 'person:'+p.id)" :key="key">
+      <div class="tc-item" :class="m.author"><div class="day-sep" x-show="day"><span x-text="day"></span></div>
       <div class="bubble tc-b" :class="m.author">
-        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span> <span x-text="fmtDateTime(m.created_at)"></span></div>
+        <div class="b-head"><span class="actor" :class="{claude: m.author==='claude'}" x-text="m.author==='claude' ? assistantName() : ownerName()"></span><span class="b-time" x-text="hm(m.created_at)" :title="fmtDateTime(m.created_at)"></span></div>
         <div class="b-text" x-show="!m.confirm" x-html="chatHtml(m.text, m.refs)"></div>
         <div class="cf-card" x-show="m.confirm" x-cloak>
           <p class="b-text" x-text="m.confirm ? m.confirm.text : ''"></p>
@@ -1599,7 +1622,7 @@
           <p class="muted sm" x-show="m.confirm && m.confirm.status==='failed'" x-text="m.confirm && m.confirm.result ? m.confirm.result.error : ''"></p>
           <p class="sm" x-show="m.confirm && m.confirm.status==='yes'"><b x-text="confirmDone(m.confirm)"></b> <button class="btn small" x-show="canRestore(m.confirm)" @click="undoPurge(m.confirm)">שחזר</button></p>
         </div>
-      </div>
+      </div></div>
     </template>
     <div class="bubble claude thinking-b" x-show="busy() && sc.waiting===('person:'+p.id)"><span class="dots"><i></i><i></i><i></i></span> <span x-text="assistantName()+' חושב…'"></span></div>
   </div>

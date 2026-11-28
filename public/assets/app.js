@@ -505,22 +505,59 @@ function app() {
         await this.refreshAfterEdit();
       } catch (err) { this.fail(err); }
     },
-    // ---- task-scoped chat (the "שיחה על המשימה" block of the card): the thread, the assistant's actions and the old notes in one chronological list
-    taskConv() {
+    // ---- the lower part of the task card: the emails (source first), the notes timeline and the conversation, each its own section
+    fold: {}, // conversations / timelines the owner unfolded, by key ('task:5', 'notes:5', 'project:3' ...)
+    FOLD_AT: 8, FOLD_SHOW: 6,
+    unfold(k) { this.fold = { ...this.fold, [k]: true }; },
+    // the emails of the task as compact cards: the source email first, then the later ones, newest first
+    mailCards() {
       const d = this.detail; if (!d) return [];
-      const items = [
-        ...(d.thread || []).map((m) => ({ key: 'm' + m.id, type: 'msg', at: m.created_at, m })),
-        ...(d.notes || []).map((n) => ({ key: 'n' + n.id, type: 'note', at: n.created_at, n })),
-      ]; // ONLY the conversation: his messages, the assistant's replies, the notes. Field changes and system events live in the history at the bottom of the card.
-      return items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+      const list = (d.correspondence || []).map((c) => ({ id: c.email_id, from: c.from_name || this.nameOf(c.from) || 'ללא שולח', relation: c.relation, date: c.date, subject: c.subject || 'ללא נושא', summary: c.summary || '', files: c.files || [], src: c.email_id === d.source_email_id }));
+      if (d.email && !list.some((x) => x.src)) {
+        const e = d.email; const m = /^(.*?)\s*<([^>]+)>\s*$/.exec(e.from || '');
+        list.push({ id: e.id, from: (m ? m[1] : e.from) || 'המייל המקורי', relation: null, date: e.date || e.received_at, subject: e.original_subject || e.subject || 'ללא נושא', summary: '', files: [], src: true });
+      }
+      return list.sort((a, b) => (b.src - a.src) || String(b.date || '').localeCompare(String(a.date || '')));
     },
+    // the notes (what changed on the task, who wrote it), newest first; the older ones fold
+    notesView() {
+      const d = this.detail; if (!d) return [];
+      const all = [...(d.notes || [])].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      return this.fold['notes:' + d.id] || all.length <= 4 ? all : all.slice(0, 3);
+    },
+    // a conversation as rows with a day separator where the day changes; a long one shows only its last messages until unfolded
+    convHidden(list, k) { const n = (list || []).length; return !this.fold[k] && n > this.FOLD_AT ? n - this.FOLD_SHOW : 0; },
+    convItems(list, k) {
+      const all = (list || []).filter(Boolean); const hid = this.convHidden(all, k); let prev = null;
+      return all.slice(hid).map((m) => { const d = this.dayOf(m.created_at); const it = { key: 'm' + m.id, m, day: d !== prev ? this.dayLabel(m.created_at) : '' }; prev = d; return it; });
+    },
+    dayLabel(iso) {
+      if (!iso) return '';
+      const p = jerusalemParts(new Date(iso)), d = `${p.year}-${p.month}-${p.day}`, t = todayISO();
+      const dt = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)));
+      const diff = Math.round((dt(t) - dt(d)) / 86400000);
+      if (diff === 0) return 'היום'; if (diff === 1) return 'אתמול';
+      const wd = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'][dt(d).getUTCDay()];
+      return diff > 1 && diff < 7 ? `יום ${wd}, ${p.day}/${p.month}` : (p.year === t.slice(0, 4) ? `${p.day}/${p.month}` : `${p.day}/${p.month}/${p.year}`);
+    },
+    hm(iso) { if (!iso || iso.length === 10) return ''; const p = jerusalemParts(new Date(iso)); return `${p.hour}:${p.minute}`; },
+    // a short stamp for the email cards and the notes: "היום 09:49", "אתמול 17:09", "26/11 07:52"
+    dayTime(iso) { if (!iso) return ''; const l = this.dayLabel(iso); const h = this.hm(iso); return (l.startsWith('יום ') ? l.split(', ')[1] : l) + (h ? ' ' + h : ''); },
     setChatTaskMsgs(on) { this.chatTaskMsgs = on; try { localStorage.setItem('chatScopedMsgs', on ? '1' : '0'); } catch (e) {} if (on) this.scrollFeed(); },
     // a message that arrives with a missing field must never break the whole list: every message is normalised once, and the view never throws
     normMsg(m) { if (!m || typeof m !== 'object') return null; m.files = Array.isArray(m.files) ? m.files : []; m.tasks = Array.isArray(m.tasks) ? m.tasks : []; m.refs = m.refs && typeof m.refs === 'object' ? m.refs : { task: {}, projects: {}, email: {} }; m.text = m.text == null ? '' : String(m.text); return m; },
     // the MAIN chat: unscoped messages (plus answers to a conversation the owner started in Telegram); scoped conversations only when the toggle is on
     isMainMsg(m) { return !!m && (!m.scope || !!m.in_main); },
     chatView() { try { const all = Array.isArray(this.chatMsgs) ? this.chatMsgs : []; return all.filter((m) => m && (this.chatTaskMsgs || this.isMainMsg(m))); } catch (e) { return []; } },
-    scrollTaskFeed() { this.$nextTick(() => { const f = this.$refs.tcfeed || document.querySelector('.tc-feed'); if (f) f.scrollTop = f.scrollHeight; }); },
+    // the task conversation grows with the card (no box of its own): when a message is added to the open task, the newest one is brought into view (opening a card never jumps)
+    scrollTaskFeed() {
+      this.$nextTick(() => {
+        const d = this.detail; if (!d) return; const n = (d.thread || []).length + (this.busy() ? 1 : 0); const prev = this._tcSeen; this._tcSeen = { id: d.id, n };
+        if (!prev || prev.id !== d.id || n <= prev.n) return;
+        const items = document.querySelectorAll('.tchat .tc-feed > .tc-item, .tchat .tc-feed > .thinking-b:not([style*="display: none"])'); const last = items[items.length - 1];
+        if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    },
     // ENTITY-SCOPED chat (project / person / protocol / calendar day): the same thread component as the task chat; the ref is e.g. 'project:5'
     scMsgs(ref) { return (this.chatMsgs || []).filter((m) => m && m.scope === 'entity' && m.scope_ref === ref); },
     scScroll() { this.$nextTick(() => document.querySelectorAll('.sc-feed').forEach((f) => { f.scrollTop = f.scrollHeight; })); },
@@ -1067,7 +1104,16 @@ function app() {
         const label = n ? clip(n) : `${fall[k]} ${id}`;
         return label.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       };
-      return esc.replace(/(?:https?:\/\/[^\/\s<]+)?\/(task|projects|email)\/(\d+)/g, (m, k, id) => `<a href="/${k}/${id}" data-go="/${k}/${id}">${name(k, id)}</a>`).replace(/\n/g, '<br>');
+      const linked = esc.replace(/(?:https?:\/\/[^\/\s<]+)?\/(task|projects|email)\/(\d+)/g, (m, k, id) => `<a href="/${k}/${id}" data-go="/${k}/${id}">${name(k, id)}</a>`);
+      // readable long answers: a list line ("- ", "• ", "1. ") becomes an indented item, an empty line a small paragraph gap
+      const lines = linked.split('\n'); let out = '';
+      lines.forEach((ln, i) => {
+        const li = /^\s*([-•*]|\d{1,2}[.)])\s+(.*)$/.exec(ln);
+        if (li) out += `<span class="b-li"><span class="b-bul">${/\d/.test(li[1]) ? li[1] : '•'}</span><span>${li[2]}</span></span>`;
+        else if (!ln.trim()) { if (i > 0 && i < lines.length - 1 && lines[i - 1].trim()) out += '<span class="b-gap"></span>'; }
+        else out += ln + (i < lines.length - 1 && lines[i + 1].trim() && !/^\s*([-•*]|\d{1,2}[.)])\s+/.test(lines[i + 1]) ? '<br>' : '');
+      });
+      return out;
     },
     chatClick(ev) { const a = ev.target.closest && ev.target.closest('a[data-go]'); if (a) { ev.preventDefault(); this.go(a.dataset.go); } },
 
