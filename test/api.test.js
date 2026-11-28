@@ -261,14 +261,15 @@ test('the public landing page: bilingual, no personal data, static; robots.txt a
   const r = await app.inject({ method: 'GET', url: '/' });
   assert.equal(r.statusCode, 200);
   assert.match(r.headers['content-type'], /text\/html/);
-  assert.match(r.body, /<title>Mesimot — task and project management for construction engineering teams<\/title>/);
+  assert.match(r.body, /<title>Alex Tasks — an AI assistant that runs tasks and projects for construction teams<\/title>/);
   assert.match(r.body, /<meta name="description"/);
   assert.match(r.body, /Alex Tasks — ניהול משימות ופרויקטים לצוותי הנדסה ובנייה/);
   assert.match(r.body, /href="\/login"[^>]*>Sign in \/ כניסה/);
   assert.match(r.body, /Private business tool\. Access by invitation only\./);
   assert.ok(r.body.indexOf('Email to task') < r.body.indexOf('ממייל למשימה'), 'English first, then Hebrew');
   assert.ok(!/<script|https?:\/\/(?!www\.w3)/i.test(r.body), 'no scripts and no external requests');
-  for (const word of ['example', 'exconstruct', 'kosta', 'דנה', 'אשתרום', '@']) assert.ok(!r.body.toLowerCase().includes(word.toLowerCase()), 'no personal data: ' + word);
+  for (const word of ['example', 'exconstruct', 'kosta', 'דנה', 'אשתרום', 'mesimot']) assert.ok(!r.body.toLowerCase().includes(word.toLowerCase()), 'no personal data or old name: ' + word);
+  assert.ok(!/[\w.+-]+@[\w-]+\.[\w.]+/.test(r.body), 'no email address');
   const robots = await app.inject({ method: 'GET', url: '/robots.txt' });
   assert.equal(robots.statusCode, 200);
   assert.match(robots.body, /Allow: \/\$\nDisallow: \/\n/);
