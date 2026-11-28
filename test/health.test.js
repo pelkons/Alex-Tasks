@@ -109,3 +109,13 @@ test('the REAL smoke test: healthy app passes; the same app with a broken script
   const bad = await proxy(true); const badr = await smoke({ url: `http://127.0.0.1:${bad.address().port}`, password: 'correct horse battery', chrome, rowsTimeoutMs: 4000 }); bad.close();
   assert.equal(badr.ok, false); assert.ok(badr.problems.some((p) => /ריקה|שגיאות JavaScript/.test(p)), JSON.stringify(badr.problems));
 });
+
+test('MCP line: shown (without an alert) when the tools are on or refusals exist, hidden when off and quiet', async () => {
+  const s = setup(); delete process.env.MESIMOT_MCP;
+  let r = await s.h.run(); assert.equal(by(r, 'mcp:errors'), undefined, 'switch off, no refusals: no line');
+  s.db.prepare("INSERT INTO mcp_errors (at, run_id, method, path, status) VALUES (?,?,?,?,?)").run(new Date(s.state.now - 3600000).toISOString(), 1, 'PATCH', '/api/tasks/:id', 400);
+  s.db.prepare("INSERT INTO mcp_errors (at, run_id, method, path, status) VALUES (?,?,?,?,?)").run(new Date(s.state.now - 3 * 86400000).toISOString(), 1, 'PATCH', '/api/tasks/:id', 400);
+  r = await s.h.run(); const line = by(r, 'mcp:errors');
+  assert.ok(line && line.status === 'ok' && line.alert === false && /1 סירובים/.test(line.message), JSON.stringify(line));
+  assert.equal(r.ok, true); assert.equal(s.told.length, 0);
+});

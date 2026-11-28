@@ -24,3 +24,15 @@ test('Settings: the MCP switch is read and saved through /api/settings, four val
   process.env.MESIMOT_MCP = 'chat';
   try { m = await get(); assert.deepEqual([m.value, m.source], ['chat', 'env']); } finally { delete process.env.MESIMOT_MCP; }
 });
+
+test('a refusal given to an MCP tool is counted (X-Mesimot-Via), an ordinary one is not', async () => {
+  const db = open(':memory:'); auth.setPassword(db, 'correct horse battery'); auth.resetFailures();
+  const app = build({ db, token: 't', loginDelayMs: 0 });
+  const h = { authorization: 'Bearer t' };
+  await app.inject({ method: 'PATCH', url: '/api/tasks/99999', headers: h, payload: { title: 'x' } });
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM mcp_errors').get().n, 0);
+  await app.inject({ method: 'PATCH', url: '/api/tasks/99999', headers: { ...h, 'x-mesimot-via': 'mcp', 'x-mesimot-run': '7' }, payload: { title: 'x' } });
+  await app.inject({ method: 'GET', url: '/api/pending', headers: { ...h, 'x-mesimot-via': 'mcp' } });
+  const rows = db.prepare('SELECT run_id, method, path, status FROM mcp_errors').all();
+  assert.deepEqual(rows, [{ run_id: 7, method: 'PATCH', path: '/api/tasks/:id', status: 404 }]);
+});

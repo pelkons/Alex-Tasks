@@ -104,6 +104,14 @@ const CATS = ['notify', 'outlook', 'mail', 'calendar', 'ai', 'tasks', 'trash', '
       ok((await api(page, 'GET', '/api/settings')).agent.models.find((m) => m.job === 'pulse').model === 'opus', `${T}: a job's model saved`);
       await page.locator('.model-row[data-job=pulse] select').first().selectOption(was); await page.waitForTimeout(900);
       ok((await api(page, 'GET', '/api/settings')).agent.models.find((m) => m.job === 'pulse').model === was, `${T}: model back to ${was}`);
+      // the built-in tools switch (MCP): a dropdown with four values; a change is saved and shown
+      const mcp = page.locator('[data-test=set-mcp]'); const mcpWas = await mcp.inputValue();
+      ok(await mcp.isVisible() && (await mcp.locator('option').allTextContents()).join('|') === 'כבוי|צ׳אט בלבד|הכול|כלים בלבד', `${T}: the MCP dropdown shows the four values`);
+      const mcpTo = mcpWas === 'only' ? 'chat' : 'only';
+      await mcp.selectOption(mcpTo); ok(await toastSeen(page), `${T}: MCP dropdown: toast`); await page.waitForTimeout(600);
+      ok((await api(page, 'GET', '/api/settings')).agent.mcp.value === mcpTo, `${T}: the MCP switch saved (${mcpTo})`);
+      await page.locator('[data-test=set-mcp]').selectOption(mcpWas); await page.waitForTimeout(900);
+      ok((await api(page, 'GET', '/api/settings')).agent.mcp.value === mcpWas, `${T}: the MCP switch back to ${mcpWas}`);
       await page.locator('.model-row[data-job=pulse] select').first().selectOption('__other'); await page.waitForTimeout(300);
       ok(await page.locator('[data-other="m:pulse"]').isVisible(), `${T}: "אחר…" opens a free text field`);
     }

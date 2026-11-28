@@ -84,6 +84,13 @@ An agent can slip. Everything that matters is therefore enforced **in code**, in
 
 See `docs/ARCHITECTURE.md` for the architecture and the pipelines.
 
+## Built-in tools (MCP): nothing to configure
+
+The assistant works through built-in tools (`bin/mesimot-mcp`, a Model Context Protocol server that ships in this repository and has no extra dependency), not through shell commands:
+Claude Code, Codex and Gemini all get the same tools, generated per run, with the assistant's own token read from `~/.config/mesimot/env`. A new installation uses them out of the box (`all`);
+the tools call the same local API, so every rule, confirmation, audit entry and undo stays on the server. Settings → "כלים מובנים (MCP)" (or `MESIMOT_MCP`): off / chat only / all / tools only (no shell at all).
+The CLI (`bin/mesimot`) stays for people and scripts. Details: [docs/MCP.md](docs/MCP.md).
+
 ## Choose the agent (the brain)
 
 `MESIMOT_AGENT=claude-code|codex|gemini` (and optionally `MESIMOT_AGENT_MODEL`), or Settings → "המוח של אלכס". The instructions live in `agent/AGENTS.template.md` (rendered to `agent/AGENTS.md`)
