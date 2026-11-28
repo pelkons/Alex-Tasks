@@ -60,6 +60,40 @@ const CASES = {
   style_check: [{ to: 'a@x.example', body: 'B' }, [{ m: 'POST', url: '/api/styles/check', body: { to: 'a@x.example', body: 'B' } }]],
   confirm: [{ kind: 'project_delete', id: 'Tower', tasks: 'move:Park' }, [{ m: 'POST', url: '/api/confirm', body: { kind: 'project_delete', id: 'Tower', payload: { tasks: 'move:Park' } } }]],
   trash_restore: [{ id: 7 }, [{ m: 'POST', url: '/api/trash/7/restore', body: {} }]],
+  person_resolve: [{ person: 35, into: 52, company: 'C' }, [{ m: 'POST', url: '/api/people/35/resolve', body: { into: 52, company: 'C' } }]],
+  project_merge: [{ from: 'A', into: 'B' }, [{ m: 'POST', url: '/api/projects/A/merge', body: { into: 'B' } }]],
+  project_resolve: [{ project: 5, name: 'N', aliases: 'x,y' }, [{ m: 'POST', url: '/api/projects/5/resolve', body: { name: 'N', aliases: ['x', 'y'].join(',') } }]],
+  project_pending: [{ status: 'pending' }, [{ m: 'GET', url: '/api/project-proposals', query: { status: 'pending' } }]],
+  project_profile: [{ project: 'P', buildings: 2, floors: '8, 12', as_of: '2026-11-24', source: 'email:7' }, [{ m: 'POST', url: '/api/projects/P/profile', body: { buildings: 2, floors: '8, 12', as_of: '2026-11-24', source: 'email:7' } }]],
+  project_status: [{ project: 'P', process: 'permit', text: 'ממתינים', as_of: '2026-11-24', source: 'email:7' }, [{ m: 'POST', url: '/api/projects/P/status', body: { process: 'permit', text: 'ממתינים', as_of: '2026-11-24', source: 'email:7' } }]],
+  fact_set: [{ project: 'P', key: 'k', value: 'v', as_of: '24/11/2026' }, [{ m: 'POST', url: '/api/facts', body: { project: 'P', key: 'k', value: 'v', as_of: '24/11/2026' } }]],
+  fact_list: [{ project: 'P', history: true }, [{ m: 'GET', url: '/api/facts', query: { project: 'P', history: '1' } }]],
+  fact_topic: [{ id: 12, topic: 'permit' }, [{ m: 'POST', url: '/api/facts/topic', body: { id: 12, topic: 'permit' } }]],
+  knowledge_list: [{ project: 'P', include_superseded: true }, [{ m: 'GET', url: '/api/knowledge', query: { project: 'P', include_superseded: true } }]],
+  knowledge_add: [{ project: 'P', title: 'T', body: 'B' }, [{ m: 'POST', url: '/api/knowledge', body: { project: 'P', title: 'T', body: 'B' } }]],
+  knowledge_update: [{ id: 3, body: 'B2' }, [{ m: 'PATCH', url: '/api/knowledge/3', body: { body: 'B2' } }]],
+  knowledge_supersede: [{ id: 3, by: 4 }, [{ m: 'POST', url: '/api/knowledge/3/supersede', body: { by: 4 } }]],
+  file_classify: [{ id: 7, project: 'P', facts_checked: true }, [{ m: 'PATCH', url: '/api/files/7', body: { project: 'P', facts_checked: true } }]],
+  protocol_list: [{ project: 'P' }, [{ m: 'GET', url: '/api/protocols', query: { project: 'P' } }]],
+  protocol_add: [{ project: 'P', title: 'T', date: '2026-11-23', next_meeting: '07/12/2026 14:00' }, [{ m: 'POST', url: '/api/protocols', body: { project: 'P', date: '2026-11-23', title: 'T', next_meeting_at: '07/12/2026 14:00' } }]],
+  protocol_item_add: [{ protocol: 3, kind: 'action', text: 'T', recommended: true }, [{ m: 'POST', url: '/api/protocols/3/items', body: { kind: 'action', text: 'T', recommended: true } }]],
+  protocol_item_update: [{ id: 9, due: '2026-12-02', recommended: false }, [{ m: 'PATCH', url: '/api/protocol-items/9', body: { due: '2026-12-02', recommended: false } }]],
+  protocol_item_action: [{ id: 9, action: 'promote' }, [{ m: 'POST', url: '/api/protocol-items/9/promote', body: {} }]],
+  filter_list: [{}, [{ m: 'GET', url: '/api/filters' }]],
+  filter_add: [{ sender: 'a@spam.example' }, [{ m: 'POST', url: '/api/filters/preview', body: { kind: 'sender', pattern: 'a@spam.example', action: 'skip' } }, { m: 'POST', url: '/api/filters', body: { kind: 'sender', pattern: 'a@spam.example', action: 'skip' } }]],
+  filter_preview: [{ domain: 'spam.example', action: 'fyi' }, [{ m: 'POST', url: '/api/filters/preview', body: { kind: 'domain', pattern: 'spam.example', action: 'fyi' } }]],
+  filter_delete: [{ id: 2 }, [{ m: 'DELETE', url: '/api/filters/2' }]],
+  filter_update: [{ id: 2, enabled: false }, [{ m: 'PATCH', url: '/api/filters/2', body: { enabled: false } }]],
+  mail_archive: [{ action: 'estimate', emails: 100, full_share: 0.3 }, [{ m: 'GET', url: '/api/mail-archive/estimate', query: { emails: 100, full_share: 0.3 } }]],
+  telegram_status: [{}, [{ m: 'GET', url: '/api/telegram/status' }]],
+  push_status: [{}, [{ m: 'GET', url: '/api/push/status' }]],
+  usage: [{ days: 7, by: 'model' }, [{ m: 'GET', url: '/api/usage', query: { days: 7, by: 'model' } }]],
+  health: [{}, [{ m: 'GET', url: '/api/system-health' }]],
+  style_list: [{}, [{ m: 'GET', url: '/api/styles' }]],
+  style_show: [{ style: 'base' }, [{ m: 'GET', url: '/api/styles/base' }]],
+  style_feedback: [{ to: 'a@x.example', limit: 5 }, [{ m: 'GET', url: '/api/styles/feedback', query: { to: 'a@x.example', limit: 5 } }]],
+  style_suggest: [{ style: 'base', reason: 'r', max_words: 80, greeting: 'Hi' }, [{ m: 'PATCH', url: '/api/styles/base', body: { rules: { max_words: 80, greeting: 'Hi' }, reason: 'r' } }]],
+  outbox_submit: [{ id: 4 }, [{ m: 'POST', url: '/api/outbox/4/submit', body: {} }]],
 };
 // invalid arguments: refused before any HTTP call, and the message names the field and shows an example
 const BAD = {
@@ -68,7 +102,7 @@ const BAD = {
   search: [{}, /"q" is required/],
   ask: [{ q: '' }, /"q" must not be empty/],
   project_list: [{ find: 5, extra: 1 }, /unknown field "extra"/],
-  person_find: [{}, /"query" is required/],
+  person_find: [{ query: 5, extra: 1 }, /unknown field "extra"/],
   file_list: [{ project: { a: 1 } }, /"project"/],
   chat_list: [{ limit: 0 }, /"limit" must be at least 1/],
   pending: [{ x: 1 }, /unknown field/],
@@ -101,6 +135,40 @@ const BAD = {
   style_check: [{ to: 'a' }, /"body" is required/],
   confirm: [{ kind: 'task_delete' }, /"id" is required for kind "task_delete"/],
   trash_restore: [{ id: 'x' }, /"id" must be an integer/],
+  person_resolve: [{ into: 1 }, /"person" is required/],
+  project_merge: [{ from: 'A' }, /"into" is required/],
+  project_resolve: [{ name: 'x' }, /"project" is required/],
+  project_pending: [{ status: 5, z: 1 }, /unknown field "z"/],
+  project_profile: [{ project: 'P', as_of: '24/11' }, /"as_of" must be a date/],
+  project_status: [{ project: 'P', process: 'sales' }, /"process" must be one of/],
+  fact_set: [{ project: 'P', key: 'k' }, /"value" is required/],
+  fact_list: [{}, /"project" is required/],
+  fact_topic: [{ topic: 'permit' }, /give "id", or "project" and "key"/],
+  knowledge_list: [{ include_superseded: 'maybe' }, /"include_superseded" must be true or false/],
+  knowledge_add: [{ title: 'T' }, /"body" is required/],
+  knowledge_update: [{ body: 'x' }, /"id" is required/],
+  knowledge_supersede: [{}, /"id" is required/],
+  file_classify: [{ project: 'P' }, /"id" is required/],
+  protocol_list: [{ project: { a: 1 } }, /"project"/],
+  protocol_add: [{ date: 'x' }, /"title" is required/],
+  protocol_item_add: [{ kind: 'action' }, /"protocol" is required/],
+  protocol_item_update: [{ id: 1, party: 'both' }, /"party" must be one of/],
+  protocol_item_action: [{ id: 1, action: 'erase' }, /"action" must be one of/],
+  filter_list: [{ x: 1 }, /unknown field/],
+  filter_add: [{ action: 'skip' }, /give exactly one of/],
+  filter_preview: [{ sender: 'a', domain: 'b' }, /give exactly one of/],
+  filter_delete: [{}, /"id" is required/],
+  filter_update: [{ id: 1 }, /"enabled" is required/],
+  mail_archive: [{ action: 'wipe' }, /"action" must be one of/],
+  telegram_status: [{ x: 1 }, /unknown field/],
+  push_status: [{ x: 1 }, /unknown field/],
+  usage: [{ days: 500 }, /"days" must be at most 90/],
+  health: [{ x: 1 }, /unknown field/],
+  style_list: [{ x: 1 }, /unknown field/],
+  style_show: [{}, /"style" is required/],
+  style_feedback: [{}, /"to" is required/],
+  style_suggest: [{ style: 'base' }, /"reason" is required/],
+  outbox_submit: [{}, /"id" is required/],
 };
 
 test('every tool has a name, a short description, a schema, an example valid for it and a profile list', () => {
@@ -113,7 +181,7 @@ test('every tool has a name, a short description, a schema, an example valid for
     const v = validateArgs(t, t.example, {}); assert.ok(v.ok, `${t.name} example: ${v.error}`);
     assert.ok(!('required' in t.schema) || t.schema.required.every((k) => k in t.schema.properties), `${t.name}: required names unknown properties`);
   }
-  assert.ok(TOOLS.length >= 35 && TOOLS.length <= 45, `about 40 tools, got ${TOOLS.length}`);
+  assert.ok(TOOLS.length >= 70 && TOOLS.length <= 90, `about 75 tools with full parity, got ${TOOLS.length}`);
 });
 
 test('coverage: every tool has a call test and a refusal test', () => {
@@ -165,7 +233,7 @@ test('profiles: full has every tool; import and apply_only are small and always 
 
 test('no owner-only action is a tool', () => {
   const names = TOOLS.map((t) => t.name).join(' ');
-  for (const banned of ['sql', 'password', 'rekey', 'backup', 'vault', 'connector', 'style_analyse', 'project_add', 'approve', 'send_mail', 'trash_delete', 'trash_empty', 'task_delete']) assert.ok(!names.includes(banned), banned);
+  for (const banned of ['sql', 'password', 'rekey', 'backup', 'vault', 'connector', 'style_analyse', 'project_add', 'approve', 'send_mail', 'trash_delete', 'trash_empty', 'task_delete', 'push_test', 'telegram_bind', 'style_try']) assert.ok(!names.split(' ').includes(banned) && !names.includes(banned + '_'), banned);
   assert.ok(byName.confirm.description.includes('Nothing is deleted until he presses yes'));
 });
 

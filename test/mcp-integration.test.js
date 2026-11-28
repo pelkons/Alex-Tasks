@@ -139,6 +139,53 @@ test('the real MCP server against the real API: every tool is called for real', 
     await ok('outbox_update', { id: draft.id, body: 'Hi Ron, I will send the plans by the end of today.' });
     await ok('outbox_cancel', { id: draft.id });
 
+
+    // ---- parity tools: the rest of the CLI
+    const reached = async (name, args) => { called.add(name); const r = await callTool(name, args); assert.ok(!/Route .* not found/i.test(r.text) && !/^\w+: "[^"]*" /.test(r.text), `${name} ${JSON.stringify(args)} -> ${r.text}`); return r; };
+    const partial = (await ok('person_add', { name: 'Gil Amit', status: 'partial' })).json;
+    await ok('person_resolve', { person: partial.id, into: ron.id });
+    const p2 = (await app.inject({ method: 'POST', url: '/api/projects', headers: await app.ownerH(), payload: { name: 'פרויקט זמני' } })).json();
+    assert.ok(p2.id, 'p2=' + JSON.stringify(p2) + '|');
+    await ok('project_merge', { from: p2.id, into: proj.id });
+    await reached('project_resolve', { project: 'no such project', into: proj.id });
+    await ok('project_pending', {});
+    assert.ok((await ok('project_profile', { project: proj.id })).json);
+    await ok('project_profile', { project: proj.id, buildings: 2, floors: '8, 12', as_of: '2026-11-24', source: `email:${mail}` });
+    assert.ok((await ok('project_status', { project: proj.id })).json);
+    await ok('project_status', { project: proj.id, process: 'construction', text: 'שלד בקומה 8', as_of: '2026-11-24', source: `email:${mail}` });
+    await ok('fact_set', { project: proj.id, key: 'קבלן שלד', value: 'בנקו', as_of: '2026-11-24', source: `email:${mail}` });
+    const facts = await ok('fact_list', { project: proj.id });
+    assert.ok(facts.text.includes('בנקו'));
+    await ok('fact_topic', { id: (Array.isArray(facts.json) ? facts.json : facts.json.facts).find((f) => f.key === 'קבלן שלד').id, topic: 'construction' });
+    const k2 = (await ok('knowledge_add', { project: proj.id, kind: 'fact', title: 'Crane', body: 'Two cranes' })).json;
+    assert.ok((await ok('knowledge_list', { project: proj.id })).json.length >= 2);
+    await ok('knowledge_update', { id: k2.id, body: 'Three cranes' });
+    await ok('knowledge_supersede', { id: k2.id, title: 'Crane', body: 'Four cranes' });
+    await ok('file_classify', { id: fid, summary: 'חוזה', facts_checked: true });
+    const pr2 = (await ok('protocol_add', { project: proj.id, date: '2026-11-24', title: 'Coordination 15' })).json;
+    assert.ok((await ok('protocol_list', { project: proj.id })).json.length >= 2);
+    const item = (await ok('protocol_item_add', { protocol: pr2.id, kind: 'action', text: 'Send the plans', owner: 'Ron Barak', due: '2026-12-01' })).json;
+    await ok('protocol_item_update', { id: item.id, due: '2026-12-02' });
+    await ok('protocol_item_action', { id: item.id, action: 'promote' });
+    const rule = (await ok('filter_add', { sender: 'noreply@spam.example', action: 'skip' })).json;
+    assert.ok(rule.rule.id && rule.last_30_days);
+    assert.ok((await ok('filter_list', {})).json.length >= 1);
+    await ok('filter_preview', { domain: 'spam.example' });
+    await ok('filter_update', { id: rule.rule.id, enabled: false });
+    await ok('filter_delete', { id: rule.rule.id });
+    await ok('mail_archive', { action: 'status' });
+    await ok('mail_archive', { action: 'estimate', emails: 100 });
+    await ok('telegram_status', {});
+    await reached('push_status', {});
+    await ok('usage', { days: 7 });
+    await ok('health', {});
+    const styles = (await ok('style_list', {})).json;
+    const key = styles.styles[0].key || styles.styles[0].id;
+    await ok('style_show', { style: key });
+    await ok('style_feedback', { to: 'ron@buildco.example' });
+    await reached('style_suggest', { style: key, reason: 'He shortens my drafts', max_words: 80 });
+    await reached('outbox_submit', { id: 99999 });
+
     // ---- apply (dry and real) and the run summary
     const dry = await ok('apply', { dry: true, email: mail, decisions: [{ task: task.id, action: 'no_change', reason: 'לא קשור' }] });
     assert.ok(dry.json);
@@ -157,7 +204,6 @@ test('the real MCP server against the real API: every tool is called for real', 
     assert.ok(ask.json);
     assert.equal((await ok('show', { kind: 'task', id: task.id })).json.id, task.id, 'the task still exists');
     await ok('confirm', { kind: 'project_delete', id: proj.id, tasks: 'unassign' });
-    await refused('confirm', { kind: 'trash_empty' }, /The server refused \(HTTP 400\)/); // the bin is empty
     const cal2 = (await ok('calendar_add', { title: 'Temp', start: '2026-12-02 10:00' })).json;
     await ok('calendar_delete', { id: cal2.id });
     assert.ok((await ok('confirm', { kind: 'trash_empty' })).json, 'emptying the bin only asks the owner');

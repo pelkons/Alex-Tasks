@@ -34,6 +34,7 @@ test('tools/list: the profile decides the tools; status and priority show the cu
   assert.equal(upd.inputSchema.properties.status.lookup, undefined);
   assert.equal(upd.inputSchema.properties.due.expect, undefined);
   assert.deepEqual(upd.inputSchema.required, ['id']);
+  assert.equal(upd.inputSchema.additionalProperties, undefined);
   const imp = (await createMcpServer({ profile: 'import', api: createApi({ base: 'http://x.example', token: 't', fetchImpl: fakeFetch(BOOT) }) }).handle(rpc(1, 'tools/list'))).result.tools.map((t) => t.name);
   assert.deepEqual(imp.sort(), ['apply', 'ask', 'file_list', 'person_find', 'project_list', 'run_summary', 'search', 'show', 'task_list']);
   const unknown = createMcpServer({ profile: 'bogus', api: createApi({ token: 't', fetchImpl: fakeFetch(BOOT) }) });
@@ -42,7 +43,7 @@ test('tools/list: the profile decides the tools; status and priority show the cu
 
 test('the tool list stays small: it is sent on every run', async () => {
   const list = JSON.stringify((await server(BOOT).handle(rpc(1, 'tools/list'))).result.tools);
-  assert.ok(list.length < 22000, `the full list is ${list.length} characters`);
+  assert.ok(list.length < 30000, `the full list is ${list.length} characters`);
 });
 
 test('a status that is not in the lookups is refused before the call, with the names', async () => {
